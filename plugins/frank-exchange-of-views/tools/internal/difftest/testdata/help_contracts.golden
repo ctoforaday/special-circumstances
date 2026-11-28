@@ -69,7 +69,7 @@ Flags:
 $ feov-record --seat-id red-lens-evidence --help
 exit 0
 stdout:
-feov-record — red lens seats — findings, source readings, computation re-runs; mints its own gaps and, as the originator, regrades and closes them.
+feov-record — red lens seats — source readings, computation re-runs; mints each defect it finds as a gap and, as the originator, regrades and closes it.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -82,13 +82,13 @@ Usage:
   feov-record [command]
 
 Available Commands:
+  amend       restate your own open gap's wording — its problem, required fix, acceptance check or prescription — with your reason
   close       close a gap with the verification you did THIS sitting, naming what you checked it against
-  closing     your closing argument on a docketed gap you minted — owed once per docketing, before the bench rules it
+  closing     your closing argument on a docketed gap of yours, with your text — owed once per docketing, before the bench rules it
   fetch       cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
-  finding     a defect in the TEXT, when the problem is the writing itself or there is nothing to go and fetch
   help        Help about any command
   log         an entry for the operator who can retool you — what it asserts, said in the positive
-  mint        turn lens findings into a graded gap on the board, when a defect is real and belongs there
+  mint        record a defect you found as a graded gap on the board — a small one graded below medium
   register    NOT needed to look, only to RECORD — once per sitting, before your first record
   regrade     move a grade on a gap that already exists, or keep it, with your reason
   render-page draw one page of a cached PDF, to check a citation of OCR text against the page's pixels
@@ -97,7 +97,7 @@ Available Commands:
 
 Command groups — each holds commands THIS page does not list:
   inquiry     judge an inquiry blue settled — `check` records that its latest fate stands as the report's account of it
-  motion      file and rule on a motion — grade (the chair rules), petition (the bench rules), docket (the bench rules), position (the bench rules). One mechanism, one id.
+  motion      file and rule on a motion — petition (the bench rules), docket (the bench rules), position (the bench rules). One mechanism, one id.
   question    judge a question part's coverage — `check` records that it stands as the report's account of that part of the question
   show        read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
@@ -138,7 +138,7 @@ Available Commands:
 
 Command groups — each holds commands THIS page does not list:
   inquest     READ THE RECORD YOURSELF — what each side argued, what was contested and how it was ruled, and how the numbers moved. You rule between two parties; you take neither one's account of them
-  motion      file and rule on a motion — grade (the chair rules), petition (the bench rules), docket (the bench rules), position (the bench rules). One mechanism, one id.
+  motion      file and rule on a motion — petition (the bench rules), docket (the bench rules), position (the bench rules). One mechanism, one id.
   show        read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
@@ -168,10 +168,10 @@ Usage:
 
 Available Commands:
   cite        attach a source to a sentence, when a claim needs evidence a reader can follow to the leaf
-  closing     blue-respond's closing argument on a docketed gap, owed once per docketing; no other blue seat files one
+  closing     blue-respond's closing on a docketed gap, with its word — owed once per docketing; no other blue seat files one
   compute     settle a claim by RUNNING something, when computing the answer beats arguing about it
   edit        change the report — the only path into report.md, and how every repair lands
-  engage      when a gap you sat on was already closed and the record names its successor, engage your next sitting on that successor
+  engage      in the last epoch you answer in, engage your next sitting on the gaps of yours minted after your dispatch
   fetch       cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
   help        Help about any command
   log         an entry for the operator who can retool you — what it asserts, said in the positive
@@ -180,7 +180,7 @@ Available Commands:
 
 Command groups — each holds commands THIS page does not list:
   inquiry     propose a question the research could take up, and say what became of it — `propose` one, `record` the fate of one you proposed
-  motion      file and rule on a motion — grade (the chair rules), petition (the bench rules), docket (the bench rules), position (the bench rules). One mechanism, one id.
+  motion      file and rule on a motion — petition (the bench rules), docket (the bench rules), position (the bench rules). One mechanism, one id.
   question    split the question the run was asked into question parts, and record how the report covers each — `split` splits one out, `cover` records its coverage
   show        read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
@@ -218,11 +218,10 @@ Available Commands:
   log         an entry for the operator who can retool you — what it asserts, said in the positive
   outcome     stamp how the run ENDED, as a fact — a different question from the chair's PASS
   register    NOT needed to look, only to RECORD — once per sitting, before your first record
-  regrade     set a gap's grade while a docket motion on it stands before you unruled — before you rule the motion
 
 Command groups — each holds commands THIS page does not list:
   inquest     READ THE RECORD YOURSELF — what each side argued, what was contested and how it was ruled, and how the numbers moved. You rule between two parties; you take neither one's account of them
-  motion      file and rule on a motion — grade (the chair rules), petition (the bench rules), docket (the bench rules), position (the bench rules). One mechanism, one id.
+  motion      file and rule on a motion — petition (the bench rules), docket (the bench rules), position (the bench rules). One mechanism, one id.
   show        read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:

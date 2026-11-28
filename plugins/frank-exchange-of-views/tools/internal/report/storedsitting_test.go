@@ -39,7 +39,7 @@ func registersUnder(t *testing.T, seat, agent, n string) *record.Event {
 // The fixture is that run's shapes in miniature:
 //   - red-lens-voice: a bracket-only sitting, a bracket with a register that joins it and a second
 //     register in the same sitting, then a bracket-only sitting in which it files a docket motion,
-//     a finding and a log — its THIRD stored sitting, and its second by any count of registers;
+//     and a log — its THIRD stored sitting, and its second by any count of registers;
 //   - red-chair: a bracketed sitting its register joins (epoch 1), then a bracket-only sitting
 //     (epoch 2), so every act after it is in epoch 2 and a count of chair registers says 1;
 //   - blue-respond: one sitting.
@@ -60,9 +60,9 @@ func TestEveryPrintedEpochAndSittingIsTheStoredOne(t *testing.T) {
 		recordtest.At(t, "red-lens-voice", "red-lens-voice:motion:M1", &recordpb.Motion{
 			MotionId: proto.String("M1"),
 			Basis:    proto.String("red cannot settle G1"),
-			Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}}}),
-		recordtest.At(t, "red-lens-voice", "red-lens-voice:finding:F1", &recordpb.Finding{
-			Id: proto.String("F-00000001"), Text: proto.String("the voice slips")}),
+			Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}},
+			Act: &recordpb.Motion_Regrade{Regrade: &recordpb.Regrade{GapId: proto.String("G1"),
+				Severity: recordpb.Grade_GRADE_LOW.Enum(), Basis: proto.String("the harm needs two failures")}}}),
 		recordtest.At(t, "red-lens-voice", "red-lens-voice:log:#1", &recordpb.Log{Text: proto.String("the tool refused"),
 			Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}),
 		registersUnder(t, "blue-respond", "B1", "#1"), // blue sitting 1, epoch 2
@@ -106,17 +106,6 @@ func TestEveryPrintedEpochAndSittingIsTheStoredOne(t *testing.T) {
 		unmarshal(t, must(t)(record.MotionsJSONBytes(run)), &mj)
 		if len(mj.Motions) != 1 || mj.Motions[0].Epoch != 2 {
 			t.Errorf("show motions = %+v, want M1 at epoch 2", mj.Motions)
-		}
-	})
-
-	t.Run("the findings view", func(t *testing.T) {
-		var fj record.FindingsJSON
-		unmarshal(t, must(t)(record.FindingsJSONBytes(run)), &fj)
-		if len(fj.Findings) != 1 || fj.Findings[0].Epoch != 2 {
-			t.Errorf("show findings = %+v, want F-00000001 at epoch 2", fj.Findings)
-		}
-		if got := record.FindingsJSONOf(fam.Events, fam.At).Findings; len(got) != 1 || got[0].Epoch != 2 {
-			t.Errorf("the findings fold over the family = %+v, want F-00000001 at epoch 2", got)
 		}
 	})
 

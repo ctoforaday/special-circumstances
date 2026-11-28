@@ -35,11 +35,10 @@ A **GATED** variant fails the gate wherever it appears, unless a mask blanks it 
 | [OCR-derived text](#ocr-derived-text) | lens, blue, lane, operator |
 | [anchor](#anchor) | lens, chair, blue, lane, bench, operator |
 | [computation](#computation) | lens, chair, blue, lane, bench, operator |
-| [finding anchor](#finding-anchor) | lens, chair, blue, lane, bench, operator |
 | [verdict](#verdict) | lens, chair, blue, lane, bench, operator |
 | [outcome](#outcome) | lens, chair, blue, lane, bench, operator |
-| [finding](#finding) | lens, chair, blue, lane, bench, operator |
 | [gap](#gap) | lens, chair, blue, lane, bench, operator |
+| [assignee](#assignee) | lens, chair, blue, bench, operator |
 | [material](#material) | lens, chair, blue, lane, bench, operator |
 | [blocker](#blocker) | lens, chair, bench |
 | [current item](#current-item) | lens, chair, blue, bench, operator |
@@ -51,9 +50,10 @@ A **GATED** variant fails the gate wherever it appears, unless a mask blanks it 
 | [report read](#report-read) | lens, chair, bench, operator |
 | [disposition](#disposition) | lens, chair, blue, lane, bench, operator |
 | [grade movement](#grade-movement) | lens, chair, bench, operator |
-| [grade motion](#grade-motion) | lens, chair, blue, lane, bench, operator |
+| [docketing](#docketing) | lens, chair, blue, bench, operator |
+| [tombstone](#tombstone) | lens, chair, blue, bench, operator |
+| [estopped](#estopped) | lens, chair, blue, bench, operator |
 | [relief](#relief) | lens, chair, blue, lane, bench, operator |
-| [new grounds](#new-grounds) | lens, chair, blue, lane, bench, operator |
 | [scorecard](#scorecard) | lens, chair, blue, lane, bench, operator |
 | [occasion](#occasion) | bench |
 | [inquiry](#inquiry) | lens, chair, blue, lane, bench, operator |
@@ -62,7 +62,6 @@ A **GATED** variant fails the gate wherever it appears, unless a mask blanks it 
 | [unchecked](#unchecked) | lens, chair, blue, lane, operator |
 | [failed check](#failed-check) | lens, chair, blue, lane, bench, operator |
 | [reading debt](#reading-debt) | lens, chair, blue, lane, bench, operator |
-| [superseded](#superseded) | lens, chair, blue, bench, operator |
 
 ## the report
 
@@ -173,7 +172,7 @@ A failed sitting is a sitting of a seat whose work arrives as items that closed 
 
 ## exchange
 
-An exchange is blue's sitting on one gap followed by its minting lens's audit of the answer, and k-max counts them.
+An exchange is blue's sitting on one gap followed by its assignee's audit of the answer, and k-max counts them.
 
 **Delivered to:** lens, chair, blue, lane, bench, operator
 
@@ -197,7 +196,7 @@ A side is red or blue: red audits the report and passes or fails it, blue resear
 
 ## lens
 
-A lens is a red seat that audits the report for one class of defect, and the only seat that files findings and mints gaps.
+A lens is a red seat that audits the report for one class of defect, and the only seat that mints gaps.
 
 **Delivered to:** lens, chair, blue, lane, bench, operator
 
@@ -207,7 +206,7 @@ A lens is a red seat that audits the report for one class of defect, and the onl
 
 ## chair
 
-The chair is red's running seat: it asks the record who sits, rules blue's motions, spot-checks the stale areas before a PASS and records red's PASS.
+The chair is red's running seat: it asks the record who sits, spot-checks the stale areas before a PASS and records red's PASS.
 
 **Delivered to:** lens, chair, blue, lane, bench, operator
 
@@ -371,7 +370,7 @@ OCR-derived text is a machine's reading of a scanned document's page images: det
 
 ## anchor
 
-An anchor is the invisible token a citation, a computation, a finding or a gap leaves at its sentence in the report; a citation's or computation's is an evidence anchor, and no anchor stands bare: one leaves the report with its sentence when an edit cuts it, or alone by retire, its sentence kept.
+An anchor is the invisible token a citation, a computation or a gap leaves at its sentence in the report; a citation's or computation's is an evidence anchor, and no anchor stands bare: one leaves the report with its sentence when an edit cuts it, or alone by retire, its sentence kept.
 
 **Delivered to:** lens, chair, blue, lane, bench, operator
 
@@ -380,22 +379,6 @@ An anchor is the invisible token a citation, a computation, a finding or a gap l
 A computation is a program blue ran and recorded as evidence: its bundle, stored by its sha256, with the output and exit status of its run, and a basis — `reproducible` when two runs wrote the same bytes, `variant` when they differed and blue stated what holds across them.
 
 **Delivered to:** lens, chair, blue, lane, bench, operator
-
-## finding anchor
-
-A finding anchor is the anchor a lens's finding leaves at the sentence the finding is about.
-
-**Delivered to:** lens, chair, blue, lane, bench, operator
-
-**Not:**
-
-| variant | kind | pattern | masks | allowed in |
-|---|---|---|---|---|
-| finding-marker, marker layer | GATED | `finding markers?\|marker layer` |  |  |
-
-**Collisions:**
-
-- **marker** — the `.run-live` marker and the manual's `→ SHARED` marker keep the word
 
 ## verdict
 
@@ -416,19 +399,6 @@ The outcome is how the run ended: VERIFIED, QUALIFIED, CEILING, HALTED or UNVERI
 
 **Delivered to:** lens, chair, blue, lane, bench, operator
 
-## finding
-
-A finding is a lens's recorded observation of a defect in the report, or of a dispute with a gap already on the board, graded and not yet minted.
-
-**Delivered to:** lens, chair, blue, lane, bench, operator
-
-**Not:**
-
-| variant | kind | pattern | masks | allowed in |
-|---|---|---|---|---|
-| finding (a complaint about the tooling) | GATED | `\bfinding about the tooling\b` |  |  |
-| finding (a capture-audit failure) | GATED | `\bfinding against you\b` |  |  |
-
 ## gap
 
 A gap is a defect in the report that changes a conclusion or a decision a reader makes, minted onto the board by a lens.
@@ -438,6 +408,12 @@ A gap is a defect in the report that changes a conclusion or a decision a reader
 **Collisions:**
 
 - **gap** — a parity gap between two numbers is ordinary English; a missing tool is a missing capability
+
+## assignee
+
+An assignee is the seat whose gap it is: the lens that minted the gap — it takes its author's proposal on the gap by its own act or leaves it for the bench, and owes the gap's closing.
+
+**Delivered to:** lens, chair, blue, bench, operator
 
 ## material
 
@@ -467,7 +443,7 @@ A seat's current item is the one entry of its queue it is handed in full — rep
 
 ## reading
 
-A reading is a lens's recorded account of what one source did for one sentence of the report — `verify` of a citation, or of a source the lens found — with its outcome, its confidence and its reason; it reads the work unless the source was unreachable or the copy the tool stamped is not the work, and it holds nothing by itself: a gap a lens mints on it is the finding — about the citation for a cited source's defect, quoting the sentence for a found source's — and a reading that finds the source against the sentence is its lens's reading debt until that gap stands.
+A reading is a lens's recorded account of what one source did for one sentence of the report — `verify` of a citation, or of a source the lens found — with its outcome, its confidence and its reason; it reads the work unless the source was unreachable or the copy the tool stamped is not the work, and it holds nothing by itself: a gap a lens mints on it is the defect on the record — about the citation for a cited source's defect, quoting the sentence for a found source's — and a reading that finds the source against the sentence is its lens's reading debt until that gap stands.
 
 **Delivered to:** lens, chair, blue, lane, bench, operator
 
@@ -524,7 +500,7 @@ A report read is the record's evidence that the tool delivered report text into 
 
 ## disposition
 
-A disposition is the bench's ruling value on a docketed gap, and it decides whether the gap closes.
+A disposition is the closing word a closing records, and it decides whether the gap closes; on a bench closure it is the statement of the side the bench sided with.
 
 **Delivered to:** lens, chair, blue, lane, bench, operator
 
@@ -545,26 +521,35 @@ A disposition is the bench's ruling value on a docketed gap, and it decides whet
 
 ## grade movement
 
-Grade movement is the change a lens's regrade makes to a gap's severity, likelihood or impact, weighed as the difference in mass between the two grades in either direction, and once the open gaps' movement no docket ruling on its gap has followed totals more than 2.0 the dispatch dockets each such gap for the bench and a PASS waits for its ruling; the bench's own regrade is the grade its ruling sets and is no movement.
+Grade movement is the change a lens's regrade makes to a gap's severity, likelihood or impact, weighed as the difference in mass between the two grades in either direction, and once the open gaps' movement no bench ruling on its grades has followed totals more than 2.0 the dispatch dockets each such gap for the bench and a PASS waits for its ruling, which keeps the moved grades or restores the prior ones; the bench's regrade the tool writes in a ruling's transaction is no movement.
 
 **Delivered to:** lens, chair, bench, operator
 
 **Collisions:**
 
-- **movement (an exchange's)** — an exchange moves its gap when the gap's grade, its anchored text or its lineage changes, blue places a citation or computation as its answer or records a fate on its inquiry, or it closes, which is what impasse counts; grade movement is the regrade part of that alone, weighed in mass
+- **movement (an exchange's)** — an exchange moves its gap when the gap's grade changes, an act naming the gap as its answer changes its anchored text, places a citation or computation as its answer or changes the inquiry, section or question part it is about, or it closes, which is what impasse counts; a change to what the gap is about that names no gap is its lens's turn and moves nothing; grade movement is the regrade part of that alone, weighed in mass
 
-## grade motion
+## docketing
 
-A grade motion is a motion contesting a gap's grade, filed by any seat but the chair, which rules it.
+A docketing is the tool's record that a gap is before the bench, and why — written by the dispatch at impasse, for the open gaps' grade movement, or for the author's proposal its raiser did not take in its window, and filed by no seat — which the bench rules once, by siding with a party or remanding it, and while it stands the gap takes no proposal and its parties owe it their closings.
 
-**Delivered to:** lens, chair, blue, lane, bench, operator
+**Delivered to:** lens, chair, blue, bench, operator
 
-**Not:**
+**Collisions:**
 
-| variant | kind | pattern | masks | allowed in |
-|---|---|---|---|---|
-| grade dispute | GATED | `grade disputes?` |  |  |
-| grade_disputes (the envelope key) | GATED | `grade_disputes` |  |  |
+- **docket motion** — a docket motion is a party's proposal of an act on a gap; a docketing is the tool's record that the gap is before the bench, and holds a proposal only when the proposal's window ended unaccepted
+
+## tombstone
+
+A tombstone is the row the tool writes on a gap a bench ruling decided, for either side, and on a gap whose stated text blue applied verbatim: while a ruling's stands, a mint of the gap's class on its sentence, inquiry, citation, question part or section and every proposal on the gap are refused, and blue's reword or cut of the sentence, a reword, cut or retire of the anchor the gap is about, the inquiry's next fate or the question part's next coverage ends it; the bench's application ends none.
+
+**Delivered to:** lens, chair, blue, bench, operator
+
+## estopped
+
+An estopped gap is one a standing ruling tombstone protects, which the work list names with the ruling and the act that ends it, and which no seat may re-raise while it stands.
+
+**Delivered to:** lens, chair, blue, bench, operator
 
 ## relief
 
@@ -575,12 +560,6 @@ Relief is the order the bench records when it grants a petition: what the seats 
 **Collisions:**
 
 - **relief sought** — the petitioner's ask, on the filing; relief is what the bench ordered on the ruling
-
-## new grounds
-
-New grounds are what a docket motion on a gap the bench ruled closed names to be admitted: an act recorded after the ruling and about the gap, located by its id or by a quote of report text an edit answering the gap wrote since, which the tool checks.
-
-**Delivered to:** lens, chair, blue, lane, bench, operator
 
 ## scorecard
 
@@ -622,6 +601,10 @@ An inquiry is one question the research could take up — proposed by blue with 
 
 **Delivered to:** lens, chair, blue, lane, bench, operator
 
+**Collisions:**
+
+- **superseded (an inquiry's record or a bench statement)** — a later record of the same thing standing in its place; not a gap's fate
+
 ## question part
 
 A question part is one part of the question the run was asked — split out by blue in the subject's terms, recorded with its coverage: covered where the report answers it, not obtained where the sources that would answer it could not be obtained, excluded where it lies outside the report's answer — judged open while it has no coverage, which holds the PASS until blue records one, as a question split into no part does; wanting while an open material gap is about it; unchecked once covered with no check standing, which holds the PASS until the logic lens checks its latest coverage; and sound while that check stands, a PASS over any part not covered deriving QUALIFIED.
@@ -636,7 +619,7 @@ A citation or computation is reopened when a rewrite changes its sentence after 
 
 **Collisions:**
 
-- **reopen (a gap)** — minting a successor over a closed gap reopens the gap, and a ruling's `reopens_on` says what would: neither is a reopened citation or computation
+- **reopen (a gap)** — a ruling's `reopens_on` says what would reopen the question it decided; it is not a reopened citation or computation, and a closed gap stays closed
 - **`reopened` (the edit's field)** — an edit's `reopened` lists every anchor whose sentence the edit changed and that still stands, of any kind, and `show work`'s `edited_since` reads it; only a citation or computation among them, checked before the edit, is reopened. An anchor a cut took is in the edit's `removed_anchors`, never its `reopened`
 
 ## unchecked
@@ -656,21 +639,3 @@ A failed check is a standing check of a citation or computation that failed — 
 A reading debt is a lens's standing reading that finds a source against its sentence — a citation's source that refutes the sentence or says nothing of it, or a source the lens found that refutes the sentence it was read against — with no gap of its class on the subject: the lens's unfinished promise, a PASS blocker on the chair's list with the lens named, which the lens clears by minting that gap on the reading or by reading the subject again, and which blue's edit of the cited sentence, retire of the citation, or removal of the sentence a found source was read against discharges; from the mint on the gap's grade alone holds the PASS.
 
 **Delivered to:** lens, chair, blue, lane, bench, operator
-
-## superseded
-
-A gap is superseded when its own lens mints a successor naming it with `--supersedes` while it is open: that mint closes it in the same act, its purpose passing to the successor — and, for a `source` or `computation` gap that nothing answers yet, its live-answer demand, the successor carrying the same check kind — so it holds no state of its own, its fate reads superseded, and a regrade, close, carry or docket of it is refused naming the successor.
-
-**Delivered to:** lens, chair, blue, bench, operator
-
-**Not:**
-
-| variant | kind | pattern | masks | allowed in |
-|---|---|---|---|---|
-| stranded gap | GATED | `stranded (superseded )?(gaps?\|ancestors?)` |  |  |
-
-**Collisions:**
-
-- **superseded (a closed gap)** — a mint naming a gap already closed is lineage and reopens it in the work's history; it closes nothing, so only the mint that names the gap while it is open supersedes it
-- **`--superseded-by` (close)** — names the gap carrying the regression a repair caused, given only with `repaired_with_regression`; that gap does not supersede the one closed
-- **superseded (an inquiry's record or a bench statement)** — a later record of the same thing standing in its place; not a gap's fate

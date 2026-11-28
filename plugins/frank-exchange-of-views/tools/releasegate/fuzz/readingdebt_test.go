@@ -36,7 +36,7 @@ const (
 const (
 	standingReadingWords = "no standing reading of yours"
 	citedDefectWords     = "is a cited source's defect"
-	estoppelWords        = "estoppel — this gap's location is text red prescribed"
+	estoppelWords        = "estoppel — this gap's location is text you prescribed"
 )
 
 // readingCounts are the reading-and-debt paths' counts, each a tally gate over the sweep
@@ -396,7 +396,7 @@ func (r *runner) oneGapOnReading(seatID, class, out string, args []string, form 
 	switch {
 	case form != standingForm:
 		r.debtDischargedByOpenGap(seatID, subject, standing.ID, args, "cross_form", "the open "+class+" gap "+standing.ID+" in the other form")
-	case standing.MintedBy != seatID:
+	case standing.Assignee != seatID:
 		r.debtDischargedByOpenGap(seatID, subject, standing.ID, args, "other_seat_gap", "another seat's open "+class+" gap "+standing.ID)
 	}
 }
@@ -613,10 +613,10 @@ func (r *runner) debtTriedWords(seatID string) string {
 // leftDebtOnly reports whether seatID's envelope stands refused over reading debts its sitting
 // leaves and nothing else: every item the sitting owes is a reading debt, and the sitting leaves
 // them (debtLeftBy). The mark is spent.
+//
+// A DEBT ON A SUBJECT A FORCED CHAIN RESERVES (reservedDebtSubject) is left whatever the sitting's mark:
+// answerReadingDebt clears none of them, and the chain's end is the debt standing.
 func (r *runner) leftDebtOnly(seatID string) bool {
-	if !r.debtLeftBy(seatID) {
-		return false
-	}
 	w, err := record.WorkOfSeat(r.run(), "lens", seatID)
 	if err != nil {
 		return false
@@ -625,10 +625,15 @@ func (r *runner) leftDebtOnly(seatID string) bool {
 	if len(owed) == 0 {
 		return false
 	}
+	reserved := true
 	for _, it := range owed {
 		if it.Kind != record.ItemKind(record.BlockerReadingDebt) {
 			return false
 		}
+		reserved = reserved && it.Subject != nil && r.reservedDebtSubject(it.Subject.ID)
+	}
+	if !reserved && !r.debtLeftBy(seatID) {
+		return false
 	}
 	r.mu.Lock()
 	delete(r.debtLeft, seatID)
@@ -1062,7 +1067,10 @@ func (r *runner) outcomeReason() (string, bool) {
 }
 
 // crossArmTurn alternates the cross-arm drive's three arms across the whole sweep, so each is driven
-// whichever runs reach it (as applyTurn alternates the verbatim-apply arms).
+// whichever runs reach it (as applyTurn alternates the verbatim-apply arms). THE ANCHOR ARM COMES FIRST:
+// the sweep runs in four processes, each with its own turn, and one whose few draws reached the chain
+// twice never drove the third arm — measured, the anchor arm drew zero across 40 runs while the
+// cross-arms drew nine.
 var crossArmTurn atomic.Int64
 
 // crossArmMints is the one-gap rule's anchor arm and cross-arm, driven as lens seatID on a coin, at
@@ -1085,7 +1093,7 @@ func (r *runner) crossArmMints(seatID string) {
 	if cite == "" || r.isNotTheWorkCite(cite) {
 		return
 	}
-	if why := r.crossArmChain(seatID, cite, int(crossArmTurn.Add(1)%3)); why != "" {
+	if why := r.crossArmChain(seatID, cite, int((crossArmTurn.Add(1)-1)%3)); why != "" {
 		noteEither([]string{"mint"}, "the cross-arm drive stopped: "+why, false)
 	}
 }
@@ -1130,6 +1138,12 @@ func (r *runner) crossArmChain(seatID, cite string, arm int) string {
 	sentence := citedSentence(cur, cite)
 	if sentence == "" {
 		return "citation " + cite + " stands in no one sentence the report holds once"
+	}
+	// THE LIMIT SEED'S SENTENCE IS LEFT ON ITS DEBT (limitArmAnchor): a cross-arm mint about a citation
+	// in it, or quoting it, discharged the debt seed 7's run must end on, on whichever lens's sitting
+	// drew it.
+	if r.limitArmAnchor(sentence) {
+		return "citation " + cite + "'s sentence is the limit seed's, left on its debt"
 	}
 	if r.readThisSitting(seatID, cite) {
 		return "the lens read " + cite + " this sitting already"
@@ -1224,7 +1238,7 @@ func (r *runner) oneURLTwoSentences(seatID string) {
 		if open, _ := r.sameClassAndSubject(classContradicts, quoteArgs(s)); len(open) > 0 {
 			continue
 		}
-		if r.citationGapHolds(cur, s) {
+		if r.citationGapHolds(cur, s) || r.reservedDebtSubject(s) {
 			continue
 		}
 		free = append(free, s)

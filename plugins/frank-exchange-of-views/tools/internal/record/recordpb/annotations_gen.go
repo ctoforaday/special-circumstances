@@ -37,8 +37,6 @@ func generatedAnnotations(enum protoreflect.FullName) []ValueAnnotations {
 		return annotationsInquiryStatus[:]
 	case "feov.record.v1.MotionSubject":
 		return annotationsMotionSubject[:]
-	case "feov.record.v1.GradeRuling":
-		return annotationsGradeRuling[:]
 	case "feov.record.v1.PetitionRuling":
 		return annotationsPetitionRuling[:]
 	case "feov.record.v1.PositionRuling":
@@ -63,10 +61,18 @@ func generatedAnnotations(enum protoreflect.FullName) []ValueAnnotations {
 		return annotationsGradeDimension[:]
 	case "feov.record.v1.PetitionClass":
 		return annotationsPetitionClass[:]
+	case "feov.record.v1.SidedWith":
+		return annotationsSidedWith[:]
+	case "feov.record.v1.MovedGrades":
+		return annotationsMovedGrades[:]
 	case "feov.record.v1.RulingBinds":
 		return annotationsRulingBinds[:]
 	case "feov.record.v1.Occasion":
 		return annotationsOccasion[:]
+	case "feov.record.v1.DocketingCause":
+		return annotationsDocketingCause[:]
+	case "feov.record.v1.TombstoneKind":
+		return annotationsTombstoneKind[:]
 	}
 	return nil
 }
@@ -79,14 +85,13 @@ var annotationsEventType = [...]ValueAnnotations{
 	{Name: "EVENT_TYPE_BLUE_EDIT", Means: "a change to the report, recorded as old and new so the edit itself is auditable"},
 	{Name: "EVENT_TYPE_CERTIFY", Means: "a seat's signed statement about its own work — what it asserts on the record"},
 	{Name: "EVENT_TYPE_CITE", Means: "a source brought into the debate, with the hash of its copy and the time that copy was fetched, which make it re-checkable"},
-	{Name: "EVENT_TYPE_CLOSE", Means: "red closing a gap on a verified repair — red's half of the closing vocabulary"},
-	{Name: "EVENT_TYPE_CLOSING", Means: "a party's argument to the bench on one docketed gap — its minting lens's or blue-respond's"},
+	{Name: "EVENT_TYPE_CLOSE", Means: "a gap's raiser closing it on a verified repair — the raiser's half of the closing vocabulary"},
+	{Name: "EVENT_TYPE_CLOSING", Means: "a party's argument to the bench on one docketed gap — its raiser's or its subject's author's — with the statement of what the subject should become"},
 	{Name: "EVENT_TYPE_DECLARE", Means: "the bench stating a holding that later sittings are expected to apply"},
-	{Name: "EVENT_TYPE_FINDING", Means: "something red found, graded but not yet minted as a gap"},
 	{Name: "EVENT_TYPE_LOG", Means: "an entry addressed to the operator who can retool the seat — a defect, a request or friction — never a clean sitting, which is derived from having sat and filed no log entry"},
 	{Name: "EVENT_TYPE_HALT", Means: "the bench ending the run on a safety, ethics, consent or integrity boundary"},
 	{Name: "EVENT_TYPE_MINT", Means: "a gap put on the board — the act that creates the entity every other act refers to"},
-	{Name: "EVENT_TYPE_MOTION", Means: "a motion filed: a grade contested, a petition to the bench, or a gap docketed for the bench"},
+	{Name: "EVENT_TYPE_MOTION", Means: "a motion filed: a petition to the bench, or a gap docketed with the act the filer proposes"},
 	{Name: "EVENT_TYPE_MOTION_RULE", Means: "the bench's ruling on a filed motion, and whom it binds"},
 	{Name: "EVENT_TYPE_OUTCOME", Means: "the run's terminal act: how it ended and whether the question was answered"},
 	{Name: "EVENT_TYPE_POSITION", Means: "the chair's argument to the bench on what is about no one gap"},
@@ -109,6 +114,9 @@ var annotationsEventType = [...]ValueAnnotations{
 	{Name: "EVENT_TYPE_INQUIRY_CHECK", Means: "the owning lens's judgement that an inquiry's latest fate is sound as the report's account of it, with the reason it holds — a settled inquiry holds the PASS until one stands"},
 	{Name: "EVENT_TYPE_QUESTION_PART", Means: "a question part: one part of the question the run was asked, as blue split it, and each coverage recorded on it — covered, not obtained or excluded, with the reason"},
 	{Name: "EVENT_TYPE_QUESTION_PART_CHECK", Means: "the logic lens's judgement that a question part's latest coverage stands as the report's account of it — every part holds the PASS until one stands"},
+	{Name: "EVENT_TYPE_TOMBSTONE", Means: "the tool marking a gap's text final — a bench ruling but a remand on it, or the author's verbatim application of the raiser's stated text — or ending that mark at the subject's next change by its author; written in the act's own transaction, by no verb"},
+	{Name: "EVENT_TYPE_DOCKETING", Means: "the tool putting a gap before the bench — at impasse, for the board's grade movement, or for the author's proposal its raiser did not accept; written by the dispatch, by no verb"},
+	{Name: "EVENT_TYPE_AMEND", Means: "a gap's minter restating its wording — problem, required fix, acceptance check or prescription — on its open gap, with the reason; the gap keeps its id, and each amend is a version in its history"},
 }
 
 var annotationsGrade = [...]ValueAnnotations{
@@ -186,12 +194,10 @@ var annotationsGapClass = [...]ValueAnnotations{
 var annotationsDisposition = [...]ValueAnnotations{
 	{Name: "DISPOSITION_UNSPECIFIED"},
 	{Name: "DISPOSITION_REPAIRED", Means: "the repair was verified at the leaf and nothing regressed", Closes: DeclaredBool{Declared: true, Value: true}},
-	{Name: "DISPOSITION_REPAIRED_WITH_REGRESSION", Means: "repaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward", Closes: DeclaredBool{Declared: true, Value: true}},
-	{Name: "DISPOSITION_AMENDS_PRIOR", Means: "a defect found BETWEEN two repairs that each closed clean earlier — its lineage is the supersedes the gap was minted with; the close itself carries none and nothing checks it", Closes: DeclaredBool{Declared: true, Value: true}},
-	{Name: "DISPOSITION_NOT_A_DEFECT", Means: "blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be", Closes: DeclaredBool{Declared: true, Value: true}},
+	{Name: "DISPOSITION_NOT_A_DEFECT", Means: "the author argued the gap was wrong and the argument held; nothing was repaired because nothing needed to be", Closes: DeclaredBool{Declared: true, Value: true}},
 	{Name: "DISPOSITION_DEFECT_ACCEPTED", Means: "the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record", Closes: DeclaredBool{Declared: true, Value: true}},
 	{Name: "DISPOSITION_DEFECT_OWED_ELSEWHERE", Means: "a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped", Closes: DeclaredBool{Declared: true, Value: true}},
-	{Name: "DISPOSITION_REMANDED", Means: "NOT a closure: the gap goes back to the debate for ONE more exchange — the dispatch readies blue on it, owing the research direction the ruling states, and its minting lens once blue has acted — a remand closes nothing, so it states a direction and never --final. The exchange begins only when blue records an act on the gap. If it leaves the gap at impasse it is docketed again, to be closed — a second remand at impasse is refused — and if it moves the gap the gap's limits count afresh from it", Closes: DeclaredBool{Declared: true, Value: false}},
+	{Name: "DISPOSITION_REMANDED", Means: "NOT a closure: the gap goes back to the debate for ONE more exchange — the dispatch readies the author of its subject on it, owing the research direction the ruling states, and its raiser once the author has acted — a remand closes nothing, so it states a direction and never --final. The exchange begins only when the author records an act on the gap. If it leaves the gap at impasse it is docketed again, to be closed — a second remand at impasse is refused — and if it moves the gap the gap's limits count afresh from it", Closes: DeclaredBool{Declared: true, Value: false}},
 	{Name: "DISPOSITION_MOOT", Means: "the gap's predicate expired: the claim or artifact it attached to is no longer in the report, so there is nothing left to repair or to argue about — neither not_a_defect nor repaired", Closes: DeclaredBool{Declared: true, Value: true}},
 }
 
@@ -252,16 +258,9 @@ var annotationsInquiryStatus = [...]ValueAnnotations{
 
 var annotationsMotionSubject = [...]ValueAnnotations{
 	{Name: "MOTION_SUBJECT_UNSPECIFIED"},
-	{Name: "MOTION_SUBJECT_GRADE", Means: "you contest a gap's grade on one dimension", RuledBy: "chair"},
 	{Name: "MOTION_SUBJECT_PETITION", Means: "you ask the bench to intervene — the constitutional short-circuit available to any party seat", RuledBy: "bench"},
-	{Name: "MOTION_SUBJECT_DOCKET", Means: "a gap put before the BENCH for disposition: the filer states the case, the bench rules and its word decides the gap's fate", RuledBy: "bench"},
+	{Name: "MOTION_SUBJECT_DOCKET", Means: "the author's proposed act on a gap: its raiser may accept it by its own act at its next sitting, else the bench answers it on the gap's docketing", RuledBy: "bench"},
 	{Name: "MOTION_SUBJECT_POSITION", Means: "a ruling on the chair's position at a sitting that withheld a PASS its plan permitted; the id is the POSITION's own, because the position IS the filing", RuledBy: "bench"},
-}
-
-var annotationsGradeRuling = [...]ValueAnnotations{
-	{Name: "GRADE_RULING_UNSPECIFIED"},
-	{Name: "GRADE_RULING_ACCEPTED", Means: "the filer is right and the grade should move. The ruling moves nothing itself: the gap's originating lens moves it with `regrade`, so say in --reason which grade and to what"},
-	{Name: "GRADE_RULING_REJECTED", Means: "the grade stands. Your --reason is what a seat that disagrees argues against before the bench, so it carries the argument, not the conclusion"},
 }
 
 var annotationsPetitionRuling = [...]ValueAnnotations{
@@ -272,17 +271,17 @@ var annotationsPetitionRuling = [...]ValueAnnotations{
 
 var annotationsPositionRuling = [...]ValueAnnotations{
 	{Name: "POSITION_RULING_UNSPECIFIED"},
-	{Name: "POSITION_RULING_UPHELD", Means: "the objection holds and the debate continues on the work you name: a lens of the cast, a retired one included, readied to audit its area for the defect the position argues, or open gaps, each sent back for one more exchange, begun by blue's act on it and audited by its minting lens after — a remand, and the gap's one remand at impasse. Name one or the other, with --direction stating the work"},
+	{Name: "POSITION_RULING_UPHELD", Means: "the objection holds and the debate continues on the work you name: a lens of the cast, a retired one included, readied to audit its area for the defect the position argues, or open gaps, each sent back for one more exchange, begun by its subject's author's act on it and audited by its raiser after — a remand, and the gap's one remand at impasse. Name one or the other, with --direction stating the work"},
 	{Name: "POSITION_RULING_OVERRULED", Means: "the objection does not hold: the PASS goes back to the chair, whose next sitting owes it: the ruling binds, and a position there is refused. It names no work, and it is refused on a position whose class is always material: the class decides that materiality, so such a position is upheld"},
 }
 
 var annotationsAboutKind = [...]ValueAnnotations{
 	{Name: "ABOUT_KIND_UNSPECIFIED"},
-	{Name: "ABOUT_KIND_SECTION", Means: "a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there"},
+	{Name: "ABOUT_KIND_SECTION", Means: "a report section, by its heading, for something MISSING from it — the anchor a quote cannot provide, because the text you object to is not there; the gap's token ends the heading"},
 	{Name: "ABOUT_KIND_INQUIRY", Means: "an inquiry, by its id: an objection to the inquiry as the record holds it and the report prints it — the REASON it was declined, deferred or abandoned, the METHOD its fate states, or a fate the report's text or a computation contradicts. The steelman duty's own anchor"},
-	{Name: "ABOUT_KIND_GAP", Means: "a gap already on the board, by its id: a dispute with its grade, its fix, or whether it stands"},
 	{Name: "ABOUT_KIND_QUESTION", Means: "the question the run was asked, by a question part's id, or by no id for a part the record does not hold: an objection to the part's coverage as the record states it, or to a part of the question no part covers — class coverage_misstated"},
 	{Name: "ABOUT_KIND_ANCHOR", Means: "a citation or computation, by anchor, whose check failed: a computation judged unsound, a citation whose work went unread, or whose source your reading finds to say otherwise than its sentence — a cited source's defect names the citation, never the sentence"},
+	{Name: "ABOUT_KIND_GAP", Means: "another lens's open gap, by its id: a defect in its printed wording or its grades, which its minter answers"},
 }
 
 var annotationsSourceTextOrigin = [...]ValueAnnotations{
@@ -341,7 +340,7 @@ var annotationsLogType = [...]ValueAnnotations{
 	{Name: "LOG_TYPE_FRICTION", DefinedTerm: "friction", SeatMayFile: DeclaredBool{Declared: true, Value: true}},
 	{Name: "LOG_TYPE_REFUSAL", Means: "the TOOL refused a seat's call, and recorded it as it refused: the command, the flags given (never their values) and the refusal's first line. Recorded by the tool, not filed by the seat; the seat's own entry says what it expected and where the expectation came from", SeatMayFile: DeclaredBool{Declared: true, Value: false}},
 	{Name: "LOG_TYPE_FAILURE", Means: "a call FAILED where no verb could see it. A seat's tool call, recorded under that seat as the harness saw it: the tool, what it was aimed at, and the error's first line. Or the ENGINE's own stop, recorded under `harness` with the error it threw: a run the engine stopped, as against one that was cut off. Recorded by the tool, not filed by a seat; a refusal the record tool gave is `refusal`, not this", SeatMayFile: DeclaredBool{Declared: true, Value: false}},
-	{Name: "LOG_TYPE_ESTOPPEL", Means: "the TOOL refused a mint because the defect lives in text blue applied verbatim from red's own --fix-new. Recorded by the tool, not filed by the seat: argue it on the original gap, or mint with --supersedes so the lineage is explicit", SeatMayFile: DeclaredBool{Declared: true, Value: false}},
+	{Name: "LOG_TYPE_ESTOPPEL", Means: "the TOOL refused a mint because the defect lives in text the author applied verbatim from the prescribing lens's own --fix-new. Recorded by the tool, not filed by the seat: argue it on the original gap, whose minter restates its wording by amending it", SeatMayFile: DeclaredBool{Declared: true, Value: false}},
 }
 
 var annotationsGradeDimension = [...]ValueAnnotations{
@@ -354,10 +353,22 @@ var annotationsGradeDimension = [...]ValueAnnotations{
 
 var annotationsPetitionClass = [...]ValueAnnotations{
 	{Name: "PETITION_CLASS_UNSPECIFIED"},
-	{Name: "PETITION_CLASS_INTEGRITY", Means: "proceeding would require asserting what you believe false, or burying a real finding"},
+	{Name: "PETITION_CLASS_INTEGRITY", Means: "proceeding would require asserting what you believe false, or burying a real defect"},
 	{Name: "PETITION_CLASS_SAFETY", Means: "proceeding would create or conceal a hazard"},
 	{Name: "PETITION_CLASS_ETHICAL", Means: "proceeding would require acting against the interests of someone the run affects"},
 	{Name: "PETITION_CLASS_CONSTITUTIONAL", Means: "the instruction itself conflicts with the rules the run is bound by"},
+}
+
+var annotationsSidedWith = [...]ValueAnnotations{
+	{Name: "SIDED_WITH_UNSPECIFIED"},
+	{Name: "SIDED_WITH_RAISER", Means: "the raiser's position: the statement its closing states, applied by the bench as the act that makes the subject what the raiser stated"},
+	{Name: "SIDED_WITH_AUTHOR", Means: "the author's position: its subject as it stands, with its closing's word, or the proposal it filed"},
+}
+
+var annotationsMovedGrades = [...]ValueAnnotations{
+	{Name: "MOVED_GRADES_UNSPECIFIED"},
+	{Name: "MOVED_GRADES_KEPT", Means: "the window's moved grades stand"},
+	{Name: "MOVED_GRADES_RESTORED", Means: "the gap's recorded prior grades are restored, by a bench regrade the tool writes in the ruling's transaction"},
 }
 
 var annotationsRulingBinds = [...]ValueAnnotations{
@@ -374,4 +385,17 @@ var annotationsOccasion = [...]ValueAnnotations{
 	{Name: "OCCASION_TERMINAL", Means: "the terminal disposition at the exit boundary: what still stands, and every motion left unruled. Nothing can be remanded from here"},
 	{Name: "OCCASION_ASSEMBLE", Means: "assembling the final report by union-copy. The last step of the run"},
 	{Name: "OCCASION_POSITION", Means: "hearing the chair's position at a sitting that withheld a PASS its plan permitted: upheld names the work the debate continues on, overruled sends the PASS back to the chair. The engine convenes it as soon as nothing is running, when a close's record_read reports a position unheard: in the turn that filed it, at no epoch"},
+}
+
+var annotationsDocketingCause = [...]ValueAnnotations{
+	{Name: "DOCKETING_CAUSE_UNSPECIFIED"},
+	{Name: "DOCKETING_CAUSE_IMPASSE", Means: "the gap's exchanges reached k stalled or k-max in all"},
+	{Name: "DOCKETING_CAUSE_GRADE_MOVEMENT", Means: "the open gaps' grade movement passed its threshold"},
+	{Name: "DOCKETING_CAUSE_PROPOSAL", Means: "the author's proposal its raiser did not accept in its window"},
+}
+
+var annotationsTombstoneKind = [...]ValueAnnotations{
+	{Name: "TOMBSTONE_KIND_UNSPECIFIED"},
+	{Name: "TOMBSTONE_KIND_RULING", Means: "a bench ruling but a remand is final for the ruled gap's subject"},
+	{Name: "TOMBSTONE_KIND_ESTOPPEL", Means: "the author applied the raiser's stated text verbatim, so the prescribing lens may not re-raise the text it prescribed"},
 }

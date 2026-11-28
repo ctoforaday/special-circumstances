@@ -17,10 +17,10 @@ import (
 const remandDirection = "re-derive the figure from the primary table rather than the press summary"
 
 // remandRuling is the bench remanding a docket motion with direction as its stated research direction.
-func remandRuling(motion, direction string) *recordpb.MotionRule {
-	return &recordpb.MotionRule{MotionId: proto.String(motion),
+func remandRuling(docketing, direction string) *recordpb.MotionRule {
+	return &recordpb.MotionRule{
 		Opinion: proto.String("the record cannot settle this yet"), Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
-			Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REMANDED), Principle: proto.String("p"), Tension: proto.String("t"),
+			DocketingId: proto.String(docketing), Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REMANDED), Principle: proto.String("p"), Tension: proto.String("t"),
 			ReviewFlag: proto.String("none"), Settled: proto.String("nothing"), Direction: proto.String(direction)}}}
 }
 
@@ -36,7 +36,7 @@ func (b *stage) sitClosed(seat string) *stage {
 	return b.stop(agent)
 }
 
-// exchangeOn is one exchange on gap: the chair engages the minting lens and blue, and each sits
+// exchangeOn is one exchange on gap: the chair engages the assignee and blue, and each sits
 // once and returns, recording nothing on the gap — a stalled exchange.
 func (b *stage) exchangeOn(gap string) *stage {
 	return b.register("red-chair").dispatch(2, evLens, gap).dispatch(2, "blue-respond", gap).
@@ -44,7 +44,7 @@ func (b *stage) exchangeOn(gap string) *stage {
 }
 
 // actingExchangeOn is the first half of one exchange on gap in which both parties act on it without
-// moving it: the minting lens keeps the grade, and blue records an edit answering it that changes
+// moving it: the assignee keeps the grade, and blue records an edit answering it that changes
 // nothing. It is the remand's exchange when one is owed, because blue acted in it, and the lens's
 // re-audit (reauditOn) is what ends it.
 func (b *stage) actingExchangeOn(gap string) *stage {
@@ -53,20 +53,20 @@ func (b *stage) actingExchangeOn(gap string) *stage {
 	return b.registerAs("blue-respond", agent).edit(gap, "same", "same").stop(agent)
 }
 
-// reauditOn is the chair engaging the minting lens alone on gap and the lens sitting and returning
+// reauditOn is the chair engaging the assignee alone on gap and the lens sitting and returning
 // with nothing recorded on it: the null turn that ends the exchange blue's answer opened.
 func (b *stage) reauditOn(gap string) *stage {
 	return b.register("red-chair").dispatch(2, evLens, gap).sitClosed(evLens)
 }
 
-// lensOnlyExchangeOn is one exchange on gap in which only the minting lens acts: it sits first and
+// lensOnlyExchangeOn is one exchange on gap in which only the assignee acts: it sits first and
 // keeps the grade, and blue sits after it and records nothing on the gap — universe-m35's order. It
 // begins no remand's exchange.
 func (b *stage) lensOnlyExchangeOn(gap string) *stage {
 	return b.lensActs(gap).sitClosed("blue-respond")
 }
 
-// lensActs is the chair dispatching the minting lens and blue on gap, and the lens sitting first and
+// lensActs is the chair dispatching the assignee and blue on gap, and the lens sitting first and
 // keeping the grade.
 func (b *stage) lensActs(gap string) *stage {
 	b.register("red-chair").dispatch(2, evLens, gap).dispatch(2, "blue-respond", gap)
@@ -128,7 +128,7 @@ func workMentions(t *testing.T, run Run, role, seat, frag string) bool {
 // A BENCH REMAND SENDS THE GAP BACK TO THE DEBATE FOR ONE MORE EXCHANGE (#1210, gblock's ruling of
 // 2026-09-29: the code follows the prose), AND THE EXCHANGE BEGINS WITH BLUE (ruled by gblock
 // 2026-10-27 and 2026-10-30). The gap is at impasse and the bench has ruled it, and the next plan
-// readies blue on it — not its minting lens, whose turn comes with blue's act — with the ruling's
+// readies blue on it — not its assignee, whose turn comes with blue's act — with the ruling's
 // direction stated in the plan and on both seats' work lists, so the direction the bench wrote
 // reaches both parties. While that exchange is owed the board is not at its ceiling. Once blue has
 // answered, the plan readies the lens alone on the gap to audit the answer (ruled by gblock
@@ -144,10 +144,10 @@ func TestARemandReadiesBlueForOneMoreExchange(t *testing.T) {
 		t.Fatal(err)
 	}
 	if slices.Contains(gapsOf(plan, evLens), "G1") || !slices.Contains(gapsOf(plan, "blue-respond"), "G1") {
-		t.Fatalf("a remanded gap readies blue on it, and not its minting lens before blue has acted; parties %+v, why %q", plan.Parties, plan.Why)
+		t.Fatalf("a remanded gap readies blue on it, and not its assignee before blue has acted; parties %+v, why %q", plan.Parties, plan.Why)
 	}
-	if _, bench := partyOf(plan, benchSeat); bench || len(plan.ToFile) != 0 {
-		t.Errorf("the remand's exchange is owed, so nothing goes back to the bench yet: parties %+v, to file %v", plan.Parties, plan.ToFile)
+	if _, bench := partyOf(plan, benchSeat); bench || len(docketGaps(plan)) != 0 {
+		t.Errorf("the remand's exchange is owed, so nothing goes back to the bench yet: parties %+v, to file %v", plan.Parties, docketGaps(plan))
 	}
 	if !whyMentions(plan, remandDirection) {
 		t.Errorf("the plan's reason for G1 must carry the ruling's direction %q; why %q", remandDirection, plan.Why)
@@ -213,7 +213,7 @@ func TestARemandLineCarriesItsDirectionAsWritten(t *testing.T) {
 	}
 }
 
-// ONE EXCHANGE, NOT A LOOP. The minting lens and blue sit once on the remanded gap, both act on it,
+// ONE EXCHANGE, NOT A LOOP. The assignee and blue sit once on the remanded gap, both act on it,
 // and nothing moves: the gap is at impasse again, and the plan dockets it for the bench afresh
 // rather than readying the parties a second time. The work lists stop carrying the direction once its
 // exchange is spent.
@@ -228,12 +228,12 @@ func TestAStalledRemandExchangeGoesBackToTheBench(t *testing.T) {
 	}
 	// DOCKETED AGAIN, AND ARGUED AGAIN: its parties are readied for their closings on the new
 	// docketing, engaged on no gap, and the bench sits once neither is awaited.
-	if !slices.Equal(plan.ToFile, []string{"G1"}) || !slices.Contains(plan.Docket, "G1") || slices.Contains(gapsOf(plan, benchSeat), "G1") ||
+	if !slices.Equal(docketGaps(plan), []string{"G1"}) || !slices.Contains(plan.Docket, "G1") || slices.Contains(gapsOf(plan, benchSeat), "G1") ||
 		!slices.ContainsFunc(plan.Why, func(w string) bool {
 			return strings.HasPrefix(w, "G1: docketed — the closing of "+evLens+" and blue-respond")
 		}) {
 		t.Errorf("a remanded gap still at impasse after its exchange is docketed for the bench again, its parties readied for their closings: to file %v, docket %v, parties %+v, why %q",
-			plan.ToFile, plan.Docket, plan.Parties, plan.Why)
+			docketGaps(plan), plan.Docket, plan.Parties, plan.Why)
 	}
 	if plan.Ceiling {
 		t.Errorf("a gap going back to the bench is no ceiling")
@@ -258,12 +258,12 @@ func TestARemandExchangeThatMovesTheGapLeavesItBelowItsLimits(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !whyMentions(plan, "G1: open, material") || !slices.Contains(gapsOf(plan, "blue-respond"), "G1") || len(plan.ToFile) != 0 {
-		t.Errorf("a remand exchange that moved G1 leaves it below its limits: parties %+v, to file %v, why %q", plan.Parties, plan.ToFile, plan.Why)
+	if !whyMentions(plan, "G1: open, material") || !slices.Contains(gapsOf(plan, "blue-respond"), "G1") || len(docketGaps(plan)) != 0 {
+		t.Errorf("a remand exchange that moved G1 leaves it below its limits: parties %+v, to file %v, why %q", plan.Parties, docketGaps(plan), plan.Why)
 	}
 }
 
-// A SITTING THAT DOES NOT TOUCH THE GAP SPENDS NOTHING (gblock, 2026-10-25). The minting lens and blue
+// A SITTING THAT DOES NOT TOUCH THE GAP SPENDS NOTHING (gblock, 2026-10-25). The assignee and blue
 // sit once after the ruling and neither records an act on G1: the remand's exchange is still owed, so
 // the plan readies blue on it again with the direction — and not the lens, whose turn comes with
 // blue's act — nothing goes back to the bench, the stage stays owed and the PASS is held. The next
@@ -274,8 +274,8 @@ func TestASittingThatDoesNotTouchTheGapSpendsNothing(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if slices.Contains(gapsOf(plan, evLens), "G1") || !slices.Contains(gapsOf(plan, "blue-respond"), "G1") || len(plan.ToFile) != 0 {
-		t.Errorf("a null exchange spends nothing, so the remand's exchange is still owed, blue's to begin: parties %+v, to file %v, why %q", plan.Parties, plan.ToFile, plan.Why)
+	if slices.Contains(gapsOf(plan, evLens), "G1") || !slices.Contains(gapsOf(plan, "blue-respond"), "G1") || len(docketGaps(plan)) != 0 {
+		t.Errorf("a null exchange spends nothing, so the remand's exchange is still owed, blue's to begin: parties %+v, to file %v, why %q", plan.Parties, docketGaps(plan), plan.Why)
 	}
 	if want := []RemandOwed{{GapID: "G1", Direction: remandDirection}}; !slices.Equal(plan.RemandOwed, want) {
 		t.Errorf("remand_owed = %+v, want %+v", plan.RemandOwed, want)
@@ -289,8 +289,8 @@ func TestASittingThatDoesNotTouchTheGapSpendsNothing(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !slices.Equal(after.ToFile, []string{"G1"}) || len(after.RemandOwed) != 0 {
-		t.Errorf("the exchange in which blue acted is the remand's, and it left G1 at impasse: to file %v, remand_owed %+v, why %q", after.ToFile, after.RemandOwed, after.Why)
+	if !slices.Equal(docketGaps(after), []string{"G1"}) || len(after.RemandOwed) != 0 {
+		t.Errorf("the exchange in which blue acted is the remand's, and it left G1 at impasse: to file %v, remand_owed %+v, why %q", docketGaps(after), after.RemandOwed, after.Why)
 	}
 
 	// The null exchange is not the remand's, so it cannot hold G1 at impasse: the exchange after it
@@ -300,13 +300,13 @@ func TestASittingThatDoesNotTouchTheGapSpendsNothing(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !whyMentions(below, "G1: open, material") || len(below.ToFile) != 0 {
-		t.Errorf("the remand's exchange moved G1 after a null one, so it is below its limits: to file %v, why %q", below.ToFile, below.Why)
+	if !whyMentions(below, "G1: open, material") || len(docketGaps(below)) != 0 {
+		t.Errorf("the remand's exchange moved G1 after a null one, so it is below its limits: to file %v, why %q", docketGaps(below), below.Why)
 	}
 }
 
 // BLUE'S ENVELOPE IS REFUSED UNTIL IT ACTS ON THE REMANDED GAP (gblock, 2026-10-25), AND THE LENS'S
-// NEVER IS (ruled by gblock 2026-10-30). Blue and the minting lens each sit after the ruling. Blue's
+// NEVER IS (ruled by gblock 2026-10-30). Blue and the assignee each sit after the ruling. Blue's
 // envelope is refused naming the remanded gap and its direction until blue records an act on it — an
 // edit answering it; the lens's act clears nothing for blue. The exchange begins with blue's act, so
 // the lens owes the gap nothing until blue has acted, and its envelope is not held by the remand.
@@ -347,16 +347,16 @@ func TestBlueIsRefusedItsEnvelopeUntilItActsOnTheRemandedGap(t *testing.T) {
 	}
 }
 
-// A REMAND PAST THE LIMIT IS REFUSED, NAMING THE DISPOSITIONS THAT CLOSE THE GAP (gblock,
+// A REMAND PAST THE LIMIT IS REFUSED, NAMING THE ANSWER LEFT: A SIDE OF THE DOCKETING'S PAIR (gblock,
 // 2026-10-25). The bench remanded G1 at impasse; once that remand's exchange left it at impasse — or
-// while the exchange is still owed and a party dockets it again — a remand from another sitting would
+// while the exchange is still owed and the gap is docketed again — a remand from another sitting would
 // be the gap's second at impasse, and nothing would hand its direction to any seat. The bench's work
-// list says so before it rules; a ruling that closes the gap is admitted; a second motion remanded in
-// the sitting that already remanded the gap is the same hearing, and is admitted.
+// list says so before it rules; a ruling that closes the gap is admitted; a second remand in the
+// sitting that already remanded the gap is the same hearing, and is admitted.
 func TestARemandPastTheLimitIsRefused(t *testing.T) {
 	// The bench sits again with its delivery at the head: the ruling is answered by the limit.
 	again := func(st *stage) Run {
-		st.register("red-chair").docketMotion("red-chair", "M2", "G1").
+		st.register("red-chair").docketMotion("red-chair", "D2", "G1").
 			dispatch(2, "judge", "G1").register("judge")
 		return st.served("judge", st.head()).seed()
 	}
@@ -369,11 +369,11 @@ func TestARemandPastTheLimitIsRefused(t *testing.T) {
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			run := c.run(t)
-			err := validateRun(run, "judge", recordpb.EventType_EVENT_TYPE_MOTION_RULE, remandRuling("M2", "a second direction"))
+			err := validateRun(run, "judge", recordpb.EventType_EVENT_TYPE_MOTION_RULE, remandRuling("D2", "a second direction"))
 			if err == nil {
 				t.Fatal("a second remand of G1 at impasse was admitted")
 			}
-			for _, want := range append([]string{"M2", "G1", RemandLimitRule}, ClosingDispositions()...) {
+			for _, want := range []string{"docketing D2", "G1", RemandLimitRule, "answer with a side of the docketing's pair"} {
 				if !strings.Contains(err.Error(), want) {
 					t.Errorf("the refusal does not name %q: %v", want, err)
 				}
@@ -384,7 +384,7 @@ func TestARemandPastTheLimitIsRefused(t *testing.T) {
 			if !workMentions(t, run, "bench", "judge", "a remand of G1 is refused") {
 				t.Errorf("the bench's work list does not say, before it rules, that a remand of G1 is refused")
 			}
-			if err := validateRun(run, "judge", recordpb.EventType_EVENT_TYPE_MOTION_RULE, closingRuling("M2")); err != nil {
+			if err := validateRun(run, "judge", recordpb.EventType_EVENT_TYPE_MOTION_RULE, closingRuling("D2")); err != nil {
 				t.Errorf("a ruling that closes G1 is refused: %v", err)
 			}
 		})
@@ -403,11 +403,12 @@ func TestARemandPastTheLimitIsRefused(t *testing.T) {
 	})
 }
 
-// closingRuling is the bench ruling a docket motion with a disposition that closes its gap.
-func closingRuling(motion string) *recordpb.MotionRule {
-	return &recordpb.MotionRule{MotionId: proto.String(motion),
+// closingRuling is the bench ruling docketing for blue, which states no word: not_a_defect closes its gap.
+func closingRuling(docketing string) *recordpb.MotionRule {
+	return &recordpb.MotionRule{
 		Opinion: proto.String("the exchange settled nothing the record can"), Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
-			Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_DEFECT_ACCEPTED), Principle: proto.String("p"), Tension: proto.String("t"),
+			DocketingId: proto.String(docketing), SidedWith: recordpb.SidedWith_SIDED_WITH_AUTHOR.Enum(),
+			Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_NOT_A_DEFECT), Principle: proto.String("p"), Tension: proto.String("t"),
 			ReviewFlag: proto.String("none"), Settled: proto.String("nothing"), Final: proto.Bool(true)}}}
 }
 
@@ -601,14 +602,14 @@ func TestAMovingRemandExchangeLeavesAKMaxImpasse(t *testing.T) {
 		if err != nil || x["G1"].Stalled != 0 || x["G1"].Exchanges != 2 {
 			t.Fatalf("setup: G1 must reach impasse on kMax with nothing stalled: %+v (err %v)", x["G1"], err)
 		}
-		if !slices.Contains(gapsOf(plan, "blue-respond"), "G1") || len(plan.ToFile) != 0 {
-			t.Errorf("the remand's exchange is owed: parties %+v, to file %v, why %q", plan.Parties, plan.ToFile, plan.Why)
+		if !slices.Contains(gapsOf(plan, "blue-respond"), "G1") || len(docketGaps(plan)) != 0 {
+			t.Errorf("the remand's exchange is owed: parties %+v, to file %v, why %q", plan.Parties, docketGaps(plan), plan.Why)
 		}
 	})
 	t.Run("the remand exchange moves it off impasse", func(t *testing.T) {
 		run, plan := seeded(t, remanded(t).movingExchangeOn("G1").reauditOn("G1"))
-		if slices.Contains(gapsOf(plan, evLens), "G1") || !slices.Contains(gapsOf(plan, "blue-respond"), "G1") || len(plan.ToFile) != 0 || plan.Ceiling {
-			t.Errorf("the remand exchange moved G1, so it is below its limits counted from the ruling: parties %+v, to file %v, why %q", plan.Parties, plan.ToFile, plan.Why)
+		if slices.Contains(gapsOf(plan, evLens), "G1") || !slices.Contains(gapsOf(plan, "blue-respond"), "G1") || len(docketGaps(plan)) != 0 || plan.Ceiling {
+			t.Errorf("the remand exchange moved G1, so it is below its limits counted from the ruling: parties %+v, to file %v, why %q", plan.Parties, docketGaps(plan), plan.Why)
 		}
 		if workMentions(t, run, "chair", "red-chair", "for the bench again") {
 			t.Errorf("the chair's row sends a gap below its limits to the bench")
@@ -616,14 +617,14 @@ func TestAMovingRemandExchangeLeavesAKMaxImpasse(t *testing.T) {
 	})
 	t.Run("kMax counted from the ruling sends it back", func(t *testing.T) {
 		_, plan := seeded(t, remanded(t).movingExchangeOn("G1").movingExchangeOn("G1").reauditOn("G1"))
-		if !slices.Equal(plan.ToFile, []string{"G1"}) || plan.Ceiling {
-			t.Errorf("two exchanges since the ruling reach kMax 2: to file %v, why %q", plan.ToFile, plan.Why)
+		if !slices.Equal(docketGaps(plan), []string{"G1"}) || plan.Ceiling {
+			t.Errorf("two exchanges since the ruling reach kMax 2: to file %v, why %q", docketGaps(plan), plan.Why)
 		}
 	})
 	t.Run("an unmoved remand exchange sends it back at once", func(t *testing.T) {
 		_, plan := seeded(t, remanded(t).actingExchangeOn("G1").reauditOn("G1"))
-		if !slices.Equal(plan.ToFile, []string{"G1"}) || slices.Contains(gapsOf(plan, "blue-respond"), "G1") {
-			t.Errorf("the remand's exchange left G1 unmoved: to file %v, parties %+v, why %q", plan.ToFile, plan.Parties, plan.Why)
+		if !slices.Equal(docketGaps(plan), []string{"G1"}) || slices.Contains(gapsOf(plan, "blue-respond"), "G1") {
+			t.Errorf("the remand's exchange left G1 unmoved: to file %v, parties %+v, why %q", docketGaps(plan), plan.Parties, plan.Why)
 		}
 	})
 }
@@ -654,7 +655,7 @@ func TestTheStoredPlanCarriesTheRemandOwed(t *testing.T) {
 }
 
 // A LENS'S ACT BEFORE BLUE'S BEGINS NO REMAND'S EXCHANGE (ruled by gblock 2026-10-27). The lenses sit
-// before blue in an epoch, so the minting lens acts on the remanded gap first: on universe-m35 its
+// before blue in an epoch, so the assignee acts on the remanded gap first: on universe-m35 its
 // regrade ("Blue has not answered the remand") was counted as the exchange, blue's item vanished when
 // blue's sitting closed, and blue never acted. Here the lens keeps the grade and blue sits without
 // touching G1: the exchange has not begun — the plan readies blue again with the direction, and not
@@ -666,10 +667,10 @@ func TestALensActBeforeBlueLeavesTheRemandExchangeUnbegun(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := []RemandOwed{{GapID: "G1", Direction: remandDirection}}; !slices.Equal(plan.RemandOwed, want) || len(plan.ToFile) != 0 ||
+	if want := []RemandOwed{{GapID: "G1", Direction: remandDirection}}; !slices.Equal(plan.RemandOwed, want) || len(docketGaps(plan)) != 0 ||
 		slices.Contains(gapsOf(plan, evLens), "G1") || !slices.Contains(gapsOf(plan, "blue-respond"), "G1") {
 		t.Errorf("only the lens acted, so the remand's exchange is still owed: remand_owed %+v, to file %v, parties %+v, why %q",
-			plan.RemandOwed, plan.ToFile, plan.Parties, plan.Why)
+			plan.RemandOwed, docketGaps(plan), plan.Parties, plan.Why)
 	}
 	for _, seat := range []struct{ role, id string }{{"lens", evLens}, {"blue", "blue-respond"}, {"chair", "red-chair"}} {
 		if got := remandStageOn(t, run, seat.role, seat.id, "G1"); got != "owed" {
@@ -688,8 +689,8 @@ func TestALensActBeforeBlueLeavesTheRemandExchangeUnbegun(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !slices.Equal(after.ToFile, []string{"G1"}) || len(after.RemandOwed) != 0 {
-		t.Errorf("blue acted in the next exchange, which is the remand's, and it left G1 at impasse: to file %v, remand_owed %+v, why %q", after.ToFile, after.RemandOwed, after.Why)
+	if !slices.Equal(docketGaps(after), []string{"G1"}) || len(after.RemandOwed) != 0 {
+		t.Errorf("blue acted in the next exchange, which is the remand's, and it left G1 at impasse: to file %v, remand_owed %+v, why %q", docketGaps(after), after.RemandOwed, after.Why)
 	}
 }
 
@@ -842,5 +843,57 @@ func TestAnEditBeforeTheRemandDoesNotAnswerIt(t *testing.T) {
 	st.more().registerAs("blue-respond", "blue-edits-after").edit("G1", "old after", "new after").stop("blue-edits-after").seed()
 	if !workMentions(t, run, "lens", evLens, answered) {
 		t.Errorf("blue edited G1 after the remand, and the lens's list does not say it was answered")
+	}
+}
+
+// A REMAND OF AN OPEN GAP IS ADMITTED, material or not.
+func TestARemandOfAnOpenGapIsAdmitted(t *testing.T) {
+	for _, grade := range []string{"high", "low"} {
+		st := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
+			register("red-chair").dispatch(2, evLens).sitClosed(evLens).mint(evLens, "G1", grade)
+		run := st.register("red-chair").docketMotion("red-chair", "D1", "G1").dispatch(2, "judge", "G1").register("judge").seed()
+		if err := validateRun(run, "judge", recordpb.EventType_EVENT_TYPE_MOTION_RULE, remandRuling("D1", remandDirection)); err != nil {
+			t.Errorf("a remand of an open gap graded %s is refused: %v", grade, err)
+		}
+	}
+}
+
+// A GAP ON A GAP: THE REMAND'S ITEM BLOCKS ITS AUTHOR, the minter of the gap it is about (X17). H1,
+// the other lens's gap on G1, stalls at impasse and is remanded: the remand's exchange begins with
+// G1's minter's act, so its item blocks that lens's sitting and names the acts that answer H1 (an
+// amend or a regrade of G1 naming it); blue's list carries none, and H1's raiser's item does not
+// block.
+func TestARemandOfAGapOnAGapHoldsItsAuthor(t *testing.T) {
+	m := rawMint("H1")
+	m.ClassMaterial = nil
+	m.AboutKind, m.AboutRef = recordpb.AboutKind_ABOUT_KIND_GAP.Enum(), proto.String("G1")
+	st := newStage(t).cast(evLens, otherLens, "red-chair", "blue-respond", "judge").ingest().
+		register("red-chair").dispatch(2, evLens).sitClosed(evLens).mint(evLens, "G1", "high").add(otherLens, m)
+	st.register("red-chair").dispatch(2, otherLens, "H1").dispatch(2, evLens, "H1").sitClosed(otherLens).sitClosed(evLens)
+	st.register("red-chair").dispatch(2, otherLens, "H1").dispatch(2, evLens, "H1").sitClosed(otherLens).sitClosed(evLens)
+	run := st.docketAndRemandWith("M1", "H1", remandDirection).register("red-chair").dispatch(2, evLens, "H1").register(evLens).seed()
+	item := func(role, seat string) *Item {
+		w, err := WorkOfSeat(run, role, seat)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for i, it := range w.Sitting.Open {
+			if strings.Contains(it.What, "gap H1") && strings.Contains(it.What, remandDirection) {
+				return &w.Sitting.Open[i]
+			}
+		}
+		return nil
+	}
+	switch a := item("lens", evLens); {
+	case a == nil:
+		t.Fatalf("G1's minter, H1's author, carries no remand item on H1")
+	case !a.Blocks || !strings.Contains(a.What, "an amend or a regrade of G1 naming it"):
+		t.Errorf("H1's author's remand item blocks %v and reads %q; want blocking, naming the amend or regrade of G1", a.Blocks, a.What)
+	}
+	if r := item("lens", otherLens); r == nil || r.Blocks {
+		t.Errorf("H1's raiser's remand item = %+v, want one that does not block", r)
+	}
+	if b := item("blue", "blue-respond"); b != nil {
+		t.Errorf("blue carries a remand item on H1, a gap blue does not author: %q", b.What)
 	}
 }

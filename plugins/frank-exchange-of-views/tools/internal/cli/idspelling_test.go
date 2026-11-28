@@ -19,20 +19,15 @@ import (
 // here takes an id, each row names one the record holds, and each either takes the spelling and
 // stores the bare id or refuses it for its spelling.
 
-// heldRecord is a run holding a citation, a computation and a finding, with the lens registered.
-func heldRecord(t *testing.T) (runDir, cite, computation, finding string) {
+// heldRecord is a run holding a citation and a computation, with the lens registered.
+func heldRecord(t *testing.T) (runDir, cite, computation string) {
 	t.Helper()
 	runDir = citedRun(t, "https://held/1")
 	cite = citeSentence(t, runDir, "The sky is blue.", "https://held/1")
 	computation = computeSentence(t, runDir, "The grass is green.")
 	registerChairOnce(t, runDir)
 	registerLensOnce(t, runDir)
-	if _, err := run(t, "finding", "--run", runDir, "--seat-id", lensSeat, "--quote", "Water is wet.",
-		"--reason", "the source says otherwise", "--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
-		t.Fatal(err)
-	}
-	finding = lastBody(t, runDir, &recordpb.Finding{}).GetId()
-	return runDir, cite, computation, finding
+	return runDir, cite, computation
 }
 
 func mintWith(t *testing.T, runDir string, extra ...string) (string, error) {
@@ -61,43 +56,37 @@ func refusedForItsSpelling(t *testing.T, err error, value string, says string) {
 }
 
 func TestAboutTakesAnAnchorTokenAndStoresTheBareID(t *testing.T) {
-	runDir, cite, computation, _ := heldRecord(t)
-	for _, c := range []struct{ name, value, stored string }{
-		{"a computation's token", anchor.Token(computation), computation},
-		{"a citation's token", anchor.Token(cite), cite},
-		{"a computation's bare id", computation, computation},
+	for _, c := range []struct {
+		name  string
+		value func(cite, computation string) (value, stored string)
+	}{
+		{"a computation's token", func(_, k string) (string, string) { return anchor.Token(k), k }},
+		{"a citation's token", func(c, _ string) (string, string) { return anchor.Token(c), c }},
+		{"a computation's bare id", func(_, k string) (string, string) { return k, k }},
 	} {
-		t.Run(c.name+" on a finding", func(t *testing.T) {
-			if _, err := run(t, "finding", "--run", runDir, "--seat-id", lensSeat, "--about-kind", "anchor", "--about", c.value,
-				"--reason", "about this", "--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
-				t.Fatal(err)
+		t.Run(c.name+" on a gap", func(t *testing.T) {
+			// A run per case: one class on one anchor is one gap.
+			runDir, cite, computation := heldRecord(t)
+			value, stored := c.value(cite, computation)
+			if out, err := mintWith(t, runDir, "--about-kind", "anchor", "--about", value); err != nil {
+				t.Fatalf("%v\n%s", err, out)
 			}
-			if got := lastBody(t, runDir, &recordpb.Finding{}).GetAboutRef(); got != c.stored {
-				t.Errorf("about_ref is %q, want %q", got, c.stored)
+			if got := lastBody(t, runDir, &recordpb.Mint{}).GetAboutRef(); got != stored {
+				t.Errorf("about_ref is %q, want %q", got, stored)
 			}
 		})
 	}
-	t.Run("a computation's token on a gap", func(t *testing.T) {
-		if out, err := mintWith(t, runDir, "--about-kind", "anchor", "--about", anchor.Token(computation)); err != nil {
-			t.Fatalf("%v\n%s", err, out)
-		}
-		if got := lastBody(t, runDir, &recordpb.Mint{}).GetAboutRef(); got != computation {
-			t.Errorf("about_ref is %q, want %q", got, computation)
-		}
-	})
 }
 
 func TestAboutRefusesAnotherSpellingForItsSpelling(t *testing.T) {
-	runDir, _, computation, finding := heldRecord(t)
+	runDir, _, computation := heldRecord(t)
 	gap, err := mintQuote(t, runDir, "G", "Fire is hot.")
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, c := range []struct{ name, kind, value, says string }{
 		{"the text inside a token's delimiters", "anchor", anchor.Tagged(computation), flags.BareID("K-…")},
-		{"a finding's token", "anchor", anchor.Token(finding), "`F-` is a finding"},
 		{"a gap's id", "anchor", gap, "`G-` is a gap"},
-		{"a gap's token under gap", "gap", anchor.Token(gap), "a gap id is G-"},
 		{"a citation's id under inquiry", "inquiry", anchor.Token(computation), "an inquiry id is Q-"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
@@ -109,30 +98,16 @@ func TestAboutRefusesAnotherSpellingForItsSpelling(t *testing.T) {
 
 // THE EXISTENCE REFUSAL STILL STANDS for an id of the right shape the record does not hold.
 func TestAboutRefusesAWellSpelledIDTheRecordDoesNotHold(t *testing.T) {
-	runDir, _, _, _ := heldRecord(t)
+	runDir, _, _ := heldRecord(t)
 	for _, c := range []struct{ kind, value, says string }{
 		{"anchor", "K-ffffffff", "no citation or computation on this record carries"},
 		{"anchor", anchor.Token("K-ffffffff"), "K-ffffffff, which no citation or computation"},
-		{"gap", "G-ffffffff", "which no mint event created"},
 		{"inquiry", "Q-ffffffff", "--about names inquiry Q-ffffffff, which no inquiry event proposed"},
 	} {
 		if _, err := mintWith(t, runDir, "--about-kind", c.kind, "--about", c.value); err == nil || !strings.Contains(err.Error(), c.says) {
 			t.Errorf("--about-kind %s --about %s answered %v, want %q", c.kind, c.value, err, c.says)
 		}
 	}
-}
-
-func TestMintsListsTakeAnIDByItsShape(t *testing.T) {
-	runDir, _, _, finding := heldRecord(t)
-	if out, err := mintWith(t, runDir, "--quote", "Fire is hot.", "--found-by", anchor.Token(finding)); err != nil {
-		t.Fatalf("--found-by with the finding's token: %v\n%s", err, out)
-	}
-	if got := lastBody(t, runDir, &recordpb.Mint{}).GetFoundBy(); len(got) != 1 || got[0] != finding {
-		t.Errorf("found_by is %q, want the bare id", got)
-	}
-	gap := lastBody(t, runDir, &recordpb.Mint{}).GetGapId()
-	_, err := mintWith(t, runDir, "--quote", "Closing paragraph stays.", "--supersedes", anchor.Token(gap))
-	refusedForItsSpelling(t, err, anchor.Token(gap), "a gap id is G-")
 }
 
 // A RETIRE NAMING AN ANCHOR BY ITS TOKEN RETIRES THAT ANCHOR. The token passed the shape and was then
@@ -160,7 +135,7 @@ func TestEveryIDListFlagHoldsItsItemsToAShape(t *testing.T) {
 					return
 				}
 				switch f.Name {
-				case flags.IDs, flags.Anchor, flags.Supersedes, flags.FoundBy:
+				case flags.IDs, flags.Anchor:
 				default:
 					return
 				}

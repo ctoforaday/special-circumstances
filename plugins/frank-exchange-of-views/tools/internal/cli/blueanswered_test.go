@@ -18,7 +18,7 @@ import (
 // blueAnswers has its own table in internal/record, and a table is not a call site: #1162 shipped a
 // projection field whose own test drove the oracle's entry point while the seat's renderer passed a
 // nil, so the feature reached no seat and every gate was green. This drives `show work` as the
-// MINTING LENS and asserts the item is in the bytes that seat is handed.
+// ASSIGNEE and asserts the item is in the bytes that seat is handed.
 func TestTheLensWorkListSaysWhetherBlueAnswered(t *testing.T) {
 	items := func(t *testing.T, runDir string) []string {
 		t.Helper()
@@ -124,7 +124,7 @@ func TestBlueAnsweredReadsAGoneGapAsMoved(t *testing.T) {
 	}
 	var said bool
 	for _, it := range w.Sitting.Open {
-		if strings.Contains(it.What, "NO edit, citation, computation or changed fate answers it") {
+		if strings.Contains(it.What, "NO edit, citation, computation, fate or question part naming it answers it") {
 			t.Errorf("a gap whose sentence blue cut was reported as unanswered: %q", it.What)
 		}
 		said = said || strings.Contains(it.What, "gap "+id+" is open and its anchor is no longer in the report — judge whether the report as it stands")
@@ -173,7 +173,7 @@ func closeBlueSitting(t *testing.T, runDir string) {
 }
 
 // answeredBoard is the smallest board these arms need: the cast the dispatch verb refuses without,
-// a report with a sentence blue can edit, the chair and the minting lens registered, and one open
+// a report with a sentence blue can edit, the chair and the assignee registered, and one open
 // gap. It mirrors stageEvents and differs in the one thing that matters here — the report has prose
 // in it, because `blue edit` matches --quote against the report and a heading is refused.
 func answeredBoard(t *testing.T) (runDir, gapID string) {

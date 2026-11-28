@@ -21,55 +21,62 @@ import (
 // THE DUTIES ARE THE ONES THE RECORD SAID BEFORE THE DROP. A dropped closing is the chair's, or
 // blue's on a gap no unruled docket motion stood on, and a dropped position is no chair's, so none of
 // them discharged a duty: a tally that moves here means the drop took an argument a duty read. The
-// one exception is a docket on a gap a successor's mint had closed (epoch 62): m29's two, m30's
-// one and mersenne's one are left out as acts on a closed gap, so no closing is owed on them, and
-// their closings are written as none with them.
+// exceptions are Translations 3 and 4's (EventSchema 80): a docket no dispatch filed, an opinion, and a
+// dispatch's docket left on a superseded gap are written as no event, so no closing is owed on them
+// and their closings are refused with them; a docketing a Close ended owes nothing after it, so the
+// closings filed after the close are refused (no docketing stands); and red's closing on a docketing
+// whose question takes text, with no road, is refused (requireClosingStatement), leaving the lens's
+// duty missing where its docketing was ruled or stands. m29's three docketings and m30's one stand on
+// gaps whose supersede link Translation 7 drops or amends, so blue's closings on them come forward and
+// the lens's, refused, leave its duty missing.
 var argumentResidue = map[string]struct {
 	closings, positions int
 	duties, sittings    string
 }{
-	"2026-08-22_is-7-prime":                       {2, 1, "blue:awaited=2,lens:not_owed=2", "not_owed=2"},
-	"2026-08-22_is-7-prime-run2":                  {0, 2, "blue:awaited=7,lens:not_owed=7", "not_owed=2"},
+	"2026-08-22_is-7-prime":                       {2, 1, "", "not_owed=2"},
+	"2026-08-22_is-7-prime-run2":                  {0, 2, "", "not_owed=2"},
 	"2026-08-22_record-store-authority":           {5, 6, "", "not_owed=2"},
-	"2026-08-22_sqlite-schema-source":             {4, 3, "blue:awaited=2,lens:not_owed=2", "not_owed=2"},
-	"2026-08-23_research-loop-counterparts":       {0, 7, "blue:awaited=3,lens:not_owed=3", "not_owed=4"},
-	"2026-08-23_sleeper-service-plan":             {20, 9, "blue:awaited=10,lens:not_owed=10", "not_owed=4"},
-	"2026-09-02_quadratic-formula":                {19, 10, "blue:awaited=17,lens:not_owed=17", "not_owed=5"},
-	"2026-09-09_is-91-prime-a":                    {1, 5, "blue:not_owed=1,lens:not_owed=1", "not_owed=5"},
+	"2026-08-22_sqlite-schema-source":             {4, 3, "", "not_owed=2"},
+	"2026-08-23_research-loop-counterparts":       {0, 7, "", "not_owed=4"},
+	"2026-08-23_sleeper-service-plan":             {20, 9, "", "not_owed=4"},
+	"2026-09-02_quadratic-formula":                {19, 10, "", "not_owed=5"},
+	"2026-09-09_is-91-prime-a":                    {1, 5, "", "not_owed=5"},
 	"2026-09-09_is-91-prime-b":                    {0, 2, "", "not_owed=1"},
-	"2026-09-10_is-91-prime-b3":                   {0, 6, "blue:awaited=1,lens:awaited=1", "not_owed=1"},
+	"2026-09-10_is-91-prime-b3":                   {0, 6, "", "not_owed=1"},
 	"2026-09-11_is-91-prime-b4":                   {0, 4, "", "not_owed=1"},
 	"2026-09-11_is-91-prime-b5":                   {0, 7, "", "not_owed=1"},
-	"2026-09-11_is-91-prime-b6":                   {2, 5, "blue:awaited=2,lens:awaited=2", "not_owed=1"},
+	"2026-09-11_is-91-prime-b6":                   {2, 5, "", "not_owed=1"},
 	"2026-09-11_is-91-prime-b7":                   {0, 5, "", "not_owed=5"},
 	"2026-09-11_is-91-prime-b8":                   {0, 3, "", "not_owed=4"},
 	"2026-09-11_is-91-prime-b9":                   {0, 7, "", "not_owed=6"},
 	"2026-10-09_is-91-prime-wave-a":               {0, 5, "", "not_owed=6"},
 	"2026-10-10_is-91-prime-m19":                  {0, 8, "", "not_owed=10"},
 	"2026-10-11_is-91-prime-m20":                  {0, 2, "", "not_owed=7"},
-	"2026-10-12_is-91-prime-wave-b":               {3, 6, "blue:filed=3,blue:not_owed=1,lens:missing=2,lens:not_owed=2", "not_owed=9"},
+	"2026-10-12_is-91-prime-wave-b":               {6, 6, "", "not_owed=9"},
 	"2026-10-13_is-91-prime-m23":                  {0, 5, "", "not_owed=8"},
-	"2026-10-17_is-91-prime-07d":                  {1, 2, "blue:awaited=1,lens:awaited=1", "not_owed=5"},
+	"2026-10-17_is-91-prime-07d":                  {1, 2, "", "not_owed=5"},
 	"2026-10-17_is-91-prime-final":                {0, 0, "", "not_owed=2"},
 	"2026-10-17_is-91-prime-m26":                  {0, 3, "", "not_owed=8"},
 	"2026-10-17_is-91-prime-m27":                  {0, 5, "", "not_owed=10"},
-	"2026-10-18_is-91-prime-m28":                  {1, 8, "blue:filed=2,lens:not_owed=2", "not_owed=12"},
-	"2026-10-18_is-91-prime-m29":                  {6, 6, "blue:filed=1,blue:not_owed=1,lens:not_owed=2", "not_owed=9"},
+	"2026-10-18_is-91-prime-m28":                  {3, 8, "blue:not_owed=2,lens:not_owed=2", "not_owed=12"},
+	"2026-10-18_is-91-prime-m29":                  {4, 6, "blue:awaited=1,blue:filed=3,lens:missing=4", "not_owed=9"},
 	"2026-10-18_is-91-prime-n1":                   {0, 0, "", "not_owed=2"},
-	"2026-10-19_is-91-prime-m30":                  {2, 3, "", "not_owed=7"},
-	"2026-10-24_is-91-prime-m32":                  {0, 0, "blue:filed=1,lens:filed=1", "filed=1,not_owed=6"},
-	"2026-10-24_is-91-prime-1565":                 {0, 0, "blue:filed=3,blue:not_owed=2,lens:filed=5", "not_owed=12"},
-	"2026-10-27_is-91-prime-m35":                  {0, 0, "blue:filed=8,lens:filed=7,lens:not_owed=1", "not_owed=6"},
+	"2026-10-19_is-91-prime-m30":                  {1, 3, "blue:filed=1,lens:missing=1", "not_owed=7"},
+	"2026-10-24_is-91-prime-m32":                  {2, 0, "blue:not_owed=1,lens:not_owed=1", "filed=1,not_owed=6"},
+	"2026-10-24_is-91-prime-1565":                 {6, 0, "blue:filed=2,blue:not_owed=3,lens:not_owed=5", "not_owed=12"},
+	"2026-10-27_is-91-prime-m35":                  {8, 0, "blue:filed=4,blue:not_owed=2,lens:filed=1,lens:missing=2,lens:not_owed=3", "not_owed=6"},
 	"2026-10-29_is-91-prime-m36":                  {0, 0, "", "not_owed=8"},
-	"2026-10-30_mersenne-31-prime-sum":            {2, 0, "blue:filed=4,lens:filed=4", "not_owed=12"},
-	"2026-11-04_eiffel-tower-height":              {0, 0, "blue:filed=3,lens:filed=3", "not_owed=12"},
-	"2026-11-11_eiffel-tower-height":              {0, 0, "blue:filed=1,lens:filed=1", "not_owed=12"},
+	"2026-10-30_mersenne-31-prime-sum":            {10, 0, "blue:not_owed=1,lens:not_owed=1", "not_owed=12"},
+	"2026-11-04_eiffel-tower-height":              {4, 0, "blue:filed=2,lens:missing=2", "not_owed=12"},
+	"2026-11-11_eiffel-tower-height":              {1, 0, "blue:filed=1,lens:missing=1", "not_owed=12"},
 	"2026-11-12_is-91-prime-1838":                 {0, 0, "", "not_owed=10"},
-	"2026-11-14_is-91-prime-1883":                 {0, 0, "blue:filed=1,lens:filed=1", "not_owed=9"},
+	"2026-11-14_is-91-prime-1883":                 {2, 0, "", "not_owed=9"},
 	"2026-11-10_auditing-constitutions-gap-audit": {0, 0, "", "not_owed=12"},
-	// m37's and m38's duties all stand on gaps a lost ruling names; each is stated as the migrated
-	// fold reads it, which this binary can read and their native records it cannot.
-	"bundle-store/2026-10-31_is-91-prime-m37": {0, 0, "blue:filed=3,blue:not_owed=2,lens:filed=5", "not_owed=12"},
+	// m37's and m38's duties are stated as the migrated fold reads them, which this binary can read and
+	// their native records it cannot. m37's six closings written as no event, and its duties, are the
+	// findings fold's Translations 3, 4 and 7 on its docketings (its rulings 744, 745, 971, 1196 and
+	// 1197 written as no event): the exceptions above, measured identically with the fold alone.
+	"bundle-store/2026-10-31_is-91-prime-m37": {6, 0, "blue:filed=1,blue:not_owed=5,lens:filed=1,lens:missing=1,lens:not_owed=4", "not_owed=12"},
 	"bundle-store/2026-11-04_is-91-prime-m38": {0, 0, "blue:awaited=1,blue:filed=1,lens:awaited=1,lens:filed=1", "not_owed=12"},
 }
 
@@ -124,8 +131,9 @@ func TestEveryArchivedRunDropsOnlyTheArgumentsTheWriteRefuses(t *testing.T) {
 					minter[m.GetGapId()] = e.GetSeatId()
 				}
 			}
+			author := record.AuthorsOn(fam.Events)
 			for _, e := range fam.Events {
-				if c, ok := recordpb.BodyAs[*recordpb.Closing](e); ok && !record.IsClosingParty(e.GetSeatId(), minter[c.GetGapId()]) {
+				if c, ok := recordpb.BodyAs[*recordpb.Closing](e); ok && !record.IsClosingParty(e.GetSeatId(), minter[c.GetGapId()], author(c.GetGapId())) {
 					t.Errorf("the migrated record holds %s's closing on %s, minted by %s — no party's", e.GetSeatId(), c.GetGapId(), minter[c.GetGapId()])
 				}
 				if _, ok := recordpb.BodyAs[*recordpb.Position](e); ok && record.PositionRefusal(e.GetSeatId()) != nil {

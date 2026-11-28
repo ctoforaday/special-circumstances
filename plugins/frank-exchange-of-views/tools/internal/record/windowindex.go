@@ -122,11 +122,10 @@ func eventsAt(q recordsql.Querier) ([]*Event, WindowIndex, error) {
 	return evs, x, nil
 }
 
-// reaching is one gap a removal reaches: the gap, the removed anchor it reaches it through, the gap
-// whose about it is (from): gap itself, or an ancestor it carries the demand from, and the act that
-// took the anchor out (by: anchor_removal's "by", RemovedByRetire or RemovedByEdit).
+// reaching is one gap a removal reaches: the gap, the removed anchor it reaches it through, and the act
+// that took the anchor out (by: anchor_removal's "by", RemovedByRetire or RemovedByEdit).
 type reaching struct {
-	gap, anchor, from, by string
+	gap, anchor, by string
 }
 
 // A REACHING REMOVAL IS BLUE'S ACT ON EACH GAP IT REACHES (gblock, 2026-11-03; serving Closures are
@@ -138,19 +137,16 @@ type reaching struct {
 // and that cut is its raiser's turn (lensTurnActsOf).
 //
 // The gap-to-anchor reach is read through the demand_reach view, its one statement: the anchor a
-// gap is about, and that of every ancestor it carries the demand from, which a removal reaches from
-// the successor's mint. The three reads are joined here rather than in one statement, so a record
+// gap is about. The three reads are joined here rather than in one statement, so a record
 // with no removal reads the first, empty, and stops.
 const (
 	removedAnchorsSQL = `SELECT "event_id", "anchor_id", "by" FROM "anchor_removal" ORDER BY "event_id", "ord"`
-	reachedGapsSQL    = `SELECT "gap_id", "anchor", "reached", "from_gap" FROM "demand_reach" WHERE "anchor" IS NOT NULL
-  ORDER BY "from_gap" <> "gap_id"`
-	firstClosureSQL = `SELECT "gap_id", "closed_event" FROM "gap_state"`
+	reachedGapsSQL    = `SELECT "gap_id", "anchor", "reached" FROM "demand_reach" WHERE "anchor" IS NOT NULL`
+	firstClosureSQL   = `SELECT "gap_id", "closed_event" FROM "gap_state"`
 )
 
 // reachingRemovalsOf is every reaching removal on the record, by the act's events.id, each gap once
-// (the first anchor of the act that reaches it, through the gap's own about or reading before an
-// ancestor's), in gap order.
+// (the first anchor of the act that reaches it), in gap order.
 func reachingRemovalsOf(q recordsql.Querier) (map[int64][]reaching, error) {
 	type removed struct {
 		at         int64
@@ -166,14 +162,14 @@ func reachingRemovalsOf(q recordsql.Querier) (map[int64][]reaching, error) {
 		return map[int64][]reaching{}, err
 	}
 	type target struct {
-		gap, from string
-		since     int64
+		gap   string
+		since int64
 	}
 	targets := map[string][]target{} // anchor -> the gaps about it
 	if err := scanRows(q, reachedGapsSQL, func(rows *sql.Rows) error {
 		var t target
 		var a string
-		err := rows.Scan(&t.gap, &a, &t.since, &t.from)
+		err := rows.Scan(&t.gap, &a, &t.since)
 		targets[a] = append(targets[a], t)
 		return err
 	}); err != nil {
@@ -190,7 +186,7 @@ func reachingRemovalsOf(q recordsql.Querier) (map[int64][]reaching, error) {
 			if t.since >= r.at || (isClosed && c < r.at) || slices.ContainsFunc(out[r.at], func(o reaching) bool { return o.gap == t.gap }) {
 				continue
 			}
-			out[r.at] = append(out[r.at], reaching{gap: t.gap, anchor: r.anchor, from: t.from, by: r.by})
+			out[r.at] = append(out[r.at], reaching{gap: t.gap, anchor: r.anchor, by: r.by})
 		}
 	}
 	for at := range out {

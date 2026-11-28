@@ -64,52 +64,58 @@ func blueEditBy(t *testing.T, seat, key, old, new string) *recordpb.Event {
 	return recordtest.At(t, seat, key, &recordpb.BlueEdit{Old: proto.String(old), New: proto.String(new), Text: proto.String("the sentence overstates the rise")})
 }
 
-// findingAt is lens's finding id at loc and the Anchor that places it.
-func findingAt(t *testing.T, lens, id, loc string) []*recordpb.Event {
+// gapAt is lens's gap id minted at loc and the Anchor that places it.
+func gapAt(t *testing.T, lens, id, loc string) []*recordpb.Event {
 	return []*recordpb.Event{
-		recordtest.At(t, lens, lens+":finding:"+id, &recordpb.Finding{Id: proto.String(id), Location: proto.String(loc), Text: proto.String("the rise is not sourced")}),
+		recordtest.At(t, lens, lens+":mint:"+id, &recordpb.Mint{GapId: proto.String(id), Location: proto.String(loc),
+			Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Problem: proto.String("the rise is not sourced"),
+			RequiredFix: proto.String("source it"), AcceptanceCheck: proto.String("the rise cites a source"),
+			CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Severity: recordtest.P(recordpb.Grade_GRADE_LOW),
+			Likelihood: recordtest.P(recordpb.Grade_GRADE_LOW), Impact: recordtest.P(recordpb.Grade_GRADE_LOW)}),
 		recordtest.At(t, lens, lens+":anchor:"+id, &recordpb.Anchor{Id: proto.String(id), Location: proto.String(loc)}),
 	}
 }
 
-// V6: A FINDING'S QUOTE IS PLACED ON THE REPORT ITS ANCHOR LANDS ON. Blue's edit takes the quoted
-// sentence out while the finding is written; placed against the report before the edit, the finding
+// V6: A MINT'S QUOTE IS PLACED ON THE REPORT ITS ANCHOR LANDS ON. Blue's edit takes the quoted
+// sentence out while the mint is written; placed against the report before the edit, the mint
 // and its Anchor land on text the report no longer holds, and replay cannot place the anchor.
-func TestAFindingIsPlacedOnTheReportItsAnchorLandsOn(t *testing.T) {
+func TestAMintIsPlacedOnTheReportItsAnchorLandsOn(t *testing.T) {
 	runDir := raceRun(t)
 	edit := blueEditBy(t, "blue-lane-1", "race:edit", raceSentence, "Costs rose only modestly in the first quarter")
 	err := runtest.Overtaken(t, otherSeat(t, runDir), []*recordpb.Event{edit}, func() error {
-		_, err := run(t, "finding", "--run", runDir, "--seat-id", lensSeat, "--key", "F", "--quote", raceSentence,
-			"--reason", "the rise is not sourced", "--severity", "low", "--likelihood", "low", "--impact", "low")
+		_, err := runMint(t, "--run", runDir, "--seat-id", lensSeat,
+			"--key", "G1", "--class", "spec_underspecification", "--problem", "the rise is not sourced", "--fix", "source it",
+			"--check-kind", "document", "--check", "the rise cites a source", "--severity", "low",
+			"--likelihood", "low", "--impact", "low", "--quote", raceSentence)
 		return err
 	})
 	md := renders(t, runDir)
 	if err == nil {
-		t.Fatalf("a finding quoting text an edit took out at that moment was recorded:\n%s", md)
+		t.Fatalf("a mint quoting text an edit took out at that moment was recorded:\n%s", md)
 	}
-	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_FINDING); n != 0 {
-		t.Errorf("the refused finding recorded %d finding(s)", n)
+	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_MINT); n != 0 {
+		t.Errorf("the refused mint recorded %d mint(s)", n)
 	}
 }
 
-// V5: BLUE'S EDIT IS PLANNED ON THE REPORT IT LANDS ON. A lens's finding places its anchor inside the
+// V5: BLUE'S EDIT IS PLANNED ON THE REPORT IT LANDS ON. A lens's gap places its anchor inside the
 // span blue's edit replaces, at that moment; planned against the report before it, the edit's
-// replacement does not carry the anchor, and replaying the edit takes the finding's anchor out of the
+// replacement does not carry the anchor, and replaying the edit takes the gap's anchor out of the
 // report — the loss every edit is refused for.
 func TestAnEditIsPlannedOnTheReportItLandsOn(t *testing.T) {
 	runDir := raceRun(t)
-	id := record.NewID("finding")
-	err := runtest.Overtaken(t, otherSeat(t, runDir), findingAt(t, lensSeat, id, "Costs rose sharply"), func() error {
+	id := record.NewID("gap")
+	err := runtest.Overtaken(t, otherSeat(t, runDir), gapAt(t, lensSeat, id, "Costs rose sharply"), func() error {
 		_, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat, "--key", "E", "--quote", raceSentence,
 			"--new", "Costs rose only modestly in the first quarter", "--reason", "the source gives a modest rise")
 		return err
 	})
 	md := renders(t, runDir)
 	if !strings.Contains(md, anchor.Token(id)) {
-		t.Errorf("the finding's anchor is not in the report:\n%s", md)
+		t.Errorf("the gap's anchor is not in the report:\n%s", md)
 	}
 	if err == nil || !strings.Contains(err.Error(), anchor.Token(id)) {
-		t.Errorf("an edit of a span a finding's anchor landed in at that moment = %v, want refused naming the anchor\n%s", err, md)
+		t.Errorf("an edit of a span a gap's anchor landed in at that moment = %v, want refused naming the anchor\n%s", err, md)
 	}
 	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_BLUE_EDIT); n != 0 {
 		t.Errorf("the refused edit recorded %d edit(s)", n)
@@ -124,11 +130,14 @@ func TestAnEditIsPlannedOnTheReportItLandsOn(t *testing.T) {
 func TestARetireIsCheckedOnTheReportItLandsOn(t *testing.T) {
 	t.Run("a rewrite carrying the anchor", func(t *testing.T) {
 		runDir := raceRun(t)
-		f := lensFinding(t, runDir, lensSeat, "F1", "--quote", raceSentence)
+		f := markClaim(t, runDir, "G1", raceSentence, "spec_underspecification")
+		if err := lensClose(t, runDir, lensSeat, f, "not_a_defect"); err != nil {
+			t.Fatalf("close %s: %v", f, err)
+		}
 		tok := anchor.Token(f)
 		back := blueEditBy(t, "blue-lane-1", "race:edit", "Costs rose sharply across", "Costs rose across")
 		err := runtest.Overtaken(t, otherSeat(t, runDir), []*recordpb.Event{back}, func() error {
-			_, err := run(t, "retire", "--run", runDir, "--seat-id", blueSeat, "--anchor", f, "--reason", "the finding no longer applies")
+			_, err := run(t, "retire", "--run", runDir, "--seat-id", blueSeat, "--anchor", f, "--reason", "the gap's marker no longer applies")
 			return err
 		})
 		md := renders(t, runDir)
@@ -144,12 +153,15 @@ func TestARetireIsCheckedOnTheReportItLandsOn(t *testing.T) {
 	})
 	t.Run("a cut taking the anchor", func(t *testing.T) {
 		runDir := raceRun(t)
-		f := lensFinding(t, runDir, lensSeat, "F1", "--quote", raceSentence)
+		f := markClaim(t, runDir, "G1", raceSentence, "spec_underspecification")
+		if err := lensClose(t, runDir, lensSeat, f, "not_a_defect"); err != nil {
+			t.Fatalf("close %s: %v", f, err)
+		}
 		tok := anchor.Token(f)
 		gone := recordtest.At(t, "blue-lane-1", "race:cut", &recordpb.BlueEdit{Old: proto.String(" " + raceSentence + tok + "."), New: proto.String(""),
 			RemovedAnchors: []string{f}, Text: proto.String("the rise is not sourced")})
 		err := runtest.Overtaken(t, otherSeat(t, runDir), []*recordpb.Event{gone}, func() error {
-			_, err := run(t, "retire", "--run", runDir, "--seat-id", blueSeat, "--anchor", f, "--reason", "the finding no longer applies")
+			_, err := run(t, "retire", "--run", runDir, "--seat-id", blueSeat, "--anchor", f, "--reason", "the gap's marker no longer applies")
 			return err
 		})
 		md := renders(t, runDir)
@@ -180,7 +192,10 @@ func TestEstoppelIsAskedOfTheRecordTheMintLandsOn(t *testing.T) {
 	tok := anchor.Token(g1)
 	accept := recordtest.At(t, "blue-lane-1", "race:accept", &recordpb.BlueEdit{Old: proto.String(was + tok), New: proto.String(fix + tok),
 		Answers: proto.String(g1), Accepted: proto.Bool(true), AppliedVerbatim: proto.Bool(true), Text: proto.String("red's text is right")})
-	err = runtest.Overtaken(t, otherSeat(t, runDir), []*recordpb.Event{accept}, func() error {
+	// Overtaken inserts past the write path, so the estoppel row writeTombstones writes beside the
+	// accept goes in with it, in its transaction.
+	stone := recordtest.At(t, "blue-lane-1", "race:tombstone", &recordpb.Tombstone{GapId: proto.String(g1), Kind: recordpb.TombstoneKind_TOMBSTONE_KIND_ESTOPPEL.Enum()})
+	err = runtest.Overtaken(t, otherSeat(t, runDir), []*recordpb.Event{accept, stone}, func() error {
 		_, err := mintQuote(t, runDir, "G2", was)
 		return err
 	})
@@ -195,14 +210,14 @@ func TestEstoppelIsAskedOfTheRecordTheMintLandsOn(t *testing.T) {
 	}
 }
 
-// A PRESCRIPTION IS VERIFIED AGAINST THE REPORT THE MINT LANDS ON. Another lens places a finding's
+// A PRESCRIPTION IS VERIFIED AGAINST THE REPORT THE MINT LANDS ON. Another lens places a gap's
 // anchor inside the span this lens prescribes a replacement for, at the moment it mints; verified
 // against the report before it, the mint records a "verified" fix whose replacement would drop that
 // anchor — a pair blue's --accept then refuses as stale.
 func TestAPrescriptionIsVerifiedOnTheReportTheMintLandsOn(t *testing.T) {
 	runDir := raceRun(t)
-	id := record.NewID("finding")
-	err := runtest.Overtaken(t, otherSeat(t, runDir), findingAt(t, "red-lens-logic", id, "Costs rose sharply"), func() error {
+	id := record.NewID("gap")
+	err := runtest.Overtaken(t, otherSeat(t, runDir), gapAt(t, "red-lens-logic", id, "Costs rose sharply"), func() error {
 		_, err := runMint(t, "--run", runDir, "--seat-id", lensSeat,
 			"--key", "G1", "--class", "spec_underspecification", "--problem", "the defect", "--fix", "the fix",
 			"--check-kind", "document", "--check", "the acceptance check", "--severity", "medium",
@@ -215,8 +230,8 @@ func TestAPrescriptionIsVerifiedOnTheReportTheMintLandsOn(t *testing.T) {
 		m := lastBody(t, runDir, &recordpb.Mint{})
 		t.Fatalf("a mint verified a fix that drops an anchor placed in its span at that moment: fix_basis %s\n%s", m.GetFixBasis(), md)
 	}
-	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_MINT); n != 0 {
-		t.Errorf("the refused mint recorded %d mint(s)", n)
+	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_MINT); n != 1 {
+		t.Errorf("the record holds %d mints, want the overtaking lens's alone", n)
 	}
 }
 
@@ -249,11 +264,11 @@ func TestARefusalIsLoggedAfterTheOutcome(t *testing.T) {
 	outcome := recordtest.At(t, "judge", "race:outcome", &recordpb.Outcome{Verdict: recordpb.RunOutcome_RUN_OUTCOME_UNVERIFIED.Enum(),
 		VerdictBasis: proto.String(record.VerdictAsserted), Prose: proto.String("the run ended")})
 	err := runtest.Overtaken(t, otherSeat(t, runDir), []*recordpb.Event{outcome}, func() error {
-		_, err := run(t, "finding", "--run", runDir, "--seat-id", lensSeat, "--quote", raceSentence)
+		_, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat, "--quote", raceSentence)
 		return err
 	})
 	if err == nil {
-		t.Fatal("a finding with no --reason was recorded")
+		t.Fatal("a mint with no --problem was recorded")
 	}
 	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_LOG); n != 1 {
 		t.Errorf("the refusal on a record holding an outcome: %d log entr(ies), want 1", n)

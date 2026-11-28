@@ -28,7 +28,7 @@ exit 0
 stdout:
 minted GAP001
   acceptance check RECORDED as: reread
-  (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
+  (read it back — a shell may have rewritten it before this tool saw it; your amend restates it at your next sitting)
 1 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
   · the whole report arrives on your work list this sitting, one item after each of your tool calls, and your envelope waits until all of it has been delivered to you. A lens is delivered the whole report at its first sitting and once more at its next — its full re-read — and at every other sitting the changes since its pin and its own gaps' passages; the PASS is refused while a lens that has sat still owes either whole delivery
 
@@ -49,7 +49,7 @@ feov-record: carry: --carried-from says gap GAP001 was closed in an earlier sitt
 -- inquiries
 # Inquiries — RENDERED PROJECTION (source of truth: the record, records/record.db)
 
-_No inquiries recorded. On a run past epoch 0 that is itself a finding: the exploration
+_No inquiries recorded. On a run past epoch 0 that is itself a defect: the exploration
 either did not happen or was not written down, and a report with no roads-not-taken is
 indistinguishable from one that never looked._
 

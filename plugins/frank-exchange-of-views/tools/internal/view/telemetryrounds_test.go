@@ -71,32 +71,3 @@ func TestTheConvergedEpochGetsATelemetryRow(t *testing.T) {
 		}
 	}
 }
-
-// AND THE CLOSURE IS ACTUALLY IN THE ROW, not merely a row with the right number on it — the
-// epoch existing and the epoch carrying its work are different claims.
-func TestTheConvergedEpochsClosureReachesItsRow(t *testing.T) {
-	rows, err := Telemetry(runtest.Open(t, runWithMintAtR1AndCloseAtR2(t)))
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, r := range rows {
-		if r.Epoch == nil || r.GetEpoch() != 2 {
-			continue
-		}
-		// repair_regression.closures is the field, and it is the one that matters: scorecard's
-		// repair_regression_ratio reported "no telemetry rounds with closures" on the measured
-		// run, which was this defect wearing the name of a metric.
-		rr := r.GetRepairRegression()
-		ok := rr != nil
-		if !ok {
-			t.Fatalf("epoch 2's row carries no repair_regression block: %v", r)
-		}
-		if rr.GetClosures() != 1 {
-			t.Errorf("epoch 2 closed the run's only gap; its row says closures=%v.\n\n"+
-				"An epoch present in the series but empty of its own work is the same silence one "+
-				"level in.", rr.GetClosures())
-		}
-		return
-	}
-	t.Fatal("no row for epoch 2 at all")
-}

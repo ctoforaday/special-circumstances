@@ -28,15 +28,10 @@ import (
 // check reports "not applicable" forever instead of failing. Identifier keys like `label` carry
 // no vocabulary, so a cross-type read yields a wrong value LOUDLY rather than a silent zero.
 var knownEnumKeyCollisions = map[string]string{
-	"about_kind": "`finding` and `mint` declare it with the SAME three values, and that is the " +
-		"reason it is safe rather than an excuse for it. The hazard this map guards is DISJOINT " +
-		"vocabularies under one key, where a cross-type read matches nothing and reports the miss " +
-		"as an answer; identical vocabularies have no such miss. They are identical on purpose: a " +
-		"gap is where a finding ends up, and `merge mint`'s help used to send an omission back to " +
-		"the borrowed quote `lens finding` had just stopped taking. " +
-		"TestAFindingAndAGapAnchorToTheSameThings compares the two sets rather than restating " +
-		"them, so a value added to one and not the other fails there — which is what keeps this " +
-		"entry true.",
+	"closure_class": "`close` and `closing` both list ClosureClasses, the Disposition words that " +
+		"close a gap, so the vocabularies are the SAME set by construction. They are one concept: " +
+		"the word a gap closes with — written by the lens's close, or stated by the author's closing " +
+		"for a ruling for the author to write.",
 	"class": "`mint` and `position` both read the GapClass descriptor, so the vocabularies are " +
 		"the SAME set by construction and a cross-type read has no silent miss. They are one " +
 		"concept: the kind of a defect, minted by a lens or argued by the chair where no lens can " +

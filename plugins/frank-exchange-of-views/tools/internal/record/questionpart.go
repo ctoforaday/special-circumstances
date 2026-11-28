@@ -66,9 +66,10 @@ type QuestionPartRow struct {
 	proposed, covered, gapMint, lastCheck int64
 	wanting                               int
 	stands                                bool
-	// notes is the findings other lenses filed about the part since its latest coverage, each as
-	// "<id> (<seat>)", which its check's item lists for the owner as an inquiry's does.
-	notes []string
+	// gaps is each gap minted about the part since its latest check — every one where it has none —
+	// as "<id> (<seat>)": what put that check in question, which its check's item lists for the owner
+	// as an inquiry's does.
+	gaps []string
 }
 
 // questionPartsSQL reads the view, in proposal order.
@@ -106,73 +107,74 @@ func questionPartsAt(q recordsql.Querier) ([]QuestionPartRow, error) {
 		return nil, err
 	}
 	rows.Close()
-	found, err := questionFindingsAt(q)
+	minted, err := questionGapsAt(q)
 	if err != nil {
 		return nil, err
 	}
 	for i := range out {
-		out[i].notes = partNotesOf(out[i], found)
+		out[i].gaps = partGapsOf(out[i], minted)
 	}
 	return out, nil
 }
 
-// questionFinding is a finding a lens filed about the question: about one of its parts, or, with no
-// part, about the question as a whole.
-type questionFinding struct {
+// questionGap is a gap minted about the question: about one of its parts, or, with no part, about
+// the question as a whole.
+type questionGap struct {
 	id, seat, part string
-	at             int64 // the finding's events.id
+	at             int64 // the mint's events.id
 }
 
-// note is the finding as an item lists it.
-func (f questionFinding) note() string { return f.id + " (" + f.seat + ")" }
+// note is the gap as an item lists it, with the seat whose gap it is.
+func (g questionGap) note() string { return g.id + " (" + g.seat + ")" }
 
-// questionFindingsSQL reads every finding about the question, in record order.
-const questionFindingsSQL = `SELECT f."id", e."seat_id", COALESCE(f."about_ref", ''), f."event_id"
-  FROM "finding" f JOIN "events" e ON e."id" = f."event_id"
- WHERE f."about_kind" = 'question' ORDER BY f."event_id"`
+// questionGapsSQL reads every gap minted about the question, in record order, with its assignee: the
+// seat whose gap it is, which a bench-written successor's writer is not.
+const questionGapsSQL = `SELECT m."gap_id", st."minted_by", COALESCE(m."about_ref", ''), m."event_id"
+  FROM "mint" m JOIN "gap_state" st ON st."gap_id" = m."gap_id"
+ WHERE m."about_kind" = 'question' ORDER BY m."event_id"`
 
-// questionFindingsAt is every finding about the question on the record q reads.
-func questionFindingsAt(q recordsql.Querier) ([]questionFinding, error) {
-	rows, err := q.Query(questionFindingsSQL)
+// questionGapsAt is every gap minted about the question on the record q reads.
+func questionGapsAt(q recordsql.Querier) ([]questionGap, error) {
+	rows, err := q.Query(questionGapsSQL)
 	if err != nil {
-		return nil, fmt.Errorf("asking the record for its findings about the question: %w", err)
+		return nil, fmt.Errorf("asking the record for its gaps about the question: %w", err)
 	}
 	defer rows.Close()
-	var out []questionFinding
+	var out []questionGap
 	for rows.Next() {
-		var f questionFinding
-		if err := rows.Scan(&f.id, &f.seat, &f.part, &f.at); err != nil {
+		var g questionGap
+		if err := rows.Scan(&g.id, &g.seat, &g.part, &g.at); err != nil {
 			return nil, err
 		}
-		out = append(out, f)
+		out = append(out, g)
 	}
 	return out, rows.Err()
 }
 
-// partNotesOf is the findings about part p that another lens than the owner filed since its latest
-// coverage — the ones its owner's check has not had in hand — as an inquiry's are since its fate.
-func partNotesOf(p QuestionPartRow, found []questionFinding) []string {
+// partGapsOf is the gaps minted about part p since its latest check — every one where it has none —
+// as an inquiry's are (inquiryJudgementsOf): what put the check in question, whoever minted it.
+func partGapsOf(p QuestionPartRow, minted []questionGap) []string {
 	var out []string
-	for _, f := range found {
-		if f.part == p.ID && f.seat != questionPartOwner && f.at > p.covered {
-			out = append(out, f.note())
+	for _, g := range minted {
+		if g.part == p.ID && g.at > p.lastCheck {
+			out = append(out, g.note())
 		}
 	}
 	return out
 }
 
-// wholeQuestionNotesOf is the findings about the question as a whole — naming no part — filed since its
-// latest split, which blue-respond's question item lists: such a finding names a part of the question
-// no part covers, and only blue splits one out. Before any split, every one stands.
-func wholeQuestionNotesOf(parts []QuestionPartRow, found []questionFinding) []string {
+// wholeQuestionGapsOf is the gaps minted about the question as a whole — naming no part — since its
+// latest split, which blue-respond's question item lists: such a gap names a part of the question no
+// part covers, and only blue splits one out. Before any split, every one stands.
+func wholeQuestionGapsOf(parts []QuestionPartRow, minted []questionGap) []string {
 	var split int64
 	for _, p := range parts {
 		split = max(split, p.proposed)
 	}
 	var out []string
-	for _, f := range found {
-		if f.part == "" && f.at > split {
-			out = append(out, f.note())
+	for _, g := range minted {
+		if g.part == "" && g.at > split {
+			out = append(out, g.note())
 		}
 	}
 	return out
@@ -232,7 +234,7 @@ func partBlockersOf(cast bool, parts []QuestionPartRow) []Blocker {
 			out = append(out, Blocker{Kind: BlockerOpenPart, Subject: p.ID, Owner: blueRespondSeat, Detail: p.Text, since: p.proposed})
 		case PartUnchecked:
 			out = append(out, Blocker{Kind: BlockerUncheckedPart, Subject: p.ID, Owner: questionPartOwner, Detail: p.Coverage,
-				since: p.covered, placed: max(p.covered, p.gapMint), lastCheck: p.lastCheck, gapMint: p.gapMint, notes: p.notes})
+				since: p.covered, placed: max(p.covered, p.gapMint), lastCheck: p.lastCheck, gapMint: p.gapMint, gaps: p.gaps})
 		}
 	}
 	return out
@@ -256,14 +258,17 @@ func uncheckedPartFact(b Blocker) string {
 	return s
 }
 
-// uncheckedPartAct is how an unchecked part is judged.
-// uncheckedPartAct is how an unchecked part is judged, with the findings other lenses filed about it
-// since its coverage, so the owner's judgement is not blind to them.
+// uncheckedPartAct is how an unchecked part is judged, with the gaps minted about it since its last
+// check, so the owner's judgement is not blind to them.
 func uncheckedPartAct(b Blocker) string {
 	s := fmt.Sprintf("%s owes the judgement: read its row (`show question`) and the report against it, then `question check --id %s` where its coverage stands as the report's account of that part, or mint the gap about it (`mint --about-kind question --about %s`, class coverage_misstated) where it does not",
 		ownerOr(b, questionPartOwner), b.Subject, b.Subject)
-	if len(b.notes) > 0 {
-		s += ". Findings other lenses filed about it since its coverage: " + strings.Join(b.notes, ", ")
+	if len(b.gaps) > 0 {
+		since := "since its last check, which they put in question"
+		if b.lastCheck == 0 {
+			since = "while it stood unchecked"
+		}
+		s += ". Gaps minted about it " + since + ", whatever their grade: " + strings.Join(b.gaps, ", ") + " — judge its coverage with each in hand"
 	}
 	return s
 }
@@ -272,7 +277,7 @@ func uncheckedPartAct(b Blocker) string {
 // while the record holds no part, the synthesizer and blue-respond each part's coverage while it has
 // none, and blue-respond the split as well. A lane owes none: it reads the parts.
 //
-// whole is the findings about the question as a whole since its latest split (wholeQuestionNotesOf):
+// whole is the gaps minted about the question as a whole since its latest split (wholeQuestionGapsOf):
 // the unsplit item lists them, or, once the question is split, blue-respond's first open part's item.
 func blueQuestionItemsOf(seatID string, parts []QuestionPartRow, whole []string) []Item {
 	switch seatID {
@@ -304,13 +309,13 @@ func blueQuestionItemsOf(seatID string, parts []QuestionPartRow, whole []string)
 	return out
 }
 
-// wholeQuestionClause lists the findings about the question as a whole on blue's question item, ""
+// wholeQuestionClause lists the gaps minted about the question as a whole on blue's question item, ""
 // where none stands.
 func wholeQuestionClause(whole []string) string {
 	if len(whole) == 0 {
 		return ""
 	}
-	return ". Findings lenses filed about the question as a whole since it was last split, each naming a part of it no question part covers — split that part out (`question split`) where the report owes it an answer: " + strings.Join(whole, ", ")
+	return ". Gaps minted about the question as a whole since it was last split, each naming a part of it no question part covers — split that part out (`question split`) where the report owes it an answer: " + strings.Join(whole, ", ")
 }
 
 // The blue seats the question's items are for.

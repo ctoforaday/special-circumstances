@@ -217,7 +217,7 @@
     },
     {
       "term": "exchange",
-      "definition": "An exchange is blue's sitting on one gap followed by its minting lens's audit of the answer, and k-max counts them.",
+      "definition": "An exchange is blue's sitting on one gap followed by its assignee's audit of the answer, and k-max counts them.",
       "seats": [
         "lens",
         "chair",
@@ -271,7 +271,7 @@
     },
     {
       "term": "lens",
-      "definition": "A lens is a red seat that audits the report for one class of defect, and the only seat that files findings and mints gaps.",
+      "definition": "A lens is a red seat that audits the report for one class of defect, and the only seat that mints gaps.",
       "seats": [
         "lens",
         "chair",
@@ -290,7 +290,7 @@
     },
     {
       "term": "chair",
-      "definition": "The chair is red's running seat: it asks the record who sits, rules blue's motions, spot-checks the stale areas before a PASS and records red's PASS.",
+      "definition": "The chair is red's running seat: it asks the record who sits, spot-checks the stale areas before a PASS and records red's PASS.",
       "seats": [
         "lens",
         "chair",
@@ -584,7 +584,7 @@
     },
     {
       "term": "anchor",
-      "definition": "An anchor is the invisible token a citation, a computation, a finding or a gap leaves at its sentence in the report; a citation's or computation's is an evidence anchor, and no anchor stands bare: one leaves the report with its sentence when an edit cuts it, or alone by retire, its sentence kept.",
+      "definition": "An anchor is the invisible token a citation, a computation or a gap leaves at its sentence in the report; a citation's or computation's is an evidence anchor, and no anchor stands bare: one leaves the report with its sentence when an edit cuts it, or alone by retire, its sentence kept.",
       "seats": [
         "lens",
         "chair",
@@ -609,31 +609,6 @@
       ],
       "bans": [],
       "collisions": []
-    },
-    {
-      "term": "finding anchor",
-      "definition": "A finding anchor is the anchor a lens's finding leaves at the sentence the finding is about.",
-      "seats": [
-        "lens",
-        "chair",
-        "blue",
-        "lane",
-        "bench",
-        "operator"
-      ],
-      "bans": [
-        {
-          "variant": "finding-marker, marker layer",
-          "kind": "GATED",
-          "pattern": "finding markers?|marker layer"
-        }
-      ],
-      "collisions": [
-        {
-          "word": "marker",
-          "resolution": "the `.run-live` marker and the manual's `→ SHARED` marker keep the word"
-        }
-      ]
     },
     {
       "term": "verdict",
@@ -675,31 +650,6 @@
       "collisions": []
     },
     {
-      "term": "finding",
-      "definition": "A finding is a lens's recorded observation of a defect in the report, or of a dispute with a gap already on the board, graded and not yet minted.",
-      "seats": [
-        "lens",
-        "chair",
-        "blue",
-        "lane",
-        "bench",
-        "operator"
-      ],
-      "bans": [
-        {
-          "variant": "finding (a complaint about the tooling)",
-          "kind": "GATED",
-          "pattern": "\\bfinding about the tooling\\b"
-        },
-        {
-          "variant": "finding (a capture-audit failure)",
-          "kind": "GATED",
-          "pattern": "\\bfinding against you\\b"
-        }
-      ],
-      "collisions": []
-    },
-    {
       "term": "gap",
       "definition": "A gap is a defect in the report that changes a conclusion or a decision a reader makes, minted onto the board by a lens.",
       "seats": [
@@ -717,6 +667,19 @@
           "resolution": "a parity gap between two numbers is ordinary English; a missing tool is a missing capability"
         }
       ]
+    },
+    {
+      "term": "assignee",
+      "definition": "An assignee is the seat whose gap it is: the lens that minted the gap — it takes its author's proposal on the gap by its own act or leaves it for the bench, and owes the gap's closing.",
+      "seats": [
+        "lens",
+        "chair",
+        "blue",
+        "bench",
+        "operator"
+      ],
+      "bans": [],
+      "collisions": []
     },
     {
       "term": "material",
@@ -768,7 +731,7 @@
     },
     {
       "term": "reading",
-      "definition": "A reading is a lens's recorded account of what one source did for one sentence of the report — `verify` of a citation, or of a source the lens found — with its outcome, its confidence and its reason; it reads the work unless the source was unreachable or the copy the tool stamped is not the work, and it holds nothing by itself: a gap a lens mints on it is the finding — about the citation for a cited source's defect, quoting the sentence for a found source's — and a reading that finds the source against the sentence is its lens's reading debt until that gap stands.",
+      "definition": "A reading is a lens's recorded account of what one source did for one sentence of the report — `verify` of a citation, or of a source the lens found — with its outcome, its confidence and its reason; it reads the work unless the source was unreachable or the copy the tool stamped is not the work, and it holds nothing by itself: a gap a lens mints on it is the defect on the record — about the citation for a cited source's defect, quoting the sentence for a found source's — and a reading that finds the source against the sentence is its lens's reading debt until that gap stands.",
       "seats": [
         "lens",
         "chair",
@@ -876,7 +839,7 @@
     },
     {
       "term": "disposition",
-      "definition": "A disposition is the bench's ruling value on a docketed gap, and it decides whether the gap closes.",
+      "definition": "A disposition is the closing word a closing records, and it decides whether the gap closes; on a bench closure it is the statement of the side the bench sided with.",
       "seats": [
         "lens",
         "chair",
@@ -934,7 +897,7 @@
     },
     {
       "term": "grade movement",
-      "definition": "Grade movement is the change a lens's regrade makes to a gap's severity, likelihood or impact, weighed as the difference in mass between the two grades in either direction, and once the open gaps' movement no docket ruling on its gap has followed totals more than 2.0 the dispatch dockets each such gap for the bench and a PASS waits for its ruling; the bench's own regrade is the grade its ruling sets and is no movement.",
+      "definition": "Grade movement is the change a lens's regrade makes to a gap's severity, likelihood or impact, weighed as the difference in mass between the two grades in either direction, and once the open gaps' movement no bench ruling on its grades has followed totals more than 2.0 the dispatch dockets each such gap for the bench and a PASS waits for its ruling, which keeps the moved grades or restores the prior ones; the bench's regrade the tool writes in a ruling's transaction is no movement.",
       "seats": [
         "lens",
         "chair",
@@ -945,33 +908,52 @@
       "collisions": [
         {
           "word": "movement (an exchange's)",
-          "resolution": "an exchange moves its gap when the gap's grade, its anchored text or its lineage changes, blue places a citation or computation as its answer or records a fate on its inquiry, or it closes, which is what impasse counts; grade movement is the regrade part of that alone, weighed in mass"
+          "resolution": "an exchange moves its gap when the gap's grade changes, an act naming the gap as its answer changes its anchored text, places a citation or computation as its answer or changes the inquiry, section or question part it is about, or it closes, which is what impasse counts; a change to what the gap is about that names no gap is its lens's turn and moves nothing; grade movement is the regrade part of that alone, weighed in mass"
         }
       ]
     },
     {
-      "term": "grade motion",
-      "definition": "A grade motion is a motion contesting a gap's grade, filed by any seat but the chair, which rules it.",
+      "term": "docketing",
+      "definition": "A docketing is the tool's record that a gap is before the bench, and why — written by the dispatch at impasse, for the open gaps' grade movement, or for the author's proposal its raiser did not take in its window, and filed by no seat — which the bench rules once, by siding with a party or remanding it, and while it stands the gap takes no proposal and its parties owe it their closings.",
       "seats": [
         "lens",
         "chair",
         "blue",
-        "lane",
         "bench",
         "operator"
       ],
-      "bans": [
+      "bans": [],
+      "collisions": [
         {
-          "variant": "grade dispute",
-          "kind": "GATED",
-          "pattern": "grade disputes?"
-        },
-        {
-          "variant": "grade_disputes (the envelope key)",
-          "kind": "GATED",
-          "pattern": "grade_disputes"
+          "word": "docket motion",
+          "resolution": "a docket motion is a party's proposal of an act on a gap; a docketing is the tool's record that the gap is before the bench, and holds a proposal only when the proposal's window ended unaccepted"
         }
+      ]
+    },
+    {
+      "term": "tombstone",
+      "definition": "A tombstone is the row the tool writes on a gap a bench ruling decided, for either side, and on a gap whose stated text blue applied verbatim: while a ruling's stands, a mint of the gap's class on its sentence, inquiry, citation, question part or section and every proposal on the gap are refused, and blue's reword or cut of the sentence, a reword, cut or retire of the anchor the gap is about, the inquiry's next fate or the question part's next coverage ends it; the bench's application ends none.",
+      "seats": [
+        "lens",
+        "chair",
+        "blue",
+        "bench",
+        "operator"
       ],
+      "bans": [],
+      "collisions": []
+    },
+    {
+      "term": "estopped",
+      "definition": "An estopped gap is one a standing ruling tombstone protects, which the work list names with the ruling and the act that ends it, and which no seat may re-raise while it stands.",
+      "seats": [
+        "lens",
+        "chair",
+        "blue",
+        "bench",
+        "operator"
+      ],
+      "bans": [],
       "collisions": []
     },
     {
@@ -992,20 +974,6 @@
           "resolution": "the petitioner's ask, on the filing; relief is what the bench ordered on the ruling"
         }
       ]
-    },
-    {
-      "term": "new grounds",
-      "definition": "New grounds are what a docket motion on a gap the bench ruled closed names to be admitted: an act recorded after the ruling and about the gap, located by its id or by a quote of report text an edit answering the gap wrote since, which the tool checks.",
-      "seats": [
-        "lens",
-        "chair",
-        "blue",
-        "lane",
-        "bench",
-        "operator"
-      ],
-      "bans": [],
-      "collisions": []
     },
     {
       "term": "scorecard",
@@ -1073,7 +1041,12 @@
         "operator"
       ],
       "bans": [],
-      "collisions": []
+      "collisions": [
+        {
+          "word": "superseded (an inquiry's record or a bench statement)",
+          "resolution": "a later record of the same thing standing in its place; not a gap's fate"
+        }
+      ]
     },
     {
       "term": "question part",
@@ -1103,7 +1076,7 @@
       "collisions": [
         {
           "word": "reopen (a gap)",
-          "resolution": "minting a successor over a closed gap reopens the gap, and a ruling's `reopens_on` says what would: neither is a reopened citation or computation"
+          "resolution": "a ruling's `reopens_on` says what would reopen the question it decided; it is not a reopened citation or computation, and a closed gap stays closed"
         },
         {
           "word": "`reopened` (the edit's field)",
@@ -1151,38 +1124,7 @@
       ],
       "bans": [],
       "collisions": []
-    },
-    {
-      "term": "superseded",
-      "definition": "A gap is superseded when its own lens mints a successor naming it with `--supersedes` while it is open: that mint closes it in the same act, its purpose passing to the successor — and, for a `source` or `computation` gap that nothing answers yet, its live-answer demand, the successor carrying the same check kind — so it holds no state of its own, its fate reads superseded, and a regrade, close, carry or docket of it is refused naming the successor.",
-      "seats": [
-        "lens",
-        "chair",
-        "blue",
-        "bench",
-        "operator"
-      ],
-      "bans": [
-        {
-          "variant": "stranded gap",
-          "kind": "GATED",
-          "pattern": "stranded (superseded )?(gaps?|ancestors?)"
-        }
-      ],
-      "collisions": [
-        {
-          "word": "superseded (a closed gap)",
-          "resolution": "a mint naming a gap already closed is lineage and reopens it in the work's history; it closes nothing, so only the mint that names the gap while it is open supersedes it"
-        },
-        {
-          "word": "`--superseded-by` (close)",
-          "resolution": "names the gap carrying the regression a repair caused, given only with `repaired_with_regression`; that gap does not supersede the one closed"
-        },
-        {
-          "word": "superseded (an inquiry's record or a bench statement)",
-          "resolution": "a later record of the same thing standing in its place; not a gap's fate"
-        }
-      ]
+
     }
   ]
 }

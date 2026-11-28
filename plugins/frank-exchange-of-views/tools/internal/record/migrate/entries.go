@@ -18,7 +18,7 @@ func Entries() Registry {
 		"friction":      {Translate: frictionEntry},
 		"log":           {Translate: logEntry},
 		"friction_none": {Translate: frictionNoneEntry},
-		"opinion":       {Translate: opinionEntry},
+		"opinion":       {Translate: toNoEvent}, // Translations 3 and 4 (docketing.go): written as no event, stated
 		"cite":          {Translate: citeEntry},
 		"register":      {Translate: registerEntry},
 		// A SITTING'S ENDS KEEP WHAT THE RECORD READS. A source before epoch 32 copied the hook payload
@@ -38,6 +38,27 @@ func Entries() Registry {
 		// record derives from the sitting's ends. No archived run holds one. The manifest counts each in
 		// events_in and none in events_out.
 		"sitting_limit": {Translate: toNoEvent},
+		// AN AMEND'S RESULTING WORDING IS THE WRITE PATH'S, stamped as each amend is replayed from the
+		// record being rebuilt (recordsql.stampAmendResult), as a regrade's result grades are; a source
+		// holding amends holds it, and it is not carried.
+		"amend": mapped("amend", nil, drops{
+			"result_problem":          amendResultDrop,
+			"result_required_fix":     amendResultDrop,
+			"result_acceptance_check": amendResultDrop,
+			"result_fix_new":          amendResultDrop,
+			"result_fix_basis":        amendResultDrop,
+		}, nil),
+		// A FINDING TRANSLATES TO NO EVENT (EventSchema 80). A lens reports a defect as a gap, and a
+		// small defect is a gap graded below what holds the gate; a finding has no equivalent. Its id
+		// leaves every id list, its token every field, and its Anchor is written as no event
+		// (findingIDs, remap.dropped). A seat's prose keeps the id it wrote, which names nothing in the
+		// migrated record. The manifest counts each in events_in and none in events_out.
+		"finding": {Translate: toNoEvent},
+		// A TOMBSTONE ROW TRANSLATES TO NO EVENT (EventSchema 80). The replay's write path writes each
+		// row again after the act that owes it (record.writeTombstones), so a source written at this
+		// epoch would otherwise carry each row twice. The manifest counts the source's rows in
+		// events_in and the rewritten ones in events_out, equal on a source at the binary's rule.
+		"tombstone": {Translate: toNoEvent},
 		// The inquiry, under the word an archive recorded it with: the columns are the current ones but
 		// the proposal's text, which the record calls its question.
 		"avenue": inquiryEntry(ren{"avenue_id": "inquiry_id", "line": "question"}),
@@ -82,6 +103,8 @@ func Entries() Registry {
 			"neighbor":      mintCoiningDrop,
 			"distinguisher": mintCoiningDrop,
 			"distinct_from": "the open gaps a lens named as different defects answered a word-overlap refusal of the mint, which the record does not make: whether a gap is a duplicate is the lens's reading of the board, and the claim is not carried",
+			"found_by":      "the findings a gap was minted from: a finding translates to no event, so its id names nothing on the migrated record",
+			"supersedes":    supersedesDrop,
 		}, nil),
 		// A RETIRE IS ANCHOR-ONLY (EventSchema 82): it takes anchors out of the report and states its
 		// reason. The claim retire's three fields are not carried; the replay folds each claim retire
@@ -93,8 +116,8 @@ func Entries() Registry {
 			"superseded_by": retireClaimDrop,
 		}, nil),
 		// A CREDIT TRANSLATES TO NO EVENT. A source at epoch 42 to 44 may hold one: a lens adding a
-		// finding to an open gap's found_by after the mint. No live act writes it, so the credited
-		// finding is credited by no gap. The manifest counts each in events_in and none in events_out.
+		// finding to an open gap's found_by after the mint. No live act writes it, and the finding it
+		// credits is written as no event. The manifest counts each in events_in and none in events_out.
 		"credit": {Translate: toNoEvent},
 		// A FAIL TRANSLATES TO NO EVENT (EventSchema 78); a PASS carries (verdictEntry).
 		"verdict": {Translate: verdictEntry},
@@ -466,107 +489,4 @@ func frictionNoneEntry(old OldEvent) ([]proto.Message, error) {
 		}
 	}
 	return nil, nil
-}
-
-// opinionEntry is the one CONCEPT translation: the bench opinion was retired (fd9e6970) for
-// a docket MOTION naming the gap and a docket RULING carrying the bench's answer. One old
-// event becomes two, both stamped with the opinion's own ts. The ruling is the bench's, under the
-// opinion's seat; the motion is filed under the harness (opinionFiler), because the bench rules a
-// docket motion and files none (rulerfiles.go).
-func opinionEntry(old OldEvent) ([]proto.Message, error) {
-	// UNIQUE BY CONSTRUCTION. The pair is named for the opinion's own event id, which no other
-	// event shares and no motion the archive filed is spelled like; the remap then gives that
-	// name its id in the one shape, as it does every archived id.
-	id := fmt.Sprintf("M-mig-%d", old.ID)
-	docket := &recordpb.DocketMotion{}
-	motion := &recordpb.Motion{
-		MotionId: proto.String(id),
-		Filing:   &recordpb.Motion_Docket{Docket: docket},
-	}
-	ruling := &recordpb.DocketRuling{}
-	rule := &recordpb.MotionRule{
-		MotionId: proto.String(id),
-		Ruling:   &recordpb.MotionRule_Docket{Docket: ruling},
-	}
-	for col, v := range old.Fields {
-		switch col {
-		case "gap_id":
-			docket.GapId = proto.String(v.(string))
-		case "disposition":
-			w := v.(string)
-			if to, ok := dispositionRename[w]; ok { // the a1e8e260 rename, for shard-era opinions
-				w = to
-			}
-			num, err := enumValue(recordpb.Disposition(0).Descriptor(), w)
-			if err != nil {
-				return nil, fmt.Errorf("opinion.disposition: %w", err)
-			}
-			ruling.Disposition = recordpb.Disposition(num).Enum()
-		case "principle":
-			ruling.Principle = proto.String(v.(string))
-		case "tension":
-			ruling.Tension = proto.String(v.(string))
-		case "review_flag":
-			ruling.ReviewFlag = proto.String(v.(string))
-		case "settled":
-			ruling.Settled = proto.String(v.(string))
-		case "reopens_on":
-			ruling.ReopensOn = proto.String(v.(string))
-		case "final":
-			n, ok := v.(int64)
-			if !ok || (n != 0 && n != 1) {
-				return nil, fmt.Errorf("opinion.final holds %v (%T), not a 0/1 bool", v, v)
-			}
-			if n == 1 {
-				ruling.Final = proto.Bool(true)
-			}
-		case "rationale", "reason": // `reason` is the shard era's spelling of the rationale
-			// The old free-prose rationale is the ruling's own words — MotionRule.opinion,
-			// which (the name is the history) is where ruling prose lives now.
-			rule.Opinion = proto.String(v.(string))
-		default:
-			return nil, fmt.Errorf("old column opinion.%s has no place on the docket pair — extend the opinion entry", col)
-		}
-	}
-	// THE STATED MISS, for rulings that predate a requirement. The earliest opinions carry
-	// neither `settled` nor the reopens_on/final pair — the era had not asked yet. An empty
-	// string would read as "answered: nothing" and a forged `final` would decide what nobody
-	// decided; a value that SAYS it was never recorded is the one honest shape
-	// ([[facts-are-fields]]: make the miss loud, or a stated "not measured"). Filled only
-	// where absent — a ruling that answered keeps its answer.
-	if ruling.Settled == nil {
-		ruling.Settled = proto.String("not stated: this ruling predates the settled requirement (migrated from a bench opinion)")
-	}
-	if ruling.Tension == nil {
-		ruling.Tension = proto.String("not stated: this ruling predates the tension requirement (migrated from a bench opinion)")
-	}
-	if ruling.ReviewFlag == nil {
-		ruling.ReviewFlag = proto.String("not stated: this ruling predates the review-flag requirement (migrated from a bench opinion)")
-	}
-	if ruling.GetDisposition() == recordpb.Disposition_DISPOSITION_REMANDED && ruling.ReopensOn == nil {
-		ruling.ReopensOn = proto.String("not stated: this remand predates the direction requirement (migrated from a bench opinion)")
-	}
-	if ruling.ReopensOn == nil && ruling.Final == nil {
-		ruling.ReopensOn = proto.String("not stated: this ruling predates the reopens-on/final requirement (migrated from a bench opinion)")
-	}
-	remandDirection(ruling)
-	// The motion's ask, in the only words the record has for it: the engine put the gap before
-	// the bench, and no seat filed it. Synthesized text says so rather than posing as a seat's filing.
-	motion.Basis = proto.String("migrated from a bench opinion: the engine put this gap before the bench, before seats filed docket motions")
-	return []proto.Message{motion, rule}, nil
-}
-
-// opinionFiler is the seat a body translated from src is written under, where that is not src's
-// own: the docket motion an opinion translates to is filed under the harness (record.HarnessSeat).
-//
-// THE OPINION ERA HAD NO DOCKETING PARTY. Before fd9e6970 a gap came before the bench because the
-// engine convened it on the board's open gaps; no seat filed anything to put it there, and no
-// archive holds a docket motion on a gap before the opinion that rules it. The harness is the
-// writer that is no party (outcomeclosed.go), so the filing asserts no seat's act, and the bench —
-// which rules the subject — files nothing on it.
-func opinionFiler(src OldEvent, body proto.Message) (string, bool) {
-	if _, motion := body.(*recordpb.Motion); src.Word != "opinion" || !motion {
-		return "", false
-	}
-	return record.HarnessSeat, true
 }

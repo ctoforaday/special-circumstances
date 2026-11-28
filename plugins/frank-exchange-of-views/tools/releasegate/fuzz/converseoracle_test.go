@@ -31,6 +31,10 @@ const (
 	// redClosesAndWithholdsWithRoom is redClosesAndWithholds two epochs before the limit: room for a
 	// lens's audit before the final sitting.
 	redClosesAndWithholdsWithRoom
+	// redHoldsATrifleAndWithholds is redClosesAndWithholds one epoch later: at the epoch between, the
+	// lens mints a gap of a class never material and holds it open (mintHeldTrifle), so the chair's last
+	// sitting withholds the PASS over a board holding it.
+	redHoldsATrifleAndWithholds
 )
 
 // converseRun is a record at its epoch limit, over one gap that ends as path says: at epoch 1 the
@@ -44,8 +48,11 @@ func converseRun(t *testing.T, path conversePath) (*runner, record.Plan) {
 	const sentence = "A § fuzz sentence to anchor findings."
 	maxEpochs := 2
 	switch path {
-	case benchCloses, redClosesAndWithholdsEarly:
+	case redClosesAndWithholdsEarly, redHoldsATrifleAndWithholds:
 		maxEpochs = 3
+	case benchCloses:
+		// blue's exchange on the gap before its proposal, and the parties' closings before the bench.
+		maxEpochs = 6
 	case redClosesAndWithholdsWithRoom:
 		maxEpochs = 4
 	}
@@ -90,7 +97,7 @@ func converseRun(t *testing.T, path conversePath) (*runner, record.Plan) {
 		t.Fatalf("the board holds %v open after one mint, want one gap", open)
 	}
 	switch path {
-	case redCloses, redClosesAndPetitions, redClosesAndWithholds, redClosesAndWithholdsEarly, redClosesAndWithholdsWithRoom:
+	case redCloses, redClosesAndPetitions, redClosesAndWithholds, redClosesAndWithholdsEarly, redClosesAndWithholdsWithRoom, redHoldsATrifleAndWithholds:
 		must("--seat-id", converseLens, "close", "--id", open[0], "--as", "not_a_defect", "--reason", "fuzz: the argument held",
 			"--verified-by", converseLens, "--verified-with", "fuzz", "--verified-against", "the report")
 		if path == redClosesAndPetitions {
@@ -104,16 +111,13 @@ func converseRun(t *testing.T, path conversePath) (*runner, record.Plan) {
 		r.dispatchSits("lens", converseLens)
 		r.dispatchReturns(converseLens, false)
 	case benchCloses:
-		// THE BENCH SITS ON A DOCKETED GAP ONCE NO OTHER PARTY'S CLOSING IS AWAITED, and only a sitting the
-		// plan convenes on the gap is delivered its passage, which the bench's ruling stands on: blue
-		// dockets the gap while the lens sits, and the lens files its closing on it before it returns.
-		r.register("blue", "blue-respond")
-		must("motion", "docket", "file", "--seat-id", "blue-respond", "--id", open[0], "--reason", "fuzz: the bench's to settle")
-		must("closing", "--seat-id", converseLens, "--id", open[0], "--reason", "fuzz: the lens's closing on the docketed gap")
 		r.dispatchReturns(converseLens, false)
-		r.dispatchSits("chair", "red-chair")
-		must("--json", "dispatch", "next", "--seat-id", "red-chair")
-		r.dispatchReturns("red-chair", false)
+		// A PROPOSAL WAITS FOR THE GAP'S FIRST EXCHANGE: blue sits on it once before it proposes.
+		r.exchangeOn(t)
+		r.dispatchSits("blue", "blue-respond")
+		must(proposeCloseArgs("blue-respond", open[0], "not_a_defect", "fuzz: the bench's to settle")...)
+		r.dispatchReturns("blue-respond", false)
+		r.partiesClose(t, converseLens)
 		r.dispatchSits("bench", "judge", "docket")
 		r.benchDisposes("judge", open[0], "not_a_defect", "--reason", "fuzz: the argument held", "--final")
 		if r.actErr != "" {
@@ -122,9 +126,17 @@ func converseRun(t *testing.T, path conversePath) (*runner, record.Plan) {
 		r.dispatchReturns("judge", false)
 	}
 
+	// THE EPOCH BEFORE THE LIMIT, where a lens still audits: the final sitting admits closings alone.
+	if path == redHoldsATrifleAndWithholds {
+		r.chairPlans(t)
+		r.forcePosition, r.forceVerified = "gaps", true
+		r.dispatchSits("lens", converseLens)
+		r.mintHeldTrifle(converseLens)
+		r.dispatchReturns(converseLens, false)
+	}
 	r.dispatchSits("chair", "red-chair")
 	out := must("--json", "dispatch", "next", "--seat-id", "red-chair")
-	if path == redClosesAndWithholds || path == redClosesAndWithholdsEarly || path == redClosesAndWithholdsWithRoom {
+	if path == redClosesAndWithholds || path == redClosesAndWithholdsEarly || path == redClosesAndWithholdsWithRoom || path == redHoldsATrifleAndWithholds {
 		must("--json", "position", "--seat-id", "red-chair", "--reason", "fuzz: the PASS is withheld, the core claim rests on one source")
 		out = must("--json", "dispatch", "next", "--seat-id", "red-chair")
 	}

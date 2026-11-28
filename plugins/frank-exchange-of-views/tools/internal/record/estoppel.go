@@ -3,6 +3,7 @@ package record
 import (
 	"database/sql"
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
 // ESTOPPEL — red is bound by the fix it prescribed.
@@ -20,31 +22,30 @@ import (
 // RED'S INSTRUCTION. Blue's discipline was not the problem — 19 of 26 edits named the gap
 // they answered. It did what it was told, carefully, and was penalised for it.
 //
-// The rule this file enforces: a finding whose location is text red PRESCRIBED and blue
-// applied VERBATIM is an amendment to the gap that prescribed it, not a fresh gap. Red may
-// still be unsatisfied — but it argues that on the original gap, where its own prescription
-// is on the record next to it, rather than opening a new one with a clean slate.
+// The rule this file enforces: a mint whose quote is text a lens PRESCRIBED and the author applied
+// VERBATIM is the prescribing lens re-raising its own words, refused to that lens. It may still be
+// unsatisfied — but it argues that on the original gap, where its own prescription is on the record
+// next to it, rather than opening a new one with a clean slate. Any other lens audits the applied
+// text as blue's.
 //
 // It is bounded to VERBATIM application on purpose. If blue counter-edited, the text is
 // blue's authorship and red never proposed it, so nothing estops red from auditing it
 // normally. Estoppel attaches to red's own words, and to nothing else.
 //
 // EVERY `--quote` MINT MEETS THE GUARD, a found source's claim_contradicts_source included (gblock,
-// 2026-11-06, F4 (a)): red mints --supersedes the prescribing gap, as the refusal says.
+// 2026-11-06, F4 (a)).
 //
-// A REWORD ENDS IT (gblock, 2026-11-10, F12). An applied-verbatim prescription estops while the latest
-// edit touching its gap is the verbatim one; an edit after it that lists the gap in `reopened` —
-// the verbatim edit placed the gap's token in the fixed sentence, so an edit that rewords that
-// sentence names the gap — makes the span blue's; a pure cut of that sentence, whose `removed_anchors`
-// lists the gap, takes the span out and ends it too; and a later verbatim edit of the same gap binds
-// red again (estoppingPrescriptions). Derived from BlueEdit.reopened and removed_anchors, no new field.
+// THE BAR IS A WRITTEN ROW (#1695 §III.B6): the verbatim edit's transaction holds an ESTOPPEL
+// tombstone on the gap whose statement it applied, and the author's next change of that gap's subject
+// ends it (tombstone.go). A later verbatim application places it again. A fix spanning several
+// sentences carries the token in one, so a reword of another of its sentences leaves the bar standing.
 
 // minEstoppelOverlap is the shortest prescribed text that may trigger the guard, in
 // characters after whitespace collapse.
 //
 // A short prescription ("7 is prime", "38%") can legitimately occur in text red never wrote,
-// and refusing a real finding is far worse than missing an estoppel — the guard exists to
-// stop a systematic pathology, not to win every edge case. Below this length the finding is
+// and refusing a real gap is far worse than missing an estoppel — the guard exists to
+// stop a systematic pathology, not to win every edge case. Below this length the mint is
 // allowed through and red's own judgment (which the prompt now names explicitly) is the only
 // check. Stated so nobody reads the guard as exhaustive.
 const minEstoppelOverlap = 40
@@ -59,93 +60,104 @@ const minEstoppelOverlap = 40
 // those bytes from the mint, so it holds by construction and no transcription slip can cost it.
 // `BlueEdit.accepted` tells the two apart where that matters; estoppel does not care which.
 func appliedVerbatim(evs []*Event, gaps map[string]*Gap) map[string]string {
-	return verbatimPrescriptions(evs, gaps, false)
-}
-
-// estoppingPrescriptions is the gaps whose prescription still estops red: those whose LATEST edit
-// touching the gap is a verbatim one (F12). Walking the edits in event order, an edit with
-// applied_verbatim answering gap G sets G's prescription; an edit AFTER it whose `reopened` lists G —
-// blue reworded the sentence the fix placed G's token in (the verbatim edit's OWN
-// `reopened` lists G, since it changed the sentence, and does not count) — or whose `removed_anchors`
-// does, a pure cut that took the sentence and G's marker with it — deletes it; a later verbatim edit
-// answering G sets it again. Residue, stated: a fix spanning several sentences carries the token in
-// one, so a reword of another of its sentences lists nothing and the whole prescription still estops;
-// a gap with no token is never reopened and estops as before.
-func estoppingPrescriptions(evs []*Event, gaps map[string]*Gap) map[string]string {
-	return verbatimPrescriptions(evs, gaps, true)
-}
-
-// verbatimPrescriptions is the two folds above: every verbatim application, or, with reworded true,
-// only those no later reword ended.
-func verbatimPrescriptions(evs []*Event, gaps map[string]*Gap, reworded bool) map[string]string {
 	out := map[string]string{}
+	// THE PRESCRIPTION AN EDIT APPLIED IS THE ONE IN FORCE AT THE EDIT (wordingAt): the mint's, or the
+	// result of the gap's latest amend before the edit in record order.
+	amended := map[string]*recordpb.Amend{}
 	for _, e := range evs {
-		// THE BODY IS THE FILTER. "not a blue_edit" is the same set the `e.Type != "blue_edit"`
-		// test selected, and it cannot go stale against the enum the way a second reading of the
-		// type could.
+		if a, ok := recordpb.BodyAs[*recordpb.Amend](e); ok {
+			amended[a.GetGapId()] = a
+			continue
+		}
 		ed, ok := recordpb.BodyAs[*recordpb.BlueEdit](e)
-		if !ok {
+		// The bench's application of red's closing text on a for-raiser answer is no offer blue took.
+		if !ok || !ed.GetAppliedVerbatim() || seatclass.RoleOfSeat(e.GetSeatId()) == "bench" {
 			continue
 		}
-		id := ed.GetAnswers()
-		if ed.GetAppliedVerbatim() {
-			if g, ok := gaps[id]; ok && g.Mint != nil && g.Mint.GetFixNew() != "" {
-				out[id] = g.Mint.GetFixNew()
-			}
+		g, ok := gaps[ed.GetAnswers()]
+		if !ok || g.Mint == nil {
 			continue
 		}
-		if !reworded {
-			continue
+		fix := g.Mint.GetFixNew()
+		if a := amended[ed.GetAnswers()]; a != nil {
+			fix = a.GetResultFixNew()
 		}
-		for _, r := range slices.Concat(ed.GetReopened(), ed.GetRemovedAnchors()) {
-			delete(out, r)
+		if fix != "" {
+			out[ed.GetAnswers()] = fix
 		}
 	}
 	return out
 }
 
-// Estoppel is a prescription a mint's quote relitigates: the gap whose fix it is, the seat that minted
-// that gap — the author of the prescription — and the prescribed text.
+// Estoppel is a prescription a mint's quote relitigates: the gap whose statement the author applied,
+// its minter — the lens that prescribed it — and the text the placing act wrote.
 type Estoppel struct{ Gap, PrescribedBy, Text string }
 
-// EstoppelConflict reports the applied prescription `quote` is relitigating, and whether there is one.
+// EstoppelConflict reports the applied prescription seat's `quote` relitigates, and whether there is
+// one: a gap seat minted that an ESTOPPEL tombstone stands on at the end of f.Events, whose placing
+// act's applied text the quote meets.
 //
-// RED IS THE PARTY BOUND, NOT THE LENS THAT WROTE IT. The guard was written when one red seat minted
-// every gap, so "red's prescription" and "the minting seat's prescription" were the same set; with the
-// lenses minting, a lens's mint against another lens's applied fix is refused too, and the refusal
-// names the author from the record rather than telling the minting lens the words were its own.
+// ESTOPPEL BINDS ONLY THE PRESCRIBING LENS (#1695 X11, picked 2026-11-23): its own words, applied by
+// the author, are what it may not re-raise. Any other lens audits that text as it audits any of
+// blue's, and mints an ordinary gap there.
 //
-// Containment either way, on whitespace-collapsed text: the new finding may quote a fragment
-// of the prescribed sentence or a span that swallows it whole, and both are the same act.
-func EstoppelConflict(f Family, quote string) (Estoppel, bool) {
-	// VISIBLE, NOT MERELY COLLAPSED. Collapsing whitespace alone leaves the anchors, and the
-	// two sides of this comparison differ by exactly that: `fix_new` is red's prose, written before
-	// any anchor existed, while `quote` is taken from the report, which anchors the sentence the
-	// moment the fix lands. On raw bytes this check goes blind at the instant it becomes relevant.
+// THE TEXT IS THE PLACING ACT'S: the author's application wrote it (the accepting edit's new span),
+// whether the statement it took was the mint's prescription or a pair a later closing of the raiser's
+// stated, so a closing's pair bars as a mint's does.
+//
+// Containment either way, on whitespace-collapsed text: the new mint may quote a fragment
+// of the applied text or a span that swallows it whole, and both are the same act.
+func EstoppelConflict(f Family, seat, quote string) (Estoppel, bool) {
+	// VISIBLE, NOT MERELY COLLAPSED. The applied text carries the gap's token and every anchor the
+	// edit kept, while `quote` is taken from the report as a reader sees it; on raw bytes this check
+	// goes blind at the instant it becomes relevant.
 	q := anchortext.Visible(quote)
 	if len(q) == 0 {
 		return Estoppel{}, false
 	}
-	for id, fixNew := range estoppingPrescriptions(f.Events, GapsByID(f.Gaps)) {
-		p := anchortext.Visible(fixNew)
+	minters := mintersOf(f.Events)
+	applied := estoppelTextsIn(f.Events)
+	for _, id := range slices.Sorted(maps.Keys(applied)) {
+		if minters[id] != seat {
+			continue
+		}
+		text := applied[id]
+		p := anchortext.Visible(text)
 		if len(p) < minEstoppelOverlap && len(q) < minEstoppelOverlap {
 			continue
 		}
 		if strings.Contains(p, q) || strings.Contains(q, p) {
-			return Estoppel{Gap: id, PrescribedBy: minterOf(f.Events, id), Text: fixNew}, true
+			return Estoppel{Gap: id, PrescribedBy: seat, Text: p}, true
 		}
 	}
 	return Estoppel{}, false
 }
 
-// minterOf is the seat whose mint created gapID: the event's seat, which the record stamps at the write.
-func minterOf(evs []*Event, gapID string) string {
+// estoppelTextsIn is each gap an estoppel tombstone stands on at the end of evs, with the text its
+// placing act wrote: the edit the placing row follows in its transaction (writeTombstones writes the
+// act, then its rows), its new span.
+func estoppelTextsIn(evs []*Event) map[string]string {
+	out := map[string]string{}
+	var act *Event
 	for _, e := range evs {
-		if m, ok := recordpb.BodyAs[*recordpb.Mint](e); ok && m.GetGapId() == gapID {
-			return e.GetSeatId()
+		t, ok := recordpb.BodyAs[*recordpb.Tombstone](e)
+		if !ok {
+			act = e
+			continue
+		}
+		if t.GetKind() != recordpb.TombstoneKind_TOMBSTONE_KIND_ESTOPPEL {
+			continue
+		}
+		if t.GetEnds() {
+			delete(out, t.GetGapId())
+			continue
+		}
+		out[t.GetGapId()] = ""
+		if ed, ok := recordpb.BodyAs[*recordpb.BlueEdit](act); ok && ed.GetAnswers() == t.GetGapId() {
+			out[t.GetGapId()] = ed.GetNew()
 		}
 	}
-	return ""
+	return out
 }
 
 // DeclineStatsOf is DeclineStats over the family pieces themselves (events + the gap index),
@@ -164,7 +176,7 @@ func DeclineStatsOf(evs []*Event, gaps map[string]*Gap) (offered, applied, decli
 		}
 	}
 	for id, g := range gaps {
-		if g.Mint == nil || g.Mint.GetFixBasis() != "verified" {
+		if g.Mint == nil || !verifiedOnAnyVersion(g) {
 			continue
 		}
 		offered++
@@ -176,6 +188,20 @@ func DeclineStatsOf(evs []*Event, gaps map[string]*Gap) (offered, applied, decli
 		}
 	}
 	return offered, applied, declined
+}
+
+// verifiedOnAnyVersion reports whether any version of g's wording — the mint's or an amend's —
+// carries a verified prescription: an offer made is counted once, whichever version made it.
+func verifiedOnAnyVersion(g *Gap) bool {
+	if g.Mint.GetFixBasis() == "verified" {
+		return true
+	}
+	for _, a := range g.Amends {
+		if a.GetResultFixBasis() == "verified" {
+			return true
+		}
+	}
+	return false
 }
 
 // Proposal is the pair a gap's mint prescribes, as an edit of report applies it — the pair the board
@@ -201,10 +227,21 @@ func proposalAt(q recordsql.Querier, gapID, report string) (old, fixNew string, 
 	return old, fixNew, true, nil
 }
 
-// prescriptionAt is the location and text gapID's mint recorded, as q holds them.
+// prescriptionAt is gapID's location, fixed at its mint, and its prescription in force — the latest
+// amend's stamped result, else the mint's — as q holds them.
 func prescriptionAt(q recordsql.Querier, gapID string) (loc, fix string, found bool, err error) {
 	var l, f sql.NullString
 	found, err = queryRowAt(q, []any{&l, &f}, `SELECT "location", "fix_new" FROM "mint" WHERE "gap_id" = ?`, gapID)
+	if err != nil || !found {
+		return l.String, f.String, found, err
+	}
+	// THE PRESCRIPTION IN FORCE IS THE CURRENT VERSION: an amend's stamped result supersedes the
+	// mint's; the location is fixed at the mint.
+	var af sql.NullString
+	amended, err := queryRowAt(q, []any{&af}, `SELECT "result_fix_new" FROM "amend" WHERE "gap_id" = ? ORDER BY "event_id" DESC LIMIT 1`, gapID)
+	if amended {
+		f = af
+	}
 	return l.String, f.String, found, err
 }
 
@@ -215,12 +252,12 @@ func prescriptionAt(q recordsql.Querier, gapID string) (loc, fix string, found b
 // twice yields the occurrence the gap stands at. old is the location as the report holds it there,
 // through that run, then the location's own trailing punctuation: the edit then replaces the sentence with its
 // anchors as `show report` prints them. new is fix with each anchor of the run it does not carry that
-// does not back its sentence — the gap and finding anchors — placed at its content end, where Attach
+// does not back its sentence — the gap anchors — placed at its content end, where Attach
 // places an anchor on any quote ending there; the run's citations and computations are the edit's to carry
 // or refuse. Otherwise the recorded pair.
 //
-// A FINDING RIDES WITH THE GAP. A gap is minted from a finding on its sentence, and left to the edit,
-// that finding was dropped by red's text and every such accept refused as stale on a report nothing
+// A GAP'S ANCHOR RIDES WITH THE GAP. A gap's anchor stands on its sentence, and left to the edit,
+// that anchor was dropped by red's text and every such accept refused as stale on a report nothing
 // had changed (m25 ev512, ev644: 0 of 3 accepts applied). A citation or computation is the sentence's
 // evidence, and carried onto red's rewording it would back text its source was never read against, so
 // it comes along only where AutoPlace finds its sentence word for word. `lens mint` judges its pair
@@ -252,6 +289,59 @@ func ProposalOver(report, gapID, loc, fix string) (string, string) {
 		return old, fix[:at] + carried.String() + fix[at:]
 	}
 	return loc, fix
+}
+
+// redTextAppliedAt reports whether an act already did what red's pair road on gapID does: a recorded
+// edit replaced exactly the words the road quotes with exactly the words it states, anchors aside, and
+// the report still holds those words at the gap's place — an occurrence of fix whose span or abutting
+// anchor run holds the gap's token. The freeze admits such an edit, and the answer for red then applies
+// nothing more (gblock 2026-11-23, as for a retire road). An edit that rewords the span otherwise, or
+// adds words to red's, matches neither half and is held.
+func redTextAppliedAt(q recordsql.Querier, report, gapID, loc, fix string) (bool, error) {
+	if strings.TrimSpace(fix) == "" {
+		return false, nil
+	}
+	tok := anchor.Token(gapID)
+	stands := false
+	for _, sp := range anchortext.LocateAll(report, fix) {
+		after := strings.TrimLeft(report[sp[1]:], anchortext.TrailingPunct)
+		if strings.Contains(report[sp[0]:sp[1]], tok) || strings.Contains(after[:anchor.SkipRun(after, 0)], tok) {
+			stands = true
+			break
+		}
+	}
+	if !stands {
+		return false, nil
+	}
+	spans, err := editSpansAt(q)
+	if err != nil {
+		return false, err
+	}
+	words := func(s string) string { return strings.TrimSpace(anchor.StripWritten(s, nil)) }
+	for _, e := range spans {
+		if words(e.Old) == words(loc) && words(e.New) == words(fix) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// RedTextApplied is redTextAppliedAt asked of run's record as it renders now.
+func RedTextApplied(run Run, gapID, loc, fix string) (bool, error) {
+	db, err := openRunForRead(run)
+	if err != nil {
+		return false, err
+	}
+	report, err := RenderAt(db)
+	if err != nil {
+		return false, err
+	}
+	return redTextAppliedAt(db, report, gapID, loc, fix)
+}
+
+// RedTextApplied is record.RedTextApplied asked of the landing record, over report as it renders there.
+func (l *Landing) RedTextApplied(report, gapID, loc, fix string) (bool, error) {
+	return redTextAppliedAt(l.w.q, report, gapID, loc, fix)
 }
 
 // ProposalAppliedVerbatim reports whether the pair a seat typed is EXACTLY the fix the named gap
@@ -362,4 +452,29 @@ func (r AnchorRemoval) Said() string {
 		return fmt.Sprintf("blue's edit at event %d cut its sentence, and the anchor left with it (%s)", r.Event, reasonOf(r.Reason))
 	}
 	return fmt.Sprintf("blue retired it at event %d (%s; its sentence %s kept)", r.Event, reasonOf(r.Reason), quoted(r.Sentence))
+}
+
+// editSpan is one recorded blue_edit's (old, new) pair, in record order.
+type editSpan struct{ Old, New string }
+
+// editSpansAt returns every recorded blue_edit's (old, new) on q, in record order — what
+// redTextAppliedAt reads to learn whether an edit already applied red's pair.
+func editSpansAt(q recordsql.Querier) ([]editSpan, error) {
+	if noRecord(q) {
+		return nil, nil
+	}
+	rows, err := q.Query(`SELECT "old", "new" FROM "blue_edit" ORDER BY "event_id"`)
+	if err != nil {
+		return nil, fmt.Errorf("reading the recorded edits: %w", err)
+	}
+	defer rows.Close()
+	var out []editSpan
+	for rows.Next() {
+		var o, n sql.NullString
+		if err := rows.Scan(&o, &n); err != nil {
+			return nil, err
+		}
+		out = append(out, editSpan{Old: o.String, New: n.String})
+	}
+	return out, rows.Err()
 }

@@ -16,7 +16,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migration"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
@@ -31,7 +30,7 @@ import (
 //   - every id takes the one shape, <LETTER>-<8 hex> (plans/markers-one-mechanism.md §III.6): an
 //     id that held eight hex keeps them under its kind's letter, and every other — a sequence
 //     number, a round-scoped gap id, a synthesized motion id — takes the first eight hex of
-//     sha256(source hash ‖ archived id). A finding's archived label maps to its finding's id.
+//     sha256(source hash ‖ archived id).
 //
 // Nothing here reads the record back: an id is a function of the source alone, so two migrations
 // of one source produce the same ids wherever they are written (the determinism test holds that),
@@ -50,10 +49,62 @@ type remap struct {
 	// names a computation's note `[^P<n>]` (notes).
 	archivedNotes bool
 	// dropped is every citation label an archived reading of a source its lens found minted, in
-	// both the archived and the migrated spelling (dropLabels). No reading places a citation, so
-	// each label's token is removed from every field and its id from every id list; in a seat's
-	// wording a bare label is left as written.
+	// both the archived and the migrated spelling (dropLabels), and every name an archived finding
+	// carries (dropFindings). No reading places a citation and no finding is written, so each one's
+	// token is removed from every field and its id from every id list; in a seat's wording a bare
+	// label or id is left as written.
 	dropped map[string]bool
+	// rekeyed is every successor id Translation 7 wrote as an amend, to the id of the chain's first
+	// gap, both as the migrated record spells them (rekey). Every id field and token naming the
+	// successor after its mint names the first gap.
+	rekeyed map[string]string
+	firsts  map[string]bool // the first gaps rekeyed names
+}
+
+// rekey records that the migrated id succ names the gap first from here on (Translation 7).
+func (r *remap) rekey(succ, first string) {
+	if r.rekeyed == nil {
+		r.rekeyed, r.firsts = map[string]string{}, map[string]bool{}
+	}
+	r.rekeyed[succ], r.firsts[first] = first, true
+}
+
+// current is the id the migrated record names gap id by from here on: the first gap of the chain a
+// re-keyed successor joined, else id.
+func (r *remap) current(id string) string {
+	if first, ok := r.rekeyed[id]; ok {
+		return first
+	}
+	return id
+}
+
+// rekeyedTokens is v with every token naming a re-keyed successor naming its first gap, and a token
+// that then repeats the token before it, with only whitespace between, taken out: a successor's
+// marker beside its first gap's in one sentence is one marker.
+func (r *remap) rekeyedTokens(v string) string {
+	if len(r.rekeyed) == 0 {
+		return v
+	}
+	v = anchor.Replace(v, func(tok, id string) string {
+		if first, ok := r.rekeyed[id]; ok {
+			return anchor.Token(first)
+		}
+		return tok
+	})
+	var b strings.Builder
+	last, prevEnd, prevID := 0, -1, ""
+	anchor.Each(v, func(start, end int, id string) {
+		if id == prevID && r.firsts[id] && strings.TrimSpace(v[prevEnd:start]) == "" {
+			b.WriteString(v[last:start])
+			last = end
+		}
+		prevEnd, prevID = end, id
+	})
+	if last == 0 {
+		return v
+	}
+	b.WriteString(v[last:])
+	return b.String()
 }
 
 // around is v from proseContext bytes before [from, to) to proseContext bytes after, widened to
@@ -81,7 +132,7 @@ var (
 	namedLens    = regexp.MustCompile(`^red-lens-r\d+-([a-z]+(?:-[a-z]+)*)$`)
 	roundedSeat  = regexp.MustCompile(`^(red-merge|red-chair|blue-respond|judge)-r\d+$`)
 	// currentID is an id already in the one shape, which a source written at this epoch carries.
-	currentID = regexp.MustCompile(`^` + anchor.IDPattern("finding", "citation", "computation", "gap", "inquiry", "motion", "position", "question part") + `$`)
+	currentID = regexp.MustCompile(`^(?:` + anchor.IDPattern("citation", "computation", "docketing", "gap", "inquiry", "motion", "position", "question part") + `|` + findingID + `)$`)
 	// hexID is an archived id whose eight hex are kept: an era's lower-case id, and a proof's `P-`
 	// id, which a source before epoch 49 carries and which is a computation's `K-` id with the same
 	// hex.
@@ -89,9 +140,9 @@ var (
 	// archivedToken is an anchor token as an archived record spells it, its tag and its id. A
 	// comment that only looks like one — a seat's prose showing the form with its id elided — is
 	// not a token and is left as written.
-	archivedToken = regexp.MustCompile(`<!--(fx|cite|proof|gap):([fcp]-[0-9a-f]+|P-[0-9a-f]{8}|G[0-9]+)-->`)
+	archivedToken = regexp.MustCompile(`<!--(fx|cite|proof|gap):([fcp]-[0-9a-f]+|P-[0-9a-f]{8}|G[0-9]+|` + findingID + `)-->`)
 	wordEnded     = regexp.MustCompile(`^\w(.*\w)?$`)
-	tagKind       = map[string]string{"fx": "finding", "cite": "citation", "proof": "computation", "gap": "gap"}
+	tagKind       = map[string]string{"cite": "citation", "proof": "computation", "gap": "gap"}
 	// archivedNote is a computation's woven footnote label as a source before epoch 49 spelled it,
 	// `[^P3]`, in a seat's wording: the report numbers a computation's note `[^K3]`.
 	archivedNote = regexp.MustCompile(`\[\^P([0-9]+)\]`)
@@ -111,30 +162,35 @@ var (
 //
 // mints names the id fields whose value brings an id into being, and the kind it is an id of.
 var (
-	idFields = fieldSet(`Mint.gap_id Mint.about_ref Mint.supersedes Mint.found_by
-		Close.gap_id Close.successor Closing.gap_id Regrade.gap_id SpotCheck.ids Finding.id
-		Finding.about_ref Anchor.id Anchor.sentence_of Cite.label Verify.anchor Computation.computation_id
+	idFields = fieldSet(`Mint.gap_id Mint.about_ref
+		Close.gap_id Closing.gap_id Regrade.gap_id Amend.gap_id Amend.answers SpotCheck.ids
+		Anchor.id Anchor.sentence_of Cite.label Verify.anchor Computation.computation_id
 		Computation.answers Computation.cites Reproduce.computation_id Inquiry.inquiry_id BlueEdit.answers BlueEdit.reopened BlueEdit.removed_anchors Retire.anchors Retire.answers Cite.answers
-		Motion.motion_id GradeMotion.gap_id DocketMotion.gap_id
-		DocketMotion.grounds InquiryCheck.inquiry_id MotionRule.motion_id Dispatch.gap_ids
-		Declare.gap_ids Close.anchors Stale.gap_id
+		Motion.motion_id DocketMotion.gap_id
+		InquiryCheck.inquiry_id MotionRule.motion_id Dispatch.gap_ids
+		Declare.gap_ids Close.anchors Stale.gap_id Tombstone.gap_id Tombstone.docketing_id
+		Docketing.docketing_id Docketing.gap_id Docketing.motion_id DocketRuling.docketing_id
 		Position.position_id PositionMotion.position_id PositionHearing.gap_ids
-		QuestionPart.part_id QuestionPartCheck.part_id`)
+		QuestionPart.part_id QuestionPartCheck.part_id
+		Regrade.accepts Regrade.answers Close.accepts Inquiry.answers QuestionPart.answers`)
 	argumentFields = fieldSet(`Mint.problem Mint.required_fix Mint.acceptance_check
 		Mint.mint_reason Close.prose Close.anchor_tool Close.anchor_target Closing.text
-		Regrade.basis SpotCheck.reason Finding.text Cite.text
+		Regrade.basis Amend.problem Amend.required_fix Amend.acceptance_check Amend.basis SpotCheck.reason Cite.text
 		Verify.text Computation.text Computation.drift Computation.invariant Reproduce.note Inquiry.question Inquiry.hypothesis Inquiry.method
 		Inquiry.reason InquiryCheck.reason BlueEdit.text Retire.reason
-		Log.text Motion.basis Motion.relief DocketRuling.principle DocketRuling.tension
+		Log.text Motion.basis Motion.relief Docketing.basis DocketRuling.principle DocketRuling.tension
 		DocketRuling.review_flag DocketRuling.settled DocketRuling.reopens_on DocketRuling.direction PositionHearing.direction MotionRule.opinion MotionRule.relief
 		Outcome.prose Outcome.verdict_why Position.text Halt.opinion
-		Certify.statement Declare.holding QuestionPart.text QuestionPart.reason`)
+		Certify.statement Declare.holding QuestionPart.text QuestionPart.reason
+		Closing.problem Closing.required_fix Closing.acceptance_check`)
 	dataFields = fieldSet(`Anchor.location ReportPart.text BlueEdit.edit_key
 		BlueEdit.new BlueEdit.old BlueEdit.old_paragraphs BlueEdit.new_paragraphs Cast.lane_seat_ids Cast.seat_ids Cite.cite_key Cite.copy_captured_at Cite.copy_url Cite.fetched_at
 		Cite.location Cite.ocr_engine Cite.ocr_text_sha Cite.sha256 Cite.source_after Cite.source_before
 		Cite.source_matched Cite.source_span Cite.span_text_sha Cite.title Cite.url EnvelopeAdmitted.agent_id
-		Close.anchor_seat Close.carried_from DocketMotion.grounds_quote
-		Dispatch.seat_id PositionHearing.lens Plan.printed Finding.finding_key Finding.location Inquiry.supersedes_status Mint.fix_basis Mint.fix_new
+		Close.anchor_seat Close.carried_from
+		Dispatch.seat_id PositionHearing.lens Plan.printed Inquiry.supersedes_status Mint.fix_basis Mint.fix_new Closing.location Closing.fix_new
+		Amend.fix_new Amend.fix_basis Amend.result_problem Amend.result_required_fix Amend.result_acceptance_check
+		Amend.result_fix_new Amend.result_fix_basis
 		Mint.location Mint.mint_key Outcome.verdict_basis Computation.location Computation.key
 		Computation.bundle_sha Computation.argv Computation.toolchain_path Computation.toolchain_sha256
 		Register.agent_id Register.agent_type
@@ -144,7 +200,7 @@ var (
 		SittingClose.agent_transcript_path SittingOpen.agent_id
 		SittingOpen.agent_type SittingOpen.seat_id SpotCheck.areas Verify.claim Verify.copy_url Verify.page_render_sha
 		Verify.reading_render_sha Verify.title Verify.url QuestionPart.supersedes_coverage`)
-	mints = map[string]string{"Mint.gap_id": "gap", "Finding.id": "finding", "Cite.label": "citation",
+	mints = map[string]string{"Mint.gap_id": "gap", "Cite.label": "citation",
 		"Computation.computation_id": "computation", "Inquiry.inquiry_id": "inquiry", "Motion.motion_id": "motion",
 		"Position.position_id": "position", "QuestionPart.part_id": "question part"}
 )
@@ -245,6 +301,44 @@ func (r *remap) spelling(kind, old string) string {
 	return anchor.ID(kind, b)
 }
 
+// The finding, as an archived record spells it: its id in the one shape, and its token's tag. No
+// live kind holds either; migrate declares them beside the archived bodies it reads.
+const (
+	findingID  = `F-[0-9a-f]{8}`
+	findingTag = "fx"
+)
+
+// wholeFindingID is an archived finding id already in the one shape.
+var wholeFindingID = regexp.MustCompile(`^` + findingID + `$`)
+
+// dropFindings records every name an archived finding carries to drop (remap.dropped): its id, its
+// archived id and its label, each as the source spells it.
+func (r *remap) dropFindings(names []string) {
+	if r.dropped == nil {
+		r.dropped = map[string]bool{}
+	}
+	for _, n := range names {
+		if n == "" {
+			continue
+		}
+		r.dropped[n], r.dropped[r.findingSpelling(n)] = true, true
+	}
+}
+
+// findingSpelling is the one-shape id an archived finding name is spelled as, by spelling's rule
+// under the finding's letter: a reference written after the source respelled it names it so.
+func (r *remap) findingSpelling(old string) string {
+	if wholeFindingID.MatchString(old) {
+		return old
+	}
+	sum := sha256.Sum256([]byte(r.sourceHash + old))
+	b := [4]byte(sum[:4])
+	if m := hexID.FindStringSubmatch(old); m != nil {
+		hex.Decode(b[:], []byte(m[1]))
+	}
+	return "F-" + hex.EncodeToString(b[:])
+}
+
 // dropLabels records the citation labels to drop (remap.dropped), each in both spellings.
 func (r *remap) dropLabels(labels []string) {
 	if r.dropped == nil {
@@ -255,17 +349,8 @@ func (r *remap) dropLabels(labels []string) {
 	}
 }
 
-// apply respells one translated body in place, by the three field lists. archived is the label its
-// archived event carries, which on a finding names the finding's id from here on; a finding
-// the archive gave no id takes one from its label.
-func (r *remap) apply(body proto.Message, archived any) {
-	label, _ := archived.(string)
-	if f, ok := body.(*recordpb.Finding); ok && label != "" {
-		if f.Id == nil {
-			f.Id = &label
-		}
-		r.ids[label] = r.id("finding", f.GetId())
-	}
+// apply respells one translated body in place, by the three field lists.
+func (r *remap) apply(body proto.Message) {
 	r.walk(body.ProtoReflect())
 }
 
@@ -339,17 +424,21 @@ func (r *remap) notes(field, v string) string {
 func (r *remap) respellIDs(field, v string) string {
 	v = archivedToken.ReplaceAllStringFunc(v, func(tok string) string {
 		m := archivedToken.FindStringSubmatch(tok)
-		if r.dropped[m[2]] {
+		if m[1] == findingTag || r.dropped[m[2]] {
 			return ""
 		}
 		return anchor.Token(r.id(tagKind[m[1]], m[2]))
 	})
+	v = r.rekeyedTokens(v)
 	switch {
 	case mints[field] != "":
 		return r.id(mints[field], v)
 	case idFields[field]:
 		if nv, ok := r.ids[v]; ok {
-			return nv
+			v = nv
+		}
+		if first, ok := r.rekeyed[v]; ok {
+			return first
 		}
 	case argumentFields[field] && len(r.ids) > 0:
 		if r.wordsOf != len(r.ids) {
@@ -378,4 +467,13 @@ func (r *remap) respellIDs(field, v string) string {
 		return b.String()
 	}
 	return v
+}
+
+// respelled is the id the migrated record carries for an archived id the stream minted, else the id
+// as given.
+func (r *remap) respelled(old string) string {
+	if nv, ok := r.ids[old]; ok {
+		return nv
+	}
+	return old
 }

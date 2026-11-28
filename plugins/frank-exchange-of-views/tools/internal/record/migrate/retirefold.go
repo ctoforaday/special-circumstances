@@ -14,19 +14,18 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 )
 
-// ANCHORS FOLLOW THEIR TEXT (EventSchema 82). A live write leaves no token on no words: a pure cut
+// ANCHORS FOLLOW THEIR TEXT (EventSchema 82; P12b's translations, #1952, numbered in its own plan and
+// distinct from the findings fold's Translations 3-7). A live write leaves no token on no words: a pure cut
 // takes the anchors its sentences held and lists them on the edit (BlueEdit.removed_anchors), a
-// rewrite carries every anchor, and a retire takes anchors and nothing else. An archive holds three
+// rewrite carries every anchor, and a retire takes anchors and nothing else. An archive holds two
 // shapes the live write no longer makes, and the placer translates each where it replays the edit
 // that made it, by what the edit WROTE and the report after it:
 //
 //   - A pure cut that left a token on no words, with or without a claim retire after it: the cut takes
-//     the token (translations 2 and 4). A claim retire whose every token a cut took is folded into the
+//     the token (P12b translations 2 and 4). A claim retire whose every token a cut took is folded into the
 //     cuts and written as no event; one that carries no anchor is written as no event.
-//   - An `F-` token a rewrite left on no words, the edit baring no `G-` beside it: the same, an edit
-//     that left a finding's anchor on no words is a pure cut that took it (F22).
 //   - A rewrite that left a token after its sentence's full stop, which no retire takes: the token is
-//     re-seated before the full stop of the sentence it trails (translation 6, F20).
+//     re-seated before the full stop of the sentence it trails (P12b translation 6, F20).
 //
 // Any other token an archived rewrite left bare stays on the claim retire that took it, which becomes
 // the anchor-only retire it was in effect — unless it takes an open gap's own marker, which a retire
@@ -48,8 +47,7 @@ var errNoEvent = errors.New("written as no event")
 
 // placedLoss is an archived act the placer writes as no event and lists in lost_acts: a claim retire
 // that carries no anchor or takes an open gap's own marker (F14), an edit that quoted a token a cut
-// took and no longer locates once its quote is rewritten without it, or an edit that takes out a
-// stray full stop a re-seat already took (strayStop). why is the accepted loss.
+// took and no longer locates once its quote is rewritten without it. why is the accepted loss.
 type placedLoss struct {
 	err error
 	why string
@@ -57,16 +55,10 @@ type placedLoss struct {
 
 func (l placedLoss) Error() string { return l.err.Error() }
 
-// editLoss is the accepted loss of an archived edit the translations leave nothing to do: a later
-// edit that quoted a token a cut took and no longer locates once its quote is rewritten without it,
-// and an edit that took out the stray full stop a re-seated run left behind, which the re-seat's
-// splice already took (landed, it would take the re-seated sentence's own). One reason per word: the
-// manifest states each word's accepted loss once, and each act's own reason is on its lost_acts entry.
-const editLoss = "an archived edit the fold leaves nothing to do is written as no event, each listed in lost_acts: a later edit that quoted a token a cut took is rewritten without it, since the token is out of the report from its cut on, and one that no longer locates there is lost; an edit that took out the stray full stop a re-seated run left behind finds it already gone, since the re-seat's splice took it, and is lost rather than take the re-seated sentence's own"
-
 // retireLoss is the accepted loss of an archived claim retire the record holds no act for: one that
 // carried no anchor (a retire takes anchors and nothing else, and a claim leaves with its sentence,
-// by a cut), and one that takes an open gap's own marker (F14). One reason per word, as editLoss.
+// by a cut), and one that takes an open gap's own marker (F14). One reason per word: the manifest states
+// each word's accepted loss once, and each act's own reason is on its lost_acts entry.
 const retireLoss = "an archived claim retire that carried no anchor takes nothing a retire takes, since a claim leaves the report only with its sentence, by a cut; one that takes an open gap's own marker is what a retire may not do (an open gap stands on its marker), every anchor it took staying on its sentence; each is written as no event and listed in lost_acts"
 
 // retiresAhead reads every archived retire in stream order, its anchors in the migrated spelling.
@@ -110,7 +102,7 @@ func (p *placer) takenOut(s string) string {
 	})
 }
 
-// movedOn is s with every run translation 6 moved moved the same way: a later edit quoting one is
+// movedOn is s with every run P12b translation 6 moved moved the same way: a later edit quoting one is
 // rewritten to the report it lands on.
 func (p *placer) movedOn(s string) string {
 	for _, m := range p.moved {
@@ -139,12 +131,6 @@ func (p *placer) bares(text string, start, end int, b *recordpb.BlueEdit, unplac
 		if len(reseat) > 0 {
 			nw = p.reseat(nw, reseat)
 		}
-		gapBeside := slices.ContainsFunc(newly, isGap)
-		for _, id := range newly {
-			if anchor.Kind(id) == "finding" && !gapBeside && !slices.Contains(reseat, id) {
-				taken = append(taken, id) // F22: an edit that left a finding's anchor on no words cut it
-			}
-		}
 	}
 	for _, id := range unplaced {
 		if !slices.Contains(taken, id) {
@@ -156,7 +142,7 @@ func (p *placer) bares(text string, start, end int, b *recordpb.BlueEdit, unplac
 }
 
 // order sorts the tokens a cut takes: those a later retire took in that retire's order (F18, F23),
-// the rest in their order in the edit's new (translation 4), then the report's.
+// the rest in their order in the edit's new (P12b translation 4), then the report's.
 func (p *placer) order(nw string, taken []string) {
 	key := func(id string) (int, int) {
 		if r, ok := p.retiredAfter(id); ok {
@@ -223,7 +209,7 @@ func runBefore(s, id string) int {
 func afterTerminator(s, id string) bool { return runBefore(s, id) >= 0 }
 
 // reseat moves each selected token to just before the terminator its run follows, the tokens in
-// their order, and takes out the whitespace between them (translation 6): "x.<A>\n\n<B>" becomes
+// their order, and takes out the whitespace between them (P12b translation 6): "x.<A>\n\n<B>" becomes
 // "x<A><B>.". Each run is recorded, so a later edit that quotes it is rewritten the same way.
 func (p *placer) reseat(nw string, ids []string) string {
 	for len(ids) > 0 {
@@ -290,35 +276,4 @@ func bareAtEnd(text string) error {
 		return fmt.Errorf("the migrated report still holds %s on no words — a token no cut took, no retire took and no re-seat moved; no live write leaves one, so the record is refused", strings.Join(bare, ", "))
 	}
 	return nil
-}
-
-// strayStop says whether an archived edit, its old and new rewritten to the report it lands on, does
-// only what a re-seat's splice already did: it takes out one full stop, the stray one a re-seated run
-// left behind. A rewrite left "x.<A>\n\n<B>." — the sentence's stop before its tokens, a stray one
-// after them — and a later edit took the stray one out. Re-seated, the run reads "x<A><B>." and the
-// splice took the stray stop (p.stops), so that edit finds nothing to take: its quote, the run
-// rewritten as moved, no longer locates, or, where it quoted only the stop, locates on the re-seated
-// sentence's own. Each stray stop answers one edit. start is where old locates in text, or -1.
-func (p *placer) strayStop(text string, start int, old, new string) bool {
-	if len(old) != len(new)+1 {
-		return false
-	}
-	i := 0
-	for i < len(new) && old[i] == new[i] {
-		i++
-	}
-	if old[i+1:] != new[i:] || strings.IndexByte(terminators, old[i]) < 0 {
-		return false
-	}
-	before := old[:i]
-	if start >= 0 {
-		before = text[:start] + before
-	}
-	for k, to := range p.stops {
-		if strings.HasSuffix(before, to) || strings.HasSuffix(before+old[i:i+1], to) {
-			p.stops = slices.Delete(p.stops, k, k+1)
-			return true
-		}
-	}
-	return false
 }

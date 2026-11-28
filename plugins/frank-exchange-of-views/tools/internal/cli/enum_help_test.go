@@ -112,29 +112,17 @@ var enforcedElsewhere = map[string]string{
 	// help and the refusal are generated from recordpb.GradeWords(). A second enforcement in
 	// the table would be the two-readers-of-one-rule mistake required.go warns about.
 	"mint --severity":    gradeParseTime,
-	"finding --severity": gradeParseTime,
 	"regrade --severity": gradeParseTime,
-	"motion --proposed":  gradeParseTime,
 
-	// The two filing sets, keyed on (SUBJECT, key) exactly as the verdicts are: one `motion` event
-	// carries a grade `dimension` or a petition `class` depending on what it is about, and
-	// record.EnumFields keys by event TYPE. record.validate checks them and the help here is
-	// generated from record.MotionFieldEnum — the SAME table, so the two cannot drift.
-	//
-	// These arrived LATE, and the reason is worth keeping: the additive stage registered all three
-	// of this verb's flags as bare strings, so `motion grade file` accepted any dimension and any
-	// grade while the `blue dispute` it replaces refused both. Nothing noticed until the old verb
-	// was deleted and this gate had a flag to compare against — the new verb had been shipped with
-	// a weaker contract than the one it retires, which is complete-the-concept one layer below
-	// where that rule usually gets applied.
-	"motion --dimension": "record.validate, keyed on (SUBJECT, dimension); help generated from record.MotionFieldEnum — the same table",
-	"motion --class":     "record.validate, keyed on (SUBJECT, class); help generated from record.MotionFieldEnum — the same table",
+	// The filing set, keyed on (SUBJECT, key) exactly as the verdicts are: a petition `motion` event
+	// carries a `class`, and record.EnumFields keys by event TYPE. record.validate checks it and the
+	// help here is generated from record.MotionFieldEnum — the SAME table, so the two cannot drift.
+	"motion --class": "record.validate, keyed on (SUBJECT, class); help generated from record.MotionFieldEnum — the same table",
 
-	// `show --view` IS NO LONGER SET-SHAPED, and that is the fix rather than the regression.
-	// Its usage was `board | findings | work list | …` — a pipe list of nouns with no meanings,
-	// which is exactly what this gate's regex looks for. It is now a MENU: one line per view
-	// with its description and the verb that fills it, because a seat navigates by what the tool
-	// prints and a bare name list taught one to invent a verb.
+	// `show --view` IS A MENU, NOT A SET: one line per view with its description and the verb
+	// that fills it, because a seat navigates by what the tool prints and a bare pipe list of
+	// nouns with no meanings — exactly what this gate's regex looks for — teaches one to invent
+	// a verb.
 	//
 	// So the pipe-list detector correctly stops seeing it, and the exemption correctly goes. The
 	// set is still policed — an unknown view is refused at runtime against ViewNames(), and
@@ -155,24 +143,53 @@ const gradeParseTime = "enforced at PARSE time by flags.GradeValue (a pflag.Valu
 // BETTER documentation would be read as noise and turned off.
 // setKey spells a command the way record.EnumFields does — by the EVENT TYPE it writes, since a
 // type can now have more than one verb. Operator commands write no record and keep their name.
+//
+// A DOCKET PROPOSAL IS SPELLED BY THE ACT IT PROPOSES: it records a `motion`, and its flags are the
+// act's own, generated from the act's sets and refused by the act's own parse — so each is held to
+// that act's declared set. Keyed as `motion`, the close's --as would share a key with the other
+// motion pages', and whichever the walk reached last would be the one checked.
 func setKey(c *cobra.Command) string {
+	if p := c.Parent(); p != nil && p.Name() == "file" && p.Parent() != nil && p.Parent().Name() == "docket" {
+		if typ, ok := proposedActType[c.Name()]; ok {
+			return typ
+		}
+	}
 	if t := seat.RecordType(c); t != "" {
 		return t
 	}
 	return c.Name()
 }
 
-func setFlags(c *cobra.Command, out map[string]string) {
+// proposedActType is the event type each docket proposal's act is.
+var proposedActType = map[string]string{"regrade": "regrade", "close": "close"}
+
+// setSite is one set-shaped flag on one page: the key record.EnumFields and the exemption tables
+// spell it by, the help it renders, and the flag, whose parse says what the page refuses.
+type setSite struct {
+	key   string
+	usage string
+	flag  *pflag.Flag
+	menu  []record.EnumValue // the enumhelp-registered values; nil for a usage-line set
+}
+
+// setFlags keys each site by its PAGE — the command path and the flag — because two pages can
+// share a key: the lens's `close` and the proposal `motion docket file close` both write a close,
+// and keyed by the type alone the walk kept whichever page it reached last and checked only that one.
+func setFlags(c *cobra.Command, out map[string]setSite) {
 	registered := enumhelp.Registered(c)
 	collect := func(f *pflag.Flag) {
+		site := setSite{key: setKey(c) + " --" + f.Name, flag: f}
 		switch {
 		case setInHelp.MatchString(f.Usage):
-			out[setKey(c)+" --"+f.Name] = f.Usage
+			site.usage = f.Usage
 		case registered[f.Name] != nil:
-			// Keyed the same way, so the exemption tables and the "declared but absent" check
-			// both keep working; the value is the MENU, which is what a seat now reads.
-			out[setKey(c)+" --"+f.Name] = record.Menu(registered[f.Name])
+			// The value is the MENU, which is what a seat now reads.
+			site.usage = record.Menu(registered[f.Name])
+			site.menu = registered[f.Name]
+		default:
+			return
 		}
+		out[c.CommandPath()+" --"+f.Name] = site
 	}
 	c.Flags().VisitAll(collect)
 	for _, sub := range c.Commands() {
@@ -197,8 +214,21 @@ func offers(usage, name string) bool {
 	return false
 }
 
+// refuses reports whether the page's parse refuses v.
+func refuses(s setSite, v string) bool {
+	return s.flag.Value.Set(v) != nil
+}
+
+// refusesNaming reports whether the page refuses v with a sentence of its own. A word the declared
+// set holds that the page leaves off its menu is legitimate only there: refused as a word the menu
+// lacks, it is a narrowing nothing decided — the menu's refusal names no reason.
+func refusesNaming(s setSite, v, why string) bool {
+	err := s.flag.Value.Set(v)
+	return err != nil && err.Error() != record.Refuse(v, s.menu, why).Error()
+}
+
 func TestEverySetShapedFlagIsEitherDeclaredOrExempt(t *testing.T) {
-	found := map[string]string{}
+	found := map[string]setSite{}
 	for _, r := range AllRoots() {
 		setFlags(r, found)
 	}
@@ -216,10 +246,11 @@ func TestEverySetShapedFlagIsEitherDeclaredOrExempt(t *testing.T) {
 	}
 
 	var undeclared []string
-	for site, usage := range found {
-		e, closed := declared[site]
-		_, open := openSets[site]
-		_, elsewhere := enforcedElsewhere[site]
+	for site, s := range found {
+		usage := s.usage
+		e, closed := declared[s.key]
+		_, open := openSets[s.key]
+		_, elsewhere := enforcedElsewhere[s.key]
 		switch {
 		case boolCount(closed, open, elsewhere) > 1:
 			t.Errorf("%s is claimed by more than one of record.EnumFields / openSets / enforcedElsewhere — at least one of them is a stale claim", site)
@@ -239,10 +270,17 @@ func TestEverySetShapedFlagIsEitherDeclaredOrExempt(t *testing.T) {
 			// offer a value its own write path rejects, which is the lie this test exists to
 			// catch, inverted. ToolOnly is derived from the schema facet, so this is still the
 			// declared set asking itself a question rather than a second list.
+			// A PAGE MAY OFFER LESS THAN THE SET, AND ONLY WHERE IT REFUSES THE REST: a proposed
+			// close leaves off repaired_with_regression, the assignee's own act, and its flag refuses
+			// that word naming why. A word left off the menu that the parse still takes is the drift
+			// this test exists for, and a word on the menu that the parse refuses is its inverse.
 			var absent []string
 			for _, v := range record.Names(record.SeatFilable(e.Values)) {
-				if !offers(usage, v) {
+				if !offers(usage, v) && !refusesNaming(s, v, e.Why) {
 					absent = append(absent, v)
+				}
+				if offers(usage, v) && refuses(s, v) {
+					t.Errorf("%s help offers %q and its parse refuses it — the menu and the refusal disagree", site, v)
 				}
 			}
 			// AND THE OTHER DIRECTION, which is the half that keeps the narrowing honest: a
@@ -256,7 +294,7 @@ func TestEverySetShapedFlagIsEitherDeclaredOrExempt(t *testing.T) {
 			}
 			if len(absent) > 0 {
 				t.Errorf("%s help does not carry %s from its declared set — generate it from record.MustEnum(%q, %q), do not restate it.\nhelp was: %q",
-					site, strings.Join(absent, ", "), strings.SplitN(site, " ", 2)[0], e.Key, usage)
+					site, strings.Join(absent, ", "), strings.SplitN(s.key, " ", 2)[0], e.Key, usage)
 			}
 		case open:
 			if !strings.Contains(usage, "...") {
@@ -290,9 +328,13 @@ func boolCount(bs ...bool) int {
 // otherwise leave its set enforced in validate under a name nothing writes — enforcement
 // that looks present and is dead.
 func TestEveryDeclaredSetBelongsToARealFlag(t *testing.T) {
-	found := map[string]string{}
+	sites := map[string]setSite{}
 	for _, r := range AllRoots() {
-		setFlags(r, found)
+		setFlags(r, sites)
+	}
+	found := map[string]bool{}
+	for _, s := range sites {
+		found[s.key] = true
 	}
 	for typ, fields := range record.EnumFields {
 		for _, e := range fields {

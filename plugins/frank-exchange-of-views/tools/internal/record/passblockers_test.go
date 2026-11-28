@@ -17,9 +17,6 @@ import (
 // permits a PASS exactly when nobody is ready and every blocker is the chair's own. A kind added to
 // blockerKinds with no row here fails the coverage check below.
 func TestEveryPassBlockerKindAgreesOnEverySurface(t *testing.T) {
-	gradeMotion := &recordpb.Motion{MotionId: proto.String("M1"),
-		Basis: proto.String("b"), Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("G1"),
-			Dimension: recordpb.GradeDimension_GRADE_DIMENSION_LIKELIHOOD.Enum(), Proposed: recordpb.Grade_GRADE_LOW.Enum()}}}
 	rows := []struct {
 		name          string
 		kind          BlockerKind // "" = nothing holds
@@ -31,13 +28,13 @@ func TestEveryPassBlockerKindAgreesOnEverySurface(t *testing.T) {
 		{"material gap", BlockerMaterialGap, true, true, func(b *stage) {
 			b.add(outsideLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "medium"))
 		}, false},
-		// THE BENCH'S REMAND OUTRANKS MATERIALITY: a gap graded low, docketed by a party, its closing
-		// filed, and remanded — its one more exchange is owed, and nothing else holds.
+		// THE BENCH'S REMAND OUTRANKS MATERIALITY: a gap graded low, docketed, its closing filed, and
+		// remanded — its one more exchange is owed, and nothing else holds.
 		{"remanded gap that is not material", BlockerRemandOwed, true, true, func(b *stage) {
 			b.add(outsideLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "low"))
-			b.docketMotion("blue-respond", "M1", "G1")
+			b.docketMotion("blue-respond", "D1", "G1")
 			b.add("blue-respond", &recordpb.Closing{GapId: proto.String("G1"), Text: proto.String("the case")})
-			b.register("judge").add("judge", remandRuling("M1", remandDirection))
+			b.register("judge").add("judge", remandRuling("D1", remandDirection))
 		}, false},
 		// A citation a lens's reading finds against, with no gap of the class on it, is the lens's
 		// reading debt (readingDebtsOf).
@@ -76,17 +73,24 @@ func TestEveryPassBlockerKindAgreesOnEverySurface(t *testing.T) {
 			b.regrade(outsideLens, "G1", "trivial")
 		}, false},
 		// THE CLOSING IS FILED: blue-respond's is the only one owed, the minter being no cast lens.
-		{"docket motion on an open gap", BlockerUnruledMotion, true, true, func(b *stage) {
+		{"docketing on an open gap", BlockerDocketed, true, true, func(b *stage) {
 			b.add(outsideLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "low"))
-			b.docketMotion("red-chair", "M1", "G1")
+			b.docketMotion("red-chair", "D1", "G1")
 			b.add("blue-respond", &recordpb.Closing{GapId: proto.String("G1"), Text: proto.String("the case")})
 		}, false},
 		{"a party's closing owed on a docketed gap", BlockerClosingOwed, true, true, func(b *stage) {
 			b.add(outsideLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "low"))
-			b.docketMotion("red-chair", "M1", "G1")
+			b.docketMotion("red-chair", "D1", "G1")
 		}, false},
-		{"docket motion on a closed gap", BlockerUnruledMotion, true, true, func(b *stage) {
-			b.mint(evLens, "G1", "low").closeGap(evLens, "G1").docketMotion("blue-respond", "M1", "G1")
+		{"docketing on a closed gap", BlockerDocketed, true, true, func(b *stage) {
+			b.mint(evLens, "G1", "low").closeGap(evLens, "G1").docketMotion("blue-respond", "D1", "G1")
+		}, false},
+		// A PROPOSAL IN ITS ASSIGNEE'S WINDOW is its assignee's to accept; both parties' closings are
+		// filed, so nothing else holds.
+		{"a proposal in its assignee's window", BlockerUnruledMotion, true, true, func(b *stage) {
+			b.mint(evLens, "G1", "low").add("red-chair", docketMotion("M1", "G1"))
+			b.add(evLens, &recordpb.Closing{GapId: proto.String("G1"), Text: proto.String("the lens's case")})
+			b.add("blue-respond", &recordpb.Closing{GapId: proto.String("G1"), Text: proto.String("the case")})
 		}, false},
 		{"unruled petition", BlockerUnruledMotion, true, true, func(b *stage) {
 			b.add("blue-respond", petitionMotion("M1"))
@@ -101,10 +105,6 @@ func TestEveryPassBlockerKindAgreesOnEverySurface(t *testing.T) {
 			b.withhold("A-00000001").benchRegister(recordpb.Occasion_OCCASION_POSITION).
 				add(benchSeat, positionRuling("A-00000001", recordpb.PositionRuling_POSITION_RULING_UPHELD, evLens, nil, "the leaf"))
 		}, false},
-		{"unruled grade motion, the chair's gavel", BlockerUnruledMotion, true, true, func(b *stage) {
-			b.add(outsideLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "low"))
-			b.add("blue-respond", gradeMotion)
-		}, true},
 		// AN INQUIRY HOLDS THE PASS UNTIL IT IS SOUND (ruled by gblock 2026-11-01): open, for blue's
 		// fate; settled, for the logic lens's check. Neither is the chair's to clear.
 		{"open inquiry", BlockerOpenInquiry, true, true, func(b *stage) {
@@ -136,9 +136,9 @@ func TestEveryPassBlockerKindAgreesOnEverySurface(t *testing.T) {
 		}, true},
 	}
 	// A KIND THAT NEVER HOLDS ALONE, and the kind it holds beside: a closing is owed on a docketing,
-	// and the docket motion is an unruled motion until the bench rules it.
+	// and the docketing stands until the bench rules it.
 	// So is a whole delivery owed: the lens owing it is ready for it.
-	beside := map[BlockerKind]BlockerKind{BlockerClosingOwed: BlockerUnruledMotion, BlockerWholeReportOwed: BlockerLensReady}
+	beside := map[BlockerKind]BlockerKind{BlockerClosingOwed: BlockerDocketed, BlockerWholeReportOwed: BlockerLensReady}
 	covered := map[BlockerKind]bool{}
 	for _, r := range rows {
 		covered[r.kind] = true
@@ -265,8 +265,11 @@ func TestEveryPassBlockerKindAgreesOnEverySurface(t *testing.T) {
 	for _, k := range blockerKinds {
 		for _, owner := range []string{chairSeat, benchSeat, evLens, ""} {
 			b := Blocker{Kind: k.kind, Subject: "X1", Owner: owner, Detail: "a detail", foldWhy: "a reason"}
-			if k.kind == BlockerReadingDebt {
+			switch k.kind {
+			case BlockerReadingDebt:
 				b.outcome = recordpb.SourceOutcome_SOURCE_OUTCOME_REFUTES
+			case BlockerDocketed:
+				b.cause = "impasse"
 			}
 			lines := []string{k.item(b), k.refusal([]Blocker{b})}
 			if k.why != nil {
@@ -283,6 +286,34 @@ func TestEveryPassBlockerKindAgreesOnEverySurface(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+// A PROPOSAL IN ITS ASSIGNEE'S WINDOW IS ITS ASSIGNEE'S TO CLEAR, a docketing the bench's: each holds
+// the PASS on its own arm, owned by the seat whose act clears it.
+func TestAProposalInItsWindowIsItsAssigneesAndADocketingTheBenchs(t *testing.T) {
+	run := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().register("red-chair").
+		sit(2, evLens).mint(evLens, "G1", "low").mint(evLens, "G2", "low").
+		add("red-chair", docketMotion("M1", "G1")).docketMotion("red-chair", "D2", "G2").seed()
+	bs, err := PassBlockers(run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var proposal, docketed *Blocker
+	for i, b := range bs {
+		switch b.Kind {
+		case BlockerUnruledMotion:
+			proposal = &bs[i]
+		case BlockerDocketed:
+			docketed = &bs[i]
+		}
+	}
+	if proposal == nil || proposal.Subject != "M1" || proposal.Owner != evLens ||
+		proposal.Detail != "docket, a proposal its assignee "+evLens+" may accept in its window" {
+		t.Errorf("the proposal in its window = %+v, want M1 owned by its assignee %s", proposal, evLens)
+	}
+	if docketed == nil || docketed.Subject != "G2" || docketed.Owner != benchSeat || docketed.Detail != "D2" {
+		t.Errorf("the docketing = %+v, want G2's docketing D2 owned by the bench", docketed)
 	}
 }
 
@@ -395,11 +426,10 @@ func convergedBoard(t *testing.T) *stage {
 	return st.register("red-chair").sit(2, evLens).sit(2, evLens).register("red-chair")
 }
 
-// THE OUTCOME IS REFUSED WHILE A MOTION WHOSE GAVEL IS THE BENCH'S STANDS UNRULED (#1202). The
+// THE OUTCOME IS REFUSED WHILE A MOTION WHOSE GAVEL IS THE BENCH'S, OR A DOCKETING, STANDS UNRULED (#1202). The
 // terminal bench sitting fires on the bench-owned blockers of the chair's last plan, and a motion
 // filed after that plan convenes no sitting: this refusal is what stops the outcome recording over
-// a petition nobody answered. A motion the chair rules does not hold it, a halt is exempt, and a
-// ruling clears it.
+// a petition nobody answered. A halt is exempt, and a ruling clears it.
 func TestTheOutcomeWaitsForTheBenchsMotions(t *testing.T) {
 	outcome := func() *recordpb.Outcome {
 		return &recordpb.Outcome{Verdict: recordpb.RunOutcome_RUN_OUTCOME_UNVERIFIED.Enum(), Prose: proto.String("ended")}
@@ -423,52 +453,41 @@ func TestTheOutcomeWaitsForTheBenchsMotions(t *testing.T) {
 			t.Errorf("outcome after the petition was ruled = %v, want it admitted", err)
 		}
 	})
-	t.Run("a motion the chair rules does not hold it", func(t *testing.T) {
-		b := board(t)
-		b.add(outsideLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "low"))
-		b.add("blue-respond", &recordpb.Motion{MotionId: proto.String("M1"),
-			Basis: proto.String("b"), Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("G1"),
-				Dimension: recordpb.GradeDimension_GRADE_DIMENSION_LIKELIHOOD.Enum(), Proposed: recordpb.Grade_GRADE_LOW.Enum()}}})
-		// The assembly sitting records the outcome, and is convened to rule every bench motion.
-		run := b.benchRegister(recordpb.Occasion_OCCASION_ASSEMBLE).seed()
-		if _, err := Append(Identity{Run: run, SeatID: "judge"}, outcome()); err != nil {
-			t.Errorf("outcome over an unruled grade motion = %v, want it admitted — the bench holds no gavel for it", err)
-		}
-	})
 	t.Run("the bench's work list names exactly what the refusal names", func(t *testing.T) {
 		b := board(t)
 		b.add(outsideLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "low"))
 		b.add("blue-respond", petitionMotion("M1"))
-		b.docketMotion("red-chair", "M2", "G1")
-		b.add("blue-respond", &recordpb.Motion{MotionId: proto.String("M3"),
-			Basis: proto.String("b"), Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("G1"),
-				Dimension: recordpb.GradeDimension_GRADE_DIMENSION_LIKELIHOOD.Enum(), Proposed: recordpb.Grade_GRADE_LOW.Enum()}}})
-		// The assembly sitting records the outcome, and is convened to rule every bench motion.
+		b.docketMotion("red-chair", "D2", "G1")
+		// The assembly sitting records the outcome, and is convened to rule every bench motion and
+		// every docketing.
 		run := b.benchRegister(recordpb.Occasion_OCCASION_ASSEMBLE).seed()
 		_, err := Append(Identity{Run: run, SeatID: "judge"}, outcome())
 		if err == nil {
-			t.Fatal("outcome admitted over the bench's unruled motions")
+			t.Fatal("outcome admitted over the bench's unruled motion and docketing")
 		}
 		var listed []string
 		for _, it := range blockingItems(sittingOfRunT(t, run, "bench", "judge")) {
-			if strings.HasPrefix(it, "motion ") {
+			if strings.HasPrefix(it, "motion ") || strings.HasPrefix(it, "docketing ") {
 				listed = append(listed, it)
 			}
 		}
-		for _, want := range []string{"M1 (petition, ruled by the bench seat)", "M2 (docket, ruled by the bench seat)"} {
-			if !strings.Contains(err.Error(), want) {
-				t.Errorf("the outcome refusal does not name %q: %v", want, err)
+		for _, c := range []struct{ refusal, item string }{
+			{"motion M1 (petition, ruled by the bench seat)", "motion M1 (petition, ruled by the bench seat)"},
+			{"docketing D2 on G1", "docketing D2 puts gap G1 before the bench"},
+		} {
+			if !strings.Contains(err.Error(), c.refusal) {
+				t.Errorf("the outcome refusal does not name %q: %v", c.refusal, err)
 			}
 			found := false
 			for _, it := range listed {
-				found = found || strings.Contains(it, want)
+				found = found || strings.Contains(it, c.item)
 			}
 			if !found {
-				t.Errorf("the bench's work list does not name %q: %q", want, listed)
+				t.Errorf("the bench's work list does not name %q: %q", c.item, listed)
 			}
 		}
-		if len(listed) != 2 || strings.Contains(err.Error(), "M3") {
-			t.Errorf("the chair's grade motion M3 is the bench's on one surface: work list %q, refusal %v", listed, err)
+		if len(listed) != 2 {
+			t.Errorf("the bench's work list names %q, want exactly the motion and the docketing the refusal names", listed)
 		}
 	})
 	t.Run("a halt is exempt", func(t *testing.T) {

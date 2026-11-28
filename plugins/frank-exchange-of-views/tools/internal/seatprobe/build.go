@@ -13,6 +13,8 @@ import (
 	"regexp"
 	"strings"
 
+	"google.golang.org/protobuf/proto"
+
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookgate"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
@@ -136,7 +138,7 @@ func Build(run record.Run, b Board, exec Exec, hand Hand) error {
 		return fmt.Errorf("%s is still owed report text after %d tool calls: the writer stopped handing it", seatID, maxDeliveryCalls)
 	}
 	// closingsOf is each staged gap's closings, by its board handle, filed after its docket motion.
-	closingsOf := map[string][]struct{ seat, text string }{}
+	closingsOf := map[string][]closingOf{}
 	// THE BUILD REGISTERS THESE SEATS AS THE HARNESS, NOT AS THE AGENT THAT WILL HOLD THEM.
 	//
 	// Staging a board needs registered seats — a motion names its filer, a ruling names its ruler,
@@ -172,8 +174,8 @@ func Build(run record.Run, b Board, exec Exec, hand Hand) error {
 	}
 
 	// LENSES MINT (plans/roundless.md §III.B.3). The staged gaps are minted by lens seats, rotated
-	// over stagingLenses, and each gap is closed by the lens that minted it, because the originator
-	// closes.
+	// over stagingLenses, and each gap is closed by its assignee, the lens that minted it, because the
+	// assignee closes.
 	for _, lensSeat := range stagingLenses {
 		if _, err := exec("register", "--run", run.Dir(), "--seat-id", lensSeat); err != nil {
 			return fmt.Errorf("register %s: %w", lensSeat, err)
@@ -198,9 +200,9 @@ func Build(run record.Run, b Board, exec Exec, hand Hand) error {
 		}
 		ref := fmt.Sprintf("G%d", i+1)
 		staged[ref] = gapID
-		// THE CLOSINGS ARE THE PARTIES': the red one the minting lens's, the blue one blue-respond's,
+		// THE CLOSINGS ARE THE PARTIES': the red one the assignee's, the blue one blue-respond's,
 		// filed once the board's docket motion puts the gap before the bench (closingsOf, below).
-		for _, c := range []struct{ seat, text string }{{minter, g.RedClosing}, {"blue-respond", g.BlueClosing}} {
+		for _, c := range []closingOf{{minter, g.RedClosing, g.Location, g.RedText}, {"blue-respond", g.BlueClosing, "", ""}} {
 			if c.text != "" {
 				closingsOf[ref] = append(closingsOf[ref], c)
 			}
@@ -275,10 +277,20 @@ func Build(run record.Run, b Board, exec Exec, hand Hand) error {
 		args := []string{"motion", m.Subject, "file", "--run", run.Dir(), "--seat-id", m.Filer,
 			"--reason", m.Basis}
 		switch m.Subject {
-		case "grade":
-			args = append(args, "--id", m.GapID, "--dimension", m.Dimension, "--proposed", m.Proposed)
 		case "docket":
-			args = append(args, "--id", m.GapID)
+			// A PROPOSAL STANDS ON A GAP THAT HAS HAD ITS EXCHANGE: the chair engages blue on it and
+			// blue sits on it, and the filer reads it as the exchange left it, in a sitting of its own.
+			if len(m.Act) == 0 {
+				return fmt.Errorf("motion %d (docket) names no act — a docket motion proposes one", i+1)
+			}
+			if err := exchangeOn(run, exec, staged[m.GapID]); err != nil {
+				return fmt.Errorf("motion %d (docket): %w", i+1, err)
+			}
+			if _, err := exec(append([]string{"register", "--run", run.Dir(), "--seat-id", m.Filer}, occasionOf(m.Filer)...)...); err != nil {
+				return fmt.Errorf("register %s: %w", m.Filer, err)
+			}
+			args = append(append([]string{"motion", "docket", "file"}, m.Act...),
+				"--run", run.Dir(), "--seat-id", m.Filer, "--reason", m.Basis, "--id", m.GapID)
 		case "petition":
 			args = append(args, "--class", m.Class, "--relief", m.Relief)
 		}
@@ -294,22 +306,32 @@ func Build(run record.Run, b Board, exec Exec, hand Hand) error {
 		// the null closings, ruled on artifact state instead, and asked for a human check.
 		if m.Subject == "docket" {
 			for _, c := range closingsOf[m.GapID] {
-				if _, err := exec("closing", "--run", run.Dir(), "--seat-id", c.seat,
-					"--id", m.GapID, "--reason", c.text); err != nil {
+				args := []string{"closing", "--run", run.Dir(), "--seat-id", c.seat, "--id", m.GapID, "--reason", c.text}
+				if c.new != "" {
+					args = append(args, "--quote", c.quote, "--new", c.new)
+				}
+				if _, err := exec(args...); err != nil {
 					return fmt.Errorf("closing %s by %s: %w", m.GapID, c.seat, err)
 				}
 			}
 			delete(closingsOf, m.GapID)
 		}
+		// THE BENCH SITS ON A DOCKET MOTION IN THE SITTING THE DISPATCH CONVENES FOR IT: a row naming
+		// it on the gap, filed after the motion, so the bench's next register opens that sitting.
+		if m.Subject == "docket" {
+			if err := appendDispatch(run, "judge", staged[m.GapID]); err != nil {
+				return fmt.Errorf("convening the bench on %s: %w", m.GapID, err)
+			}
+		}
 		if m.Ruled == "" {
 			continue
 		}
-		ruler := map[string]string{"grade": "red-chair", "petition": "judge", "docket": "judge"}[m.Subject]
-		// A ruling on a motion about gaps stands only on report text delivered to its ruler.
-		if err := readDelivery(ruler); err != nil {
-			return fmt.Errorf("rule motion %d: %w", i+1, err)
+		// A DOCKET PROPOSAL IS RULED ON ITS DOCKETING, which the dispatch writes once the assignee's window
+		// ends; a board stages the proposal standing, and rules petitions alone.
+		if m.Subject == "docket" {
+			return fmt.Errorf("motion %d: a board stages a docket proposal standing — its ruling answers the docketing the dispatch writes, for a side", i+1)
 		}
-		if _, err := exec("motion", m.Subject, "rule", "--run", run.Dir(), "--seat-id", ruler,
+		if _, err := exec("motion", m.Subject, "rule", "--run", run.Dir(), "--seat-id", "judge",
 			"--id", staged[fmt.Sprintf("M%d", i+1)], "--as", m.Ruled,
 			"--reason", rulingReason(m.RuledWhy, m.Ruled)); err != nil {
 			return fmt.Errorf("rule motion %d: %w", i+1, err)
@@ -467,6 +489,40 @@ func minted(kind, out string) string {
 // handle is a board's positional name for a gap or a motion it stages.
 var handle = regexp.MustCompile(`\b[GM][0-9]+\b`)
 
+// appendDispatch is the chair's dispatch row naming seat on gap, as `dispatch next` writes it.
+func appendDispatch(run record.Run, seat, gap string) error {
+	at, err := record.OpenRun(run.Dir())
+	if err != nil {
+		return err
+	}
+	_, err = record.Append(record.Identity{Run: at, SeatID: "red-chair"},
+		&recordpb.Dispatch{Pin: proto.Int64(1), SeatId: proto.String(seat), GapIds: []string{gap}})
+	_ = recordsql.Close(filepath.Join(at.Records(), "record.db"))
+	return err
+}
+
+// exchangeOn gives gap its one counted exchange: the chair engages blue on it, and blue sits and
+// sits again.
+func exchangeOn(run record.Run, exec Exec, gap string) error {
+	if err := appendDispatch(run, "blue-respond", gap); err != nil {
+		return fmt.Errorf("engaging blue on %s: %w", gap, err)
+	}
+	for range 2 {
+		if _, err := exec("register", "--run", run.Dir(), "--seat-id", "blue-respond"); err != nil {
+			return fmt.Errorf("blue's sitting on %s: %w", gap, err)
+		}
+	}
+	return nil
+}
+
+// occasionOf is the occasion a seat's register names: the bench's docket sitting, else none.
+func occasionOf(seatID string) []string {
+	if record.SeatOwesOccasion(seatID) {
+		return []string{"--occasion", "docket"}
+	}
+	return nil
+}
+
 // stageReport puts the board's report on the record the way a run does: a lane records its part, and
 // the synthesizer writes the title and TL;DR before it with an edit. Every step after the cast goes
 // through the real verbs.
@@ -530,6 +586,10 @@ func splitFrame(text string) (frame, part string, err error) {
 	at := tldr + 1 + next + 1
 	return text[:at], text[at:], nil
 }
+
+// closingOf is one party's closing a board stages: its seat and argument, and red's text — the span it
+// quotes and what it becomes — where its closing states one.
+type closingOf struct{ seat, text, quote, new string }
 
 // seatOfCall is the seat a call names with --seat-id, or "" for a call of no seat's.
 func seatOfCall(args []string) string {

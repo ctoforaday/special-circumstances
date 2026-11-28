@@ -43,8 +43,7 @@ func telFixture() []*recordpb.TelemetryLine {
 
 func judFixture() Judiciary {
 	j := Judiciary{Measured: true, JudgeSittings: 1, Rulings: map[string]int{"remanded": 2, "repaired": 1},
-		ChainSpans: map[int]int{1: 2, 2: 1}, Chains: 3, MigDown: 1, MigUp: 0, MigFlat: 0}
-	j.Disputes.Raised, j.Disputes.Accepted, j.Disputes.Rejected = 2, 1, 1
+		LifeSpans: map[int]int{1: 2, 2: 1}, Lives: 3, MigDown: 1, MigUp: 0, MigFlat: 0}
 	return j
 }
 
@@ -55,7 +54,7 @@ func baseModel(t *testing.T, runDir string) Model {
 		Run: runtest.Open(t, runDir), Telemetry: tel, Latest: tel[len(tel)-1],
 		Cost: 12.34, APIRounds: 20, Agents: 5,
 		Log:        LogTile{Count: 2, Last: "red-chair: needed a PDF extractor"},
-		Shards:     Shards{LedgerExists: true, OpenRows: 2, OpenBySeverity: map[string]int{"high": 1, "medium": 1}, Findings: 9, Citations: 4, ClosureIndexRows: 3, ArchiveRecords: 3},
+		Shards:     Shards{LedgerExists: true, OpenRows: 2, OpenBySeverity: map[string]int{"high": 1, "medium": 1}, Citations: 4, ClosureIndexRows: 3, ArchiveRecords: 3},
 		BlueClaims: ip(15),
 		Steps:      []Step{{"frontier", "done"}, {"blue lanes", "done"}, {"synthesis", "live"}, {"epoch 1", "todo"}, {"assembly", "todo"}},
 		Rates: []Rate{

@@ -68,3 +68,51 @@ func stampRegradeResult(tx *sql.Tx, r *recordpb.Regrade) error {
 func HasRegradeResult(r *recordpb.Regrade) bool {
 	return r.ResultSeverity != nil || r.ResultLikelihood != nil || r.ResultImpact != nil || r.ResultComplexityCost != nil
 }
+
+// stampAmendResult writes onto a the gap's wording once a stands — the ONE statement of the amend
+// overlay, stampRegradeResult's twin. On each field: a's where a names one, else the wording the gap
+// held before a, which is the result stored on the gap's latest earlier amend, or the mint's where
+// there is none. Whatever result an amend arrives with is overwritten, for stampRegradeResult's reason.
+func stampAmendResult(tx *sql.Tx, a *recordpb.Amend) error {
+	a.ResultProblem, a.ResultRequiredFix, a.ResultAcceptanceCheck, a.ResultFixNew, a.ResultFixBasis = nil, nil, nil, nil, nil
+	if a.GetGapId() == "" {
+		return nil // a gap_id is required, and the required-field refusal names --id
+	}
+	var before [5]sql.NullString
+	err := tx.QueryRow(`SELECT "result_problem", "result_required_fix", "result_acceptance_check", "result_fix_new", "result_fix_basis"
+	  FROM "amend" WHERE "gap_id" = ? ORDER BY "event_id" DESC LIMIT 1`, a.GetGapId()).
+		Scan(&before[0], &before[1], &before[2], &before[3], &before[4])
+	if errors.Is(err, sql.ErrNoRows) {
+		err = tx.QueryRow(`SELECT "problem", "required_fix", "acceptance_check", "fix_new", "fix_basis"
+		  FROM "mint" WHERE "gap_id" = ?`, a.GetGapId()).
+			Scan(&before[0], &before[1], &before[2], &before[3], &before[4])
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil // the amend's foreign key refuses a gap no mint created
+		}
+	}
+	if err != nil {
+		return fmt.Errorf("reading gap %s's wording before this amend: %w", a.GetGapId(), err)
+	}
+	named := [5]*string{a.Problem, a.RequiredFix, a.AcceptanceCheck, a.FixNew, a.FixBasis}
+	result := [5]**string{&a.ResultProblem, &a.ResultRequiredFix, &a.ResultAcceptanceCheck, &a.ResultFixNew, &a.ResultFixBasis}
+	// A NEW PRESCRIPTION CARRIES ITS OWN BASIS: fix_basis is stamped with fix_new, so an amend naming a
+	// fix_new takes its basis whole, absent or not, rather than the earlier prescription's.
+	for k := range named {
+		switch {
+		case named[k] != nil:
+			v := *named[k]
+			*result[k] = &v
+		case k == 4 && a.FixNew != nil:
+			// the new prescription has no basis: none stands
+		case before[k].Valid:
+			v := before[k].String
+			*result[k] = &v
+		}
+	}
+	return nil
+}
+
+// HasAmendResult answers whether a carries a stamped wording on any field.
+func HasAmendResult(a *recordpb.Amend) bool {
+	return a.ResultProblem != nil || a.ResultRequiredFix != nil || a.ResultAcceptanceCheck != nil || a.ResultFixNew != nil || a.ResultFixBasis != nil
+}

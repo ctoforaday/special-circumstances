@@ -70,7 +70,7 @@ are the same bytes, by construction.
 **Termination is the record's, and the standing practice is stop-and-resume**: the chair's `dispatch next` says who sits; the run ends when nobody is ready — PASS
 permitted (VERIFIED) — or when the run reaches its epoch limit with parties still ready (CEILING, the limit
 named as the reason). The epoch before the last readies no blue, so a lens sits after every act of blue's. A gap at impasse after the one more exchange the bench's remand granted is
-docketed again and closed: a second remand at impasse is refused. An exchange is blue's answer and the minting lens's audit of it. The bounds are the run's terms, recorded at setup: the exchanges a gap gets before
+docketed again and closed: a second remand at impasse is refused. An exchange is blue's answer and the assignee's audit of it. The bounds are the run's terms, recorded at setup: the exchanges a gap gets before
 impasse (k-max) and
 the chair sittings the run gets (max-epochs, default 12). One stop is the engine's own: a dispatch
 plan the same for three chair sittings in a row — the same parties readied against the same

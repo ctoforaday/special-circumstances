@@ -1,11 +1,12 @@
 package cli
 
 import (
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"strings"
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 )
 
 // ONE MECHANISM, ONE ID — the thing three verb pairs could not do.
@@ -17,17 +18,19 @@ func TestAMotionJoinsItsAskToItsAnswerOnAnID(t *testing.T) {
 	runDir := seatRun(t)
 	gap := mintGap(t, runDir, "motion-join", "spec_underspecification")
 
-	out, err := run(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond",
-		"--id", gap, "--dimension", "severity", "--proposed", "low",
-		"--reason", "the consequence is bounded by the caller's own validation")
+	exchangeOn(t, runDir, gap)
+	out, err := run(t, closeProposalArgs(runDir, "blue-respond", gap, "not_a_defect",
+		"the consequence is bounded by the caller's own validation; the bench should decide the gap")...)
 	if err != nil {
 		t.Fatalf("file: %v", err)
 	}
 	if !strings.Contains(out, handleText(t, runDir, "M1")) {
 		t.Fatalf("the tool must assign the id, got %q", out)
 	}
-	if _, err := runAt(t, "motion", "grade", "rule", "--run", runDir, "--seat-id", "red-chair",
-		"--id", "M1", "--as", "rejected", "--reason", "the bound does not hold across the retry path"); err != nil {
+	k := docketNow(t, runDir, gap, recordpb.DocketingCause_DOCKETING_CAUSE_PROPOSAL, handleText(t, runDir, "M1"))
+	conveneBench(t, runDir, gap)
+	rule := benchRuleArgs(k, "remand", "correctness")
+	if _, err := runAt(t, append([]string{rule[0], rule[1], rule[2], "--run", runDir, "--seat-id", "judge"}, rule[3:]...)...); err != nil {
 		t.Fatalf("rule: %v", err)
 	}
 
@@ -40,10 +43,10 @@ func TestAMotionJoinsItsAskToItsAnswerOnAnID(t *testing.T) {
 		t.Fatalf("one exchange, one motion; got %d", len(ms))
 	}
 	m := ms[0]
-	if !m.Ruled() || m.Ruling != "rejected" {
+	if !m.Ruled() || m.Ruling != "remanded" {
 		t.Errorf("the ask lost its answer: %+v", m)
 	}
-	if m.Fields["dimension"] != "severity" || m.Fields["gap_id"] != gap {
+	if m.Fields["gap_id"] != gap {
 		t.Errorf("subject payload lost: %+v", m.Fields)
 	}
 	// The motion's OWN id and the gap it references must not collide in one payload.
@@ -81,39 +84,12 @@ func TestOnlyTheRulingSeatMayRule(t *testing.T) {
 	}
 }
 
-// A GRADE MOTION'S PAGE SAYS WHERE A SEAT THAT DISAGREES WITH ITS RULING GOES — the gap before the
-// bench — on the subject's page for every seat, and on each filing page a seat holds: the chair
-// rules grade motions and files none, and the bench rules docket motions and files none.
-func TestAGradeMotionPageNamesTheDocketRoute(t *testing.T) {
-	for _, seatID := range []string{"blue-respond", lensSeat, "red-chair", "judge"} {
-		pages := [][]string{{"motion", "grade"}}
-		if seatID != "red-chair" {
-			pages = append(pages, []string{"motion", "grade", "file"})
-		}
-		for _, page := range pages {
-			route := "files `motion docket file` on the gap, and the bench rules that"
-			if seatID == "judge" {
-				route = "puts the gap before you in a docket motion"
-			}
-			if h := help(t, append(append([]string{}, page...), "--help", "--seat-id", seatID)...); !strings.Contains(h, route) {
-				t.Errorf("%s: %v does not name the docket route:\n%s", seatID, page, h)
-			}
-		}
-		if seatID == "judge" {
-			continue
-		}
-		if h := help(t, "motion", "docket", "file", "--help", "--seat-id", seatID); !strings.Contains(h, "a seat that disagrees with a ruling on the gap's grade") {
-			t.Errorf("%s: the docket filing page does not say it is the route for a disputed grade ruling:\n%s", seatID, h)
-		}
-	}
-}
-
 // A RULING NAMING NO FILING IS REFUSED — the dangling reference every other cross-reference gets
 // checked for, because it is accepted at write time and dropped at replay where nobody sees it.
 func TestARulingMustNameAMotionThatExists(t *testing.T) {
 	runDir := seatRun(t)
-	if _, err := runAt(t, "motion", "grade", "rule", "--run", runDir, "--seat-id", "red-chair",
-		"--id", "M99", "--as", "accepted", "--reason", "ruling on nothing"); err == nil {
+	if _, err := runAt(t, "motion", "petition", "rule", "--run", runDir, "--seat-id", "judge",
+		"--id", "M99", "--as", "denied", "--reason", "ruling on nothing"); err == nil {
 		t.Fatal("a ruling naming a motion no filing created was accepted; it would be dropped at replay in silence")
 	}
 }

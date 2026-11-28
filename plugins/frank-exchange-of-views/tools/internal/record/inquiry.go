@@ -151,7 +151,7 @@ func InquiriesOf(evs []*Event, win WindowIndex) []*Inquiry {
 			}
 		case *recordpb.Mint:
 			// ANY GAP ABOUT THE INQUIRY puts every earlier check in question, whatever its materiality
-			// (ruled by gblock 2026-11-10): the lens that minted it says the inquiry falls short, and
+			// (ruled by gblock 2026-11-10): the gap's acting seat (actingSeat) says the inquiry falls short, and
 			// the owner judges the fate again with the gap in hand. The class still decides whether the
 			// gap holds the inquiry wanting. A later regrade unseats nothing: it moves how much the gap
 			// weighs, not what a check after its mint had in hand, and while it holds the inquiry

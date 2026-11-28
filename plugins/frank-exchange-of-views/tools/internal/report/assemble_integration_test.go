@@ -19,7 +19,7 @@ import (
 
 // TestAssembleEndToEnd drives a minimal but real run through the record API and asserts the
 // assembled report.md combines the two ownership classes correctly: blue's audited sections
-// ship as written, and the verdict, findings, inquiries and debate are composed from the
+// ship as written, and the verdict, gaps, inquiries and debate are composed from the
 // event log. It is the driveable check the unit tests around each composer cannot give.
 func TestAssembleEndToEnd(t *testing.T) {
 	runDir := newRun(t)
@@ -120,20 +120,23 @@ func TestAssembleEndToEnd(t *testing.T) {
 	add("blue-respond", &recordpb.QuestionPart{PartId: proto.String(part), Text: proto.String("whether the cache stays coherent under two writers")})
 	add("blue-respond", &recordpb.QuestionPart{PartId: proto.String(part), SupersedesCoverage: proto.String("1"),
 		Coverage: recordpb.PartCoverage_PART_COVERAGE_NOT_OBTAINED.Enum(), Reason: proto.String("the vendor's trace was not obtainable")})
-	// THE BENCH OPINES IN TWO ACTS, and through the production write path both are refusable:
-	// red DOCKETS the gap it cannot settle, and the bench RULES on that filing. The gap rides
-	// the filing, so the ruling alone would be a disposition of nothing.
-	add("red-chair", &recordpb.Motion{
-		MotionId: proto.String("M1"),
-		Basis:    proto.String("red cannot settle G1 without the model-check"),
-		Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}},
+	// THE BENCH OPINES ON A DOCKETING, and through the production write path both are refusable:
+	// the gap red cannot settle is DOCKETED, and the bench RULES on that docketing. The gap rides
+	// the docketing, so the ruling alone would be a disposition of nothing.
+	archived(t, runDir, "red-chair", &recordpb.Docketing{
+		DocketingId: proto.String("M1"), GapId: proto.String("G1"),
+		Cause: recordpb.DocketingCause_DOCKETING_CAUSE_IMPASSE.Enum(),
+		Basis: proto.String("red cannot settle G1 without the model-check"),
 	})
 	// BLUE ARGUES THE DOCKETED GAP in its closing before the bench rules.
 	add("blue-respond", &recordpb.Closing{GapId: proto.String("G1"), Text: proto.String("G1 is repaired by ordering the invalidation before the store")})
+	// THE BENCH RULES THE REMAND IN THE DOCKET SITTING THE DISPATCH CONVENES, where a plan follows it.
+	benchConvenedOn(t, runDir, "G1")
+	seen["judge"] = true
 	add("judge", &recordpb.MotionRule{
-		MotionId: proto.String("M1"),
-		Opinion:  proto.String("a model-check is owed before this closes"),
+		Opinion: proto.String("a model-check is owed before this closes"),
 		Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
+			DocketingId: proto.String("M1"),
 			Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REMANDED),
 			Principle:   proto.String("correctness"), Tension: proto.String("cost vs certainty"),
 			ReviewFlag: proto.String("false"),
@@ -141,6 +144,7 @@ func TestAssembleEndToEnd(t *testing.T) {
 			Direction:  proto.String("a model-check of the two-writer interleaving"),
 		}},
 	})
+	benchSits(t, runDir, "assemble")
 	add("judge", &recordpb.Outcome{
 		Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_CEILING),
 		Prose:   proto.String("the round ceiling arrived before red could pass the final revision"),
@@ -223,13 +227,12 @@ func TestAssembleEndToEnd(t *testing.T) {
 			t.Errorf("README.md missing %q\n---\n%s", want, index)
 		}
 	}
-	// THE BENCH'S DISPOSITION IS A MOTION NOW, so this run DOES file one and judgments.md is
-	// written. That inverts what this assertion used to say — the old fixture wrote a `bench
-	// opinion`, which was not a motion, so the judgments document was legitimately empty.
+	// THE BENCH RULES A DOCKETING, so judgments.md is written with the docketing's row: the gap, its
+	// cause, the basis and the ruling.
 	judgments := read(FileJudgments)
-	for _, want := range []string{"## Motions", "**M1** · docket G1", "**ruled remanded** by judge"} {
+	for _, want := range []string{"## Motions", "**M1** · docketing G1 · cause impasse", "**ruled remanded** by judge"} {
 		if !strings.Contains(judgments, want) {
-			t.Errorf("judgments.md missing %q — the bench's disposition is a docket motion, and the "+
+			t.Errorf("judgments.md missing %q — the bench's ruling answers a docketing, and the "+
 				"section whose promise is \"an ask and its answer are one row\" must carry it\n---\n%s", want, judgments)
 		}
 	}
@@ -447,18 +450,23 @@ func TestNoDocumentInTheSetShipsADanglingFootnote(t *testing.T) {
 	})
 	// And a computation anchored from the transcript, so debate.md must define K1 for itself too: blue's
 	// closing on the docketed gap.
-	add("red-chair", &recordpb.Motion{MotionId: proto.String("M1"), Basis: proto.String("the bench's to settle"),
-		Filing: &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}}})
+	archived(t, runDir, "red-chair", &recordpb.Docketing{DocketingId: proto.String("M1"), GapId: proto.String("G1"),
+		Cause: recordpb.DocketingCause_DOCKETING_CAUSE_IMPASSE.Enum(), Basis: proto.String("the bench's to settle")})
 	add("blue-respond", &recordpb.Closing{GapId: proto.String("G1"),
 		Text: proto.String("the interleaving is model-checked<!--computation:K-00000001--> and G1 does not stand"),
 	})
-	add("judge", &recordpb.MotionRule{MotionId: proto.String("M1"), Opinion: proto.String("the model check settles it"),
+	// THE BENCH RULES THE REMAND IN THE DOCKET SITTING THE DISPATCH CONVENES, where a plan follows it.
+	benchConvenedOn(t, runDir, "G1")
+	seen["judge"] = true
+	add("judge", &recordpb.MotionRule{Opinion: proto.String("the model check settles it"),
 		Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
+			DocketingId: proto.String("M1"),
 			Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REMANDED),
 			Principle:   proto.String("correctness"), Tension: proto.String("cost vs certainty"), ReviewFlag: proto.String("false"),
 			Settled:   proto.String("the claim as it stood may not be re-asserted"),
 			Direction: proto.String("a model-check of the two-writer interleaving"),
 		}}})
+	benchSits(t, runDir, "assemble")
 	add("judge", &recordpb.Outcome{
 		Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_CEILING),
 		Prose:   proto.String("the round ceiling arrived before red could pass the final revision"),

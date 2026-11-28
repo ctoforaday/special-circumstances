@@ -35,7 +35,7 @@ func TestThePlanWalkListsTheKeysTheVerbPrints(t *testing.T) {
 		Docket:     []string{"G-1"},
 		RemandOwed: []RemandOwed{{GapID: "G-1", Direction: "d"}},
 		Exchanges:  []ExchangeCount{{GapID: "G-1"}},
-		ToFile:     []string{"G-1"},
+		ToDocket:   []docketingEntry{{gapID: "G-1"}},
 		StaleAreas: []StaleArea{{SeatID: "red-lens-voice"}},
 		Blockers:   []PlanBlocker{{Kind: BlockerUnchecked}},
 		Why:        []string{"w"},

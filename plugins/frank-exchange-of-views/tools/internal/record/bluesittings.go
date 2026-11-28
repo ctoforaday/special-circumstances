@@ -11,7 +11,7 @@ type BlueSitting struct {
 	Open    []string // of those, the ones no close preceded blue's register — what the sitting owed an answer on
 	// FoundClosed is the rest of Engaged, in its order: for each gap a closing act of its lens's
 	// preceded blue's register on, that act — the latest close, whose seat and class are what blue
-	// found when it sat, or the mint that closed it by superseding it.
+	// found when it sat.
 	FoundClosed []FoundClosure
 	Acts        []*Event // blue-respond's standing events in the sitting, its register first, then any repair of it
 	// Unresolved is a sitting the record cannot close while the run is running: neither blue's next
@@ -20,6 +20,7 @@ type BlueSitting struct {
 	// is. Read after the run, the end of the record closes it and it is never Unresolved.
 	Unresolved bool
 	opened     int64 // the place, in record order, of the register that opened it
+	dispatched int64 // the place, in record order, of the dispatch row it sits for
 }
 
 // BlueSittings is every blue-respond sitting for a dispatch, in stream order. It is the one
@@ -71,19 +72,11 @@ func BlueSittings(evs []*Event, win WindowIndex, when ReadWhen) []BlueSitting {
 // the work list's `engaged` reads it up to the end of the record for a row not yet sat for
 // (engagedOf), so the block blue reads before it registers is the one its sitting then holds.
 func engagementOf(evs []*Event, d dispatchRow, end int64) BlueSitting {
-	s := BlueSitting{Engaged: d.gaps}
+	s := BlueSitting{Engaged: d.gaps, dispatched: d.at}
 	closedFirst := map[string]*Event{}
-	superseded := supersessionsOf(evs[:end])
-	for i, e := range evs[d.at+1 : end] {
-		switch b := mustBody(e).(type) {
-		case *recordpb.Close:
+	for _, e := range evs[d.at+1 : end] {
+		if b, ok := mustBody(e).(*recordpb.Close); ok {
 			closedFirst[b.GetGapId()] = e
-		case *recordpb.Mint:
-			for _, anc := range b.GetSupersedes() {
-				if superseded[anc] == int(d.at)+1+i {
-					closedFirst[anc] = e
-				}
-			}
 		}
 	}
 	for _, g := range d.gaps {
@@ -96,19 +89,16 @@ func engagementOf(evs []*Event, d dispatchRow, end int64) BlueSitting {
 	return s
 }
 
-// FoundClosure is one engaged gap blue found closed, and the lens's act that closed it: a close, or
-// the successor's mint that superseded it.
+// FoundClosure is one engaged gap blue found closed, and the lens's close that closed it.
 type FoundClosure struct {
 	GapID string
 	Act   *Event
 }
 
-// Fate is the word the act closed the gap with: the close's class, or the supersession's.
+// Fate is the word the close closed the gap with: its class.
 func (f FoundClosure) Fate() string {
-	if c, ok := recordpb.BodyAs[*recordpb.Close](f.Act); ok {
-		return recordpb.Word(c.GetClosureClass())
-	}
-	return ClosedSuperseded
+	c, _ := recordpb.BodyAs[*recordpb.Close](f.Act)
+	return recordpb.Word(c.GetClosureClass())
 }
 
 // laterBlueDispatchBefore reports whether a later row naming blue-respond precedes its register.

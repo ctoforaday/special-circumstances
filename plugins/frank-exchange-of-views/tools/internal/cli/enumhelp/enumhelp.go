@@ -25,8 +25,7 @@
 // usage line stays short.
 //
 // The section is also where facts that cannot live on a command go — which value demands which
-// other flag, most usefully. `repaired_with_regression` REQUIRES `--successor` and nothing in
-// cobra's model can say so at the flag level.
+// other flag, most usefully, which nothing in cobra's model can say at the flag level.
 package enumhelp
 
 import (
@@ -53,6 +52,13 @@ type entry struct {
 // Value.String() for any non-string flag type, so the read path is unchanged and no verb has to
 // grow a variable to hold something it immediately puts into a payload.
 func Flag(c *cobra.Command, name string, e record.EnumField, usage string) {
+	FlagRefusing(c, name, e, usage, nil)
+}
+
+// FlagRefusing is Flag with refuse asked of each value first: a word the set does not hold that a
+// seat still types for an act the record answers another way is refused naming that way, rather
+// than with the menu alone. A nil error from refuse passes the value to the set.
+func FlagRefusing(c *cobra.Command, name string, e record.EnumField, usage string, refuse func(string) error) {
 	// THE REFUSAL CARRIES THE FIELD'S `Why`, NOT THE FLAG'S USAGE. Why says what the mistype
 	// WOULD HAVE DONE — "a PASS is checked against the open board by exact match, so any other
 	// spelling skips the check entirely and records an unadjudicated pass" — and that sentence is
@@ -63,7 +69,7 @@ func Flag(c *cobra.Command, name string, e record.EnumField, usage string) {
 	// NO SHELL COMPLETION IS REGISTERED. No surface mounts cobra's completion commands, so nothing
 	// could ask for it, and cobra keeps every registered completion in a process-global map keyed
 	// by *pflag.Flag — each tree built would leave its enum flags pinned there for good.
-	c.Flags().Var(&speaking{Value: v, values: e.Values, why: e.Why}, name, usage)
+	c.Flags().Var(&speaking{Value: v, values: e.Values, why: e.Why, refuse: refuse}, name, usage)
 }
 
 // speaking wraps enumflag's Value so the PARSING is the library's and the REFUSAL is ours.
@@ -80,9 +86,15 @@ type speaking struct {
 	pflag.Value
 	values []record.EnumValue
 	why    string
+	refuse func(string) error
 }
 
 func (s *speaking) Set(v string) error {
+	if s.refuse != nil {
+		if err := s.refuse(v); err != nil {
+			return err
+		}
+	}
 	if err := s.Value.Set(v); err != nil {
 		return record.Refuse(v, s.values, s.why)
 	}

@@ -543,17 +543,36 @@ func TestALostQuoteDebtStands(t *testing.T) {
 func TestAnEstoppedEditDischargesTheDebt(t *testing.T) {
 	refutes := recordpb.SourceOutcome_SOURCE_OUTCOME_REFUTES
 	const fixed = "The first claim rests on the audited figures from every month of the quarter."
-	b := debtBoard(t).register(otherLens).readFound(evLens, dbURL, dbFirst, refutes).
-		add(otherLens, &recordpb.Mint{GapId: proto.String("G-00000009"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Location: proto.String(dbFirst),
-			Problem: proto.String("p"), AcceptanceCheck: proto.String("c"), CheckKind: recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(), FixNew: proto.String(fixed),
-			Severity: recordpb.Grade_GRADE_MEDIUM.Enum(), Likelihood: recordpb.Grade_GRADE_MEDIUM.Enum(), Impact: recordpb.Grade_GRADE_MEDIUM.Enum()}).
-		add(otherLens, &recordpb.Anchor{Id: proto.String("G-00000009"), Location: proto.String(dbFirst)})
-	wantDebts(t, runOf(b.register("red-chair")), evLens+":"+dbFirst)
-	// A quote gap's token is placed at the quote's end, after the sentence's stop.
-	b.blueEdit(dbFirst+anchor.Token("G-00000009"), fixed+anchor.Token("G-00000009"), true, "G-00000009")
-	wantDebts(t, runOf(b.register("red-chair")))
-	b.readFound(evLens, dbURL, fixed, refutes)
-	wantDebts(t, runOf(b.register("red-chair")), evLens+":"+fixed)
+	// ESTOPPEL BINDS ONLY THE PRESCRIBING LENS (X11): the reader's debt over its own applied text is
+	// discharged; over another lens's applied text it stands, the reader's own to answer.
+	for _, c := range []struct {
+		name, prescriber string
+		discharged       bool
+	}{
+		{"the reader prescribed the applied text", evLens, true},
+		{"another lens prescribed it", otherLens, false},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			b := debtBoard(t).register(otherLens).readFound(evLens, dbURL, dbFirst, refutes).
+				add(c.prescriber, &recordpb.Mint{GapId: proto.String("G-00000009"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Location: proto.String(dbFirst),
+					Problem: proto.String("p"), AcceptanceCheck: proto.String("c"), CheckKind: recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(), FixNew: proto.String(fixed),
+					Severity: recordpb.Grade_GRADE_MEDIUM.Enum(), Likelihood: recordpb.Grade_GRADE_MEDIUM.Enum(), Impact: recordpb.Grade_GRADE_MEDIUM.Enum()}).
+				add(c.prescriber, &recordpb.Anchor{Id: proto.String("G-00000009"), Location: proto.String(dbFirst)})
+			wantDebts(t, runOf(b.register("red-chair")), evLens+":"+dbFirst)
+			// A quote gap's token is placed at the quote's end, after the sentence's stop.
+			b.blueEdit(dbFirst+anchor.Token("G-00000009"), fixed+anchor.Token("G-00000009"), true, "G-00000009")
+			// The stage seeds its events past the write path, so the estoppel row writeTombstones writes
+			// beside the verbatim edit is seeded with it.
+			b.add("blue-respond", &recordpb.Tombstone{GapId: proto.String("G-00000009"), Kind: recordpb.TombstoneKind_TOMBSTONE_KIND_ESTOPPEL.Enum()})
+			if c.discharged {
+				wantDebts(t, runOf(b.register("red-chair")))
+				b.readFound(evLens, dbURL, fixed, refutes)
+				wantDebts(t, runOf(b.register("red-chair")), evLens+":"+fixed)
+				return
+			}
+			wantDebts(t, runOf(b.register("red-chair")), evLens+":"+dbFirst)
+		})
+	}
 }
 
 // T24. A found source read `absent` on a marked sentence — a citation at the end of the prose, or a

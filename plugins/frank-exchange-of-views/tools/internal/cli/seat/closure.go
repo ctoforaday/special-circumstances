@@ -15,13 +15,12 @@ import (
 // its gap (plans/roundless.md §III.B.3) — and `chair carry`, the chair restating a closure the
 // archive already holds. One payload, one flag set, one result shape, so the two cannot drift.
 
-// ClosureFlags registers --id, --as and --superseded-by.
+// ClosureFlags registers --id and --as.
 func ClosureFlags(c *cobra.Command) {
 	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.ID, "the gap id")
 	Require(c, flags.ID)
-	enumhelp.Flag(c, flags.As, record.MustEnum("close", "closure_class"), ("HOW the gap ended — the same words the bench's dispositions use"))
+	enumhelp.Flag(c, flags.As, record.MustEnum("close", "closure_class"), "HOW the gap ended — one vocabulary with every closure on the record")
 	Require(c, flags.As)
-	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.SupersededBy, "the gap id carrying the regression forward; only with --as repaired_with_regression")
 }
 
 // ClosurePayload reads the closure a verb carries. Its disposition is the seat's to state: the tool
@@ -39,7 +38,7 @@ func ClosurePayload(cmd *cobra.Command) (*recordpb.Close, error) {
 	// against SQL written straight at the file.
 	if !recordpb.Closes(class) {
 		return nil, feov.Errorf(feov.Validation,
-			"%q does not close the gap — it is the BENCH's ruling that sends a gap back to the debate for one more exchange between its minting lens and blue, and a close asserts a verified repair. `motion docket file` puts it before the bench, which then rules it; or close it with a class that states what the repair was", word)
+			"%q does not close the gap — it is the BENCH's ruling that sends a gap back to the debate for one more exchange between its assignee and blue, and a close asserts a verified repair. Close it with a class that states what the repair was; a gap reaches the bench by another seat's proposal or the dispatch's impasse filing, never by its own assignee's", word)
 	}
 	// The SHARED prose channel, not a private one. close hand-rolled its own --file read and so
 	// was the only prose-bearing verb with no --text at all — a verb that opts out of the shared
@@ -51,7 +50,6 @@ func ClosurePayload(cmd *cobra.Command) (*recordpb.Close, error) {
 	return &recordpb.Close{
 		GapId:        proto.String(Str(cmd, flags.ID)),
 		ClosureClass: &class,
-		Successor:    OptStr(cmd, flags.SupersededBy),
 		Prose:        proto.String(prose),
 	}, nil
 }
@@ -61,11 +59,15 @@ type CloseResult struct {
 	GapID   string `json:"gap_id"`
 	Class   string `json:"class"`
 	Carried bool   `json:"carried,omitempty"`
+	Accepts string `json:"accepts,omitempty"`
 }
 
 func (r CloseResult) Human() string {
 	if r.Carried {
 		return "carried the closure of " + r.GapID + " (" + r.Class + ")"
+	}
+	if r.Accepts != "" {
+		return "closed " + r.GapID + " (" + r.Class + "), taking " + r.Accepts
 	}
 	return "closed " + r.GapID + " (" + r.Class + ")"
 }

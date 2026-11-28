@@ -28,8 +28,7 @@ func TestAMotionRequiresASeatTheEngineCreated(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err := runAt(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "totally-invented",
-		"--id", "G1", "--dimension", "severity", "--proposed", "low", "--reason", "an invented identity")
+	_, err := runAt(t, closeProposalArgs(runDir, "totally-invented", "G1", "not_a_defect", "an invented identity")...)
 	if err == nil {
 		t.Fatal("a motion filed under an invented seat id was ACCEPTED — it is rendered in the report, ruled on, and joined to a gap, under an identity no dispatch created")
 	}
@@ -39,9 +38,9 @@ func TestAMotionRequiresASeatTheEngineCreated(t *testing.T) {
 
 	// AND THE LEGITIMATE PATH IS UNTOUCHED. A guard that also refused real filings would be
 	// caught by the suite, but the point of the asymmetry is that ANY seat may file — so blue
-	// filing a grade motion must still work, and that is the half worth asserting here.
-	if _, err := runAt(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond",
-		"--id", "G1", "--dimension", "severity", "--proposed", "low", "--reason", "a real filing"); err != nil {
-		t.Fatalf("blue could not file a grade motion: %v", err)
+	// filing a docket motion must still work, and that is the half worth asserting here.
+	exchangeOn(t, runDir, handleText(t, runDir, "G1"))
+	if _, err := runAt(t, closeProposalArgs(runDir, "blue-respond", "G1", "not_a_defect", "a real filing")...); err != nil {
+		t.Fatalf("blue could not file a docket motion: %v", err)
 	}
 }

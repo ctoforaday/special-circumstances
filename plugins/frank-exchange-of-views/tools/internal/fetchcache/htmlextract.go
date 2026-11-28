@@ -52,10 +52,13 @@ func htmlText(p *htmlPage) string {
 	return normalizeExtracted(p.text + "\n")
 }
 
-// TextMarkup is how a page's text carries the markup a reader of the page sees, in a seat's words:
-// the one statement of it that fetch's, cite's and `show source`'s --help render.
+// TextMarkup is how a page's text carries the markup a reader of the page sees, in a seat's words.
 const TextMarkup = "in an HTML page's text a list item opens with \"- \", a superscript reads ^n, or ^(n-1) when it is more than one number or one letter, " +
 	"a subscript reads _n or _(n+1), and a linked footnote mark reads [1]; quote these as the text prints them"
+
+// TextMarkupRule is TextMarkup as the paragraph fetch's, cite's and `show source`'s --help each
+// print: one paragraph, word for word on every page, so the manual prints it once.
+const TextMarkupRule = "THE TEXT PRINTS ITS MARKUP: " + TextMarkup + "."
 
 // A SCRIPT IS PART OF WHAT THE TEXT SAYS, and the keyboard forms are what a seat can type and a
 // search can find. A compound script is bracketed, because "a^n-1" and "a^(n-1)" are different

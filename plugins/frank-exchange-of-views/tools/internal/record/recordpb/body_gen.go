@@ -73,10 +73,6 @@ func Body(ev *Event) (proto.Message, bool) {
 		if b != nil {
 			return b.SpotCheck, true
 		}
-	case *Event_Finding:
-		if b != nil {
-			return b.Finding, true
-		}
 	case *Event_Anchor:
 		if b != nil {
 			return b.Anchor, true
@@ -160,6 +156,18 @@ func Body(ev *Event) (proto.Message, bool) {
 	case *Event_QuestionPartCheck:
 		if b != nil {
 			return b.QuestionPartCheck, true
+		}
+	case *Event_Tombstone:
+		if b != nil {
+			return b.Tombstone, true
+		}
+	case *Event_Docketing:
+		if b != nil {
+			return b.Docketing, true
+		}
+	case *Event_Amend:
+		if b != nil {
+			return b.Amend, true
 		}
 	}
 	return nil, false

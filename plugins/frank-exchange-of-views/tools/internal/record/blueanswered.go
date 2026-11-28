@@ -6,6 +6,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
 // DID BLUE ANSWER THIS GAP, AND CAN THE RECORD SAY? (#1122)
@@ -17,18 +18,14 @@ import (
 // would invent a third definition of "answered", disagreeing with the impasse fold, and would accuse blue on any gap anchored by --about, which has no sentence to change. It
 // gives the lens its turn all the same (lensTurnActsOf), and the item says which of the two it is.
 //
-// A GAP ANCHORED ON AN INQUIRY IS ANSWERED BY THAT INQUIRY'S FATE, NOT BY AN EDIT. A mint made
-// with `--about-kind inquiry` names no report text, so no edit can be its answer: blue answers it by
-// recording a fate on the inquiry it names. Read by edits alone, such a gap read "NO edit answers
-// it" after blue had recorded the fate, and the lens had to read the inquiries to learn otherwise.
-// And A GAP ANCHORED ON A SECTION THE TOOL COMPOSES FROM FATES IS ANSWERED BY A FATE THAT SECTION
-// PRINTS (ruled by gblock 2026-11-05, fateActsOf): recording the fate again is the only act that
-// changes the section. Either way the fate must change its inquiry's previous record, and it answers
-// whatever gaps blue's sitting was engaged on (ruled by gblock 2026-11-05): a changed fate is blue's
-// act on every gap about what it changes, so the lens's turn and this list read the one predicate,
-// fateActsOf. On universe-m39 they read two: the fates blue recorded on Q-fbb839ee while engaged on
-// G-a53fd56a gave G-385fe4f4's lens its turn, and its list then spoke of an edit `edited_since` did
-// not hold.
+// A GAP ANCHORED ON AN INQUIRY IS ANSWERED BY A FATE THAT NAMES IT, NOT BY AN EDIT. A mint made with
+// `--about-kind inquiry` names no report text, so no edit can be its answer: blue answers it by
+// recording a fate on the inquiry with --answers. A GAP ANCHORED ON A SECTION THE TOOL COMPOSES FROM
+// FATES is answered the same way, by a fate that section prints, and a gap about the question by a
+// question part's coverage or split, each naming the gap. A changed fate or part naming no gap changes
+// what the gap is about and is NOT an answer (F-FATE, 2026-11-24): it is the lens's turn, read off the
+// one predicate the turn reads (fateActsOf), and the item says so — as it says of an edit that changed
+// the gap's sentence and of a retire that took out its anchor without naming it.
 //
 // A GAP WHOSE ANCHOR LEFT THE REPORT IS NOT UNANSWERED. Blue cutting the sentence is an act on it
 // whether or not the edit named the gap: the cut of its marker is its raiser's turn (ruled by gblock
@@ -54,7 +51,7 @@ import (
 // ANSWERED clears once the lens has audited that answer. A gap that is not material readies nobody,
 // and its lens hears of blue's answer here all the same when it sits for anything else.
 func blueAnswers(evs []*Event, win WindowIndex, gaps []WorkGapState, seatID string) []Item {
-	minted := mintedBy(evs)
+	minted := assigneeOf(evs)
 	var mine []string
 	open, gone, read, turn := map[string]bool{}, map[string]bool{}, map[string]int64{}, map[string]bool{}
 	demand := map[string]bool{} // the gap's check kind is one an evidence anchor answers
@@ -80,20 +77,20 @@ func blueAnswers(evs []*Event, win WindowIndex, gaps []WorkGapState, seatID stri
 		// would be false of this gap. Blue took out the anchor the gap is about, so the gap's demand
 		// is met and only its lens can act on it now.
 		case a.metAt > read[g]:
-			say(g, fmt.Sprintf("gap %s: %s, %s, at event %d, %s — judge the report against the acceptance check you set at mint, then close it, or keep its grade with a regrade that says what still fails",
+			say(g, fmt.Sprintf("gap %s: %s, %s, at event %d, %s, naming no gap — a change to what the gap is about and your turn, not blue's answer: judge the report against the acceptance check you set at mint, then close it, or keep its grade with a regrade that says what still fails",
 				g, a.met.took(), a.met.how(g), a.metAt, a.met.result(demand[g])))
 		case a.editedAt > read[g]:
 			say(g, fmt.Sprintf("gap %s has been ANSWERED by a change to the report (an edit or a retire answering it) — re-audit it against the acceptance check you set at mint, and either close it or keep its grade with a regrade that states what your own check still fails — blue reads that beside the gap, and the bench in the transcript", g))
 		case a.placedAt > read[g]:
 			say(g, fmt.Sprintf("gap %s has been ANSWERED by a %s — blue placed %s as its answer; re-audit it against the acceptance check you set at mint, and either close it or keep its grade with a regrade that states what your own check still fails — blue reads that beside the gap, and the bench in the transcript", g, a.placedNoun(), a.placed))
 		case a.fateAt > read[g]:
-			on := a.fateOn + ", which the section the gap is anchored on prints"
-			if a.fateOn == a.inquiry {
-				on = a.fateOn + ", the inquiry the gap is anchored on"
-			}
-			say(g, fmt.Sprintf("gap %s has been ANSWERED by an inquiry record — blue recorded the fate `%s` on %s, changing its fate, reason or method; re-audit it against the acceptance check you set at mint, and either close it or keep its grade with a regrade that states what your own check still fails — blue reads that beside the gap, and the bench in the transcript", g, a.fate, on))
+			say(g, fmt.Sprintf("gap %s has been ANSWERED by an inquiry record naming it — blue recorded the fate `%s` on %s; re-audit it against the acceptance check you set at mint, and either close it or keep its grade with a regrade that states what your own check still fails — blue reads that beside the gap, and the bench in the transcript", g, a.fate, a.fateOn.where(a.inquiry)))
 		case a.partAt > read[g]:
-			say(g, fmt.Sprintf("gap %s has been ANSWERED by a question part record — blue %s; re-audit it against the acceptance check you set at mint, and either close it or keep its grade with a regrade that states what your own check still fails — blue reads that beside the gap, and the bench in the transcript", g, a.partWhat))
+			say(g, fmt.Sprintf("gap %s has been ANSWERED by a question part record naming it — blue %s; re-audit it against the acceptance check you set at mint, and either close it or keep its grade with a regrade that states what your own check still fails — blue reads that beside the gap, and the bench in the transcript", g, a.partWhat))
+		case a.fateTurnAt > read[g]:
+			say(g, fmt.Sprintf("gap %s: blue recorded the fate `%s` on %s, changing its fate, reason or method and naming no gap — a change to what the gap is about and your turn, not blue's answer: re-audit it against the acceptance check you set at mint, and either close it or keep its grade with a regrade that states what your own check still fails", g, a.fateTurn, a.fateTurnOn.where(a.inquiry)))
+		case a.partTurnAt > read[g]:
+			say(g, fmt.Sprintf("gap %s: blue %s, naming no gap — a change to what the gap is about and your turn, not blue's answer: re-audit it against the acceptance check you set at mint, and either close it or keep its grade with a regrade that states what your own check still fails", g, a.partTurnWhat))
 		case a.pending:
 			say(g, fmt.Sprintf("gap %s: whether blue has answered it is NOT MEASURED — a blue sitting engaged on it is open on the record, so nothing here is a report that no answer came", g))
 		case gone[g] && (turn[g] || a.engaged && a.at > read[g]):
@@ -103,9 +100,9 @@ func blueAnswers(evs []*Event, win WindowIndex, gaps []WorkGapState, seatID stri
 			// sentence, and the row's `edited_since` lists it.
 			say(g, fmt.Sprintf("gap %s: an edit changed its sentence since you last acted on it, and no act of blue's answers it — `edited_since` lists the edit; re-audit the sentence as it stands against the acceptance check you set at mint, and either close it or keep its grade with a regrade that states what your own check still fails", g))
 		case a.engaged && a.inquiry != "":
-			say(g, fmt.Sprintf("gap %s is open and NO inquiry record answers it since you last acted on it — it is anchored on %s, which an edit cannot answer, and blue has been engaged on it and its sitting closed without changing a fate", g, a.inquiry))
+			say(g, fmt.Sprintf("gap %s is open and NO inquiry record answers it since you last acted on it — it is anchored on %s, which an edit cannot answer, and blue has been engaged on it and its sitting closed without recording a fate that names it", g, a.inquiry))
 		case a.engaged:
-			say(g, fmt.Sprintf("gap %s is open and NO edit, citation, computation or changed fate answers it since you last acted on it — blue has been engaged on it and its sitting closed without one", g))
+			say(g, fmt.Sprintf("gap %s is open and NO edit, citation, computation, fate or question part naming it answers it since you last acted on it — blue has been engaged on it and its sitting closed without one", g))
 		}
 		// A GAP BLUE HAS NEVER BEEN ENGAGED ON GETS NOTHING, and the silence is correct: it is
 		// waiting for a dispatch, which is the chair's business and not news about blue.
@@ -123,20 +120,40 @@ type blueAnswer struct {
 	// the anchor it is about, whatever gap the act named. met is what it reached the gap through.
 	metAt  int64
 	met    reaching
-	fateAt int64  // the latest fate blue changed that is an act on it (fateActsOf), whatever its sitting was engaged on
-	fate   string // that fate
-	fateOn string // the inquiry that fate is on
-	// partAt is the latest question part blue recorded that is an act on it (fateActsOf), and partWhat
-	// what that record was: a part split out, or a coverage recorded on one.
+	fateAt int64     // the latest fate naming it (Inquiry.answers), whatever its sitting was engaged on
+	fate   string    // that fate
+	fateOn fateOnRef // the inquiry that fate is on
+	// partAt is the latest question part naming it (QuestionPart.answers), and partWhat what that
+	// record was: a part split out, or a coverage recorded on one.
 	partAt   int64
 	partWhat string
-	inquiry  string // the inquiry it is anchored on; "" for a gap anchored on report text
-	pending  bool   // a blue sitting engaged on it is open on the record
-	engaged  bool   // a blue sitting was engaged on it
+	// fateTurnAt and partTurnAt are the latest fate and question part that changed what it is about
+	// (fateActsOf) naming no gap — its lens's turn, not blue's answer (lensTurnActsOf): no answer
+	// place (at) moves with them.
+	fateTurnAt   int64
+	fateTurn     string
+	fateTurnOn   fateOnRef
+	partTurnAt   int64
+	partTurnWhat string
+	inquiry      string // the inquiry it is anchored on; "" for a gap anchored on report text
+	pending      bool   // a blue sitting engaged on it is open on the record
+	engaged      bool   // a blue sitting was engaged on it
 	// at is the events.id of blue's latest answer to it: an edit answering it, a computation, a fate on
 	// its inquiry, or the latest act of a closed sitting engaged on it — the rebuttal, or the silence
 	// its lens states. 0 when blue has given none.
 	at int64
+}
+
+// fateOnRef is the inquiry a fate is on, as a work list says where it stands to a gap.
+type fateOnRef string
+
+// where is the inquiry, said of a gap anchored on inquiry: the inquiry the gap is anchored on, or the
+// one a section the gap is anchored on prints.
+func (q fateOnRef) where(inquiry string) string {
+	if string(q) == inquiry {
+		return string(q) + ", the inquiry the gap is anchored on"
+	}
+	return string(q) + ", which the section the gap is anchored on prints"
 }
 
 // placedNoun is the kind of the anchor placed as the answer, as the evidence row names it.
@@ -164,9 +181,6 @@ func (r reaching) news() string {
 
 // how is what a reaching removal reached gap g through, as a work list says it.
 func (r reaching) how(g string) string {
-	if r.from != "" && r.from != g {
-		return "which " + r.from + " is about, " + g + " taking " + r.from + "'s demand on"
-	}
 	return "which " + g + " is about"
 }
 
@@ -185,10 +199,11 @@ func (a blueAnswer) answered() bool { return a.at != 0 }
 
 // blueAnswersOf is blue's answer to each gap of open, by gap: the one reading of it, which the gap's
 // lens is handed (blueAnswers) and owes while it has not sat since (lensOwesOf). The inquiry a gap is
-// anchored on is its mint's, as the gap view's about columns are. A remanded gap's answer is read
-// after its latest remand ruling only (remandFloorsOf, off motions — motionsAt's fold of evs, which
-// a caller that already holds it passes rather than folding twice): a sitting opened before it, and
-// an act recorded before it, answers nothing the remand asks.
+// anchored on is its mint's, as the gap view's about columns are. A remanded or amended gap's answer
+// is read after its floor only (answerFloorsOf: its latest remand ruling, off motions — motionsAt's
+// fold of evs, which a caller that already holds it passes rather than folding twice — or its latest
+// amend): a sitting opened before it, and an act recorded before it, answers nothing the remand asks
+// or the amended demand states.
 func blueAnswersOf(evs []*Event, win WindowIndex, open map[string]bool, motions []*Motion) map[string]blueAnswer {
 	out := map[string]blueAnswer{}
 	inquiryOf := map[string]string{} // gap -> the inquiry it is anchored on
@@ -197,7 +212,7 @@ func blueAnswersOf(evs []*Event, win WindowIndex, open map[string]bool, motions 
 			inquiryOf[m.GetGapId()] = m.GetAboutRef()
 		}
 	}
-	floor := remandFloorsOf(motions, open)
+	floor := answerFloorsOf(evs, win, motions, open)
 	fateGaps := fateActsOf(evs)
 	after := func(g string, e *Event) bool { return win.Of(e).ID > floor[g] }
 	at := func(g string, e *Event) {
@@ -229,25 +244,35 @@ func blueAnswersOf(evs []*Event, win WindowIndex, open map[string]bool, motions 
 				if qp.GetSupersedesCoverage() != "" {
 					what = "recorded question part " + qp.GetPartId() + " as `" + recordpb.Word(qp.GetCoverage()) + "`"
 				}
+				if g := qp.GetAnswers(); open[g] && after(g, e) {
+					a := out[g]
+					a.partAt, a.partWhat = win.Of(e).ID, what
+					out[g] = a
+					at(g, e)
+				}
 				for _, g := range fateGaps[e] {
-					if open[g] && after(g, e) {
+					if g != qp.GetAnswers() && open[g] && after(g, e) {
 						a := out[g]
-						a.partAt, a.partWhat = win.Of(e).ID, what
+						a.partTurnAt, a.partTurnWhat = win.Of(e).ID, what
 						out[g] = a
-						at(g, e)
 					}
 				}
 				continue
 			}
 			if in, ok := recordpb.BodyAs[*recordpb.Inquiry](e); ok {
-				// THE GAPS THE FATE IS AN ACT ON, AND NO OTHER LIST (ruled by gblock 2026-11-05): the
-				// lens's turn reads fateActsOf whatever blue's sitting was engaged on, so this does too.
+				// THE GAPS THE FATE CHANGES ARE THE ONES THE LENS'S TURN READS (fateActsOf), whatever
+				// blue's sitting was engaged on; the one it names is the one it answers.
+				if g := in.GetAnswers(); open[g] && after(g, e) {
+					a := out[g]
+					a.fate, a.fateOn, a.fateAt, a.inquiry = recordpb.Word(in.GetStatus()), fateOnRef(in.GetInquiryId()), win.Of(e).ID, inquiryOf[g]
+					out[g] = a
+					at(g, e)
+				}
 				for _, g := range fateGaps[e] {
-					if open[g] && after(g, e) {
+					if g != in.GetAnswers() && open[g] && after(g, e) {
 						a := out[g]
-						a.fate, a.fateOn, a.fateAt, a.inquiry = recordpb.Word(in.GetStatus()), in.GetInquiryId(), win.Of(e).ID, inquiryOf[g]
+						a.fateTurn, a.fateTurnOn, a.fateTurnAt, a.inquiry = recordpb.Word(in.GetStatus()), fateOnRef(in.GetInquiryId()), win.Of(e).ID, inquiryOf[g]
 						out[g] = a
-						at(g, e)
 					}
 				}
 				continue
@@ -274,7 +299,8 @@ func blueAnswersOf(evs []*Event, win WindowIndex, open map[string]bool, motions 
 			}
 			// old != new is the same substantive-movement test exchangesOf applies: an edit that
 			// replaced a span with itself is an act and not an answer.
-			if g := be.GetAnswers(); g != "" && open[g] && be.GetOld() != be.GetNew() && after(g, e) {
+			// The bench's edit is red's text applied by a ruling, not blue's answer.
+			if g := be.GetAnswers(); g != "" && open[g] && be.GetOld() != be.GetNew() && after(g, e) && seatclass.RoleOfSeat(e.GetSeatId()) != "bench" {
 				a := out[g]
 				a.editedAt, a.inquiry = win.Of(e).ID, inquiryOf[g]
 				out[g] = a
@@ -320,12 +346,20 @@ func retireAnswers(e *Event) string {
 	return ""
 }
 
-// remandFloorsOf is the events.id of the latest remand ruling on each gap of open — the place after
-// which blue's answer to it is read (blueAnswersOf) — off the motion fold the bench's other readers
-// take (motionsAt, read at events.id), so a remand is the ruling the docket's disposition says it
-// is. A gap the bench never remanded has none, and every answer counts.
-func remandFloorsOf(motions []*Motion, open map[string]bool) map[string]int64 {
+// answerFloorsOf is the events.id after which the author's answer to each gap of open is read
+// (blueAnswersOf): the later of its latest remand ruling — off the motion fold the bench's other
+// readers take (motionsAt, read at events.id), so a remand is the ruling the docket's disposition
+// says it is — and its latest amend, by its minter or the bench's for-raiser application (§III.B3):
+// an amend restates the demand, so an answer before it answers a wording the gap no longer states.
+// A regrade moves no floor: it changes no fix or check an answer must meet. A gap neither remanded
+// nor amended has none, and every answer counts.
+func answerFloorsOf(evs []*Event, win WindowIndex, motions []*Motion, open map[string]bool) map[string]int64 {
 	out := map[string]int64{}
+	for _, e := range evs {
+		if a, ok := recordpb.BodyAs[*recordpb.Amend](e); ok && open[a.GetGapId()] {
+			out[a.GetGapId()] = max(out[a.GetGapId()], win.Of(e).ID)
+		}
+	}
 	remanded := recordpb.Word(recordpb.Disposition_DISPOSITION_REMANDED)
 	for _, m := range motions {
 		if m.Subject == "docket" && m.Ruling == remanded && open[m.GapID] {

@@ -5,17 +5,16 @@ import (
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // AN ANCHOR A QUOTE CARRIES IS INSIDE THE SPAN, AT EITHER END. Smoke m26: blue quoted a span opening
-// with finding markers, as `show report` printed it, and copied them into the replacement. The span was
+// with gap markers, as `show report` printed it, and copied them into the replacement. The span was
 // located from the first character after the anchor layer, so the opening markers stood outside it and
 // the edit was refused for introducing them (ev220, ev221); a quote of one marker and its full stop
 // alone was refused as not found (m26 L169), though the edit help says a punctuation repair quotes the
 // anchors as the report prints them.
 
-// markedPair writes two finding markers on two sentences a blank line apart, each on its words, the
+// markedPair writes two gap markers on two sentences a blank line apart, each on its words, the
 // second sentence before a heading, and returns the run and the two markers' tokens.
 func markedPair(t *testing.T) (runDir, t1, t2 string) {
 	t.Helper()
@@ -23,15 +22,15 @@ func markedPair(t *testing.T) (runDir, t1, t2 string) {
 	writeReport(t, runDir, "# Findings\n\nLead stands. Alpha holds for every input.\n\nBeta holds too.\n\n## Open questions\n\nNone.\n")
 	registerBlue(t, runDir)
 	registerLensOnce(t, runDir)
-	find := func(key, quote string) string {
+	mark := func(key, quote string) string {
 		t.Helper()
-		if _, err := run(t, "finding", "--run", runDir, "--seat-id", lensSeat, "--key", key, "--quote", quote,
-			"--reason", "unsupported", "--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
-			t.Fatalf("finding %s: %v", key, err)
+		gap, err := mintQuote(t, runDir, key, quote)
+		if err != nil {
+			t.Fatalf("mint %s: %v", key, err)
 		}
-		return anchor.Token(lastBody(t, runDir, &recordpb.Finding{}).GetId())
+		return anchor.Token(gap)
 	}
-	t1, t2 = find("F1", "Alpha holds for every input."), find("F2", "Beta holds too.")
+	t1, t2 = mark("G1", "Alpha holds for every input."), mark("G2", "Beta holds too.")
 	if rep := readReport(t, runDir); !strings.Contains(rep, "Alpha holds for every input"+t1+".\n\nBeta holds too"+t2+".\n\n## Open questions") {
 		t.Fatalf("the setup did not place the markers:\n%s", rep)
 	}

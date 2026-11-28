@@ -19,7 +19,7 @@ import (
 // named the procedural route rather than the outcome.
 var dispositionRename = map[string]string{
 	"closed":                   "repaired",
-	"closed_with_regression":   "repaired_with_regression",
+	"closed_with_regression":   "repaired",
 	"rebuttal_sustained":       "not_a_defect",
 	"risk_accepted":            "defect_accepted",
 	"routed_to_infrastructure": "defect_owed_elsewhere",
@@ -33,9 +33,8 @@ func eraEntries() Registry {
 		// The era's universal `reason` column, renamed onto each body's own prose field.
 		"blue_edit": mapped("blue_edit", ren{"reason": "text"}, nil, nil),
 		"verify":    {Translate: verifyEntry},
-		// The finding's two names are one: its id. The remap gives the archived label the finding's id.
-		"finding": mapped("finding", ren{"reason": "text", "finding_id": "id"},
-			drops{"label": "a finding has one name, its id; every reference to the label is respelled to it (plans/markers-one-mechanism.md §III.6)"}, nil),
+		// A finding translates to no event in every era (entries.go).
+		"finding":  {Translate: toNoEvent},
 		"position": positionEntry(mapped("position", ren{"reason": "text"}, nil, nil)),
 		"closing":  mapped("closing", ren{"reason": "text"}, nil, nil),
 		"certify":  mapped("certify", ren{"reason": "statement"}, nil, nil),
@@ -52,8 +51,11 @@ func eraEntries() Registry {
 		// makes per gap (deadlock); the field is reserved and the word is dropped on replay.
 		"outcome": mapped("outcome", ren{"reason": "prose"},
 			drops{"ended": "how a run ended is the verdict's to say — CEILING is derived from the board and deadlock is per gap (plans/roundless.md §III.B); Outcome.ended (7) is reserved"}, nil),
-		"close": mapped("close", ren{"reason": "prose"}, nil,
-			vals{"closure_class": dispositionRename}),
+		// TRANSLATION 5 (plans/findings-fold.md §III.B8): a close names no successor, and a repair that
+		// broke something else is a repair, whose regression is a gap of its own.
+		"close": mapped("close", ren{"reason": "prose"}, drops{
+			"successor": "a close names no gap carrying its remainder: a regression a repair caused is a gap of its own, minted as one, and the successor stands as its own gap",
+		}, vals{"closure_class": dispositionRename}),
 		// The era's proof carried its output INLINE beside its sha; it is the act's stored output
 		// (computations.go), and the record carries no second copy.
 		"proof": {Translate: proofEntry},
@@ -70,6 +72,9 @@ func eraEntries() Registry {
 
 // regradeResultDrop is why a regrade's stored result grades are not carried.
 const regradeResultDrop = "the write path stamps a regrade's result grades from the gap's grades before it and the axes it names, so the replay stamps them again"
+
+// amendResultDrop is why an amend's stored resulting wording is not carried.
+const amendResultDrop = "the write path stamps an amend's resulting wording from the gap's wording before it and the fields it names, so the replay stamps it again"
 
 type (
 	ren   map[string]string
@@ -159,45 +164,24 @@ func eraMotionEntry(old OldEvent) ([]proto.Message, error) {
 		if _, ok := old.Arms["inquiry"]; ok {
 			return nil, nil
 		}
+		// A GRADE MOTION TRANSLATES TO NO EVENT (EventSchema 80): the subject is gone, and a dispute
+		// of a gap's grade is a docket motion proposing the regrade, which the grade motion — a
+		// dimension and a word, no regrade body — is no equivalent of. None ever moved a grade.
+		if _, ok := old.Arms["grade"]; ok {
+			return nil, nil
+		}
 		return (Registry{}).Translate(withoutSubject(old))
 	}
+	// THE FLAT SHARD ERA HELD GRADE MOTIONS ONLY, which translate to no event, as above.
 	if s, _ := old.Fields["subject"].(string); s != "grade" {
 		return nil, fmt.Errorf("era motion subject %q has no authored arm mapping — the era's census held only grade motions, so this is a new fact to rule on, not a shape to guess", s)
 	}
-	m := &recordpb.Motion{}
-	g := &recordpb.GradeMotion{}
-	m.Filing = &recordpb.Motion_Grade{Grade: g}
-	for col, v := range old.Fields {
-		switch col {
-		case "subject":
-		case "motion_id":
-			m.MotionId = proto.String(v.(string))
-		case "reason":
-			m.Basis = proto.String(v.(string))
-		case "gap_id":
-			g.GapId = proto.String(v.(string))
-		case "dimension":
-			num, err := enumNumberOf(recordpb.GradeDimension(0).Descriptor(), v.(string))
-			if err != nil {
-				return nil, fmt.Errorf("motion.dimension: %w", err)
-			}
-			g.Dimension = recordpb.GradeDimension(num).Enum()
-		case "proposed":
-			num, err := enumNumberOf(recordpb.Grade(0).Descriptor(), v.(string))
-			if err != nil {
-				return nil, fmt.Errorf("motion.proposed: %w", err)
-			}
-			g.Proposed = recordpb.Grade(num).Enum()
-		default:
-			return nil, fmt.Errorf("old column motion.%s has no place on the grade filing — extend the era motion entry", col)
-		}
-	}
-	return []proto.Message{m}, nil
+	return nil, nil
 }
 
 // eraMotionRuleEntry: the era's ruling was a WORD beside a subject; the schema keyed the
-// verdict set on the subject as one oneof arm per subject. The era's `inquiry` subject was the
-// ruling on an inquiry, which translates to no event.
+// verdict set on the subject as one oneof arm per subject. The era's two subjects, a grade motion's
+// ruling and the ruling on an inquiry, each translate to no event.
 func eraMotionRuleEntry(old OldEvent) ([]proto.Message, error) {
 	// Same two-era split as the motion: an arm-shaped ruling is the current decomposition
 	// and translates by identity; only the flat `ruling`-word shape is this era's.
@@ -209,6 +193,10 @@ func eraMotionRuleEntry(old OldEvent) ([]proto.Message, error) {
 		if v, ok := old.Fields["inquiry"]; ok && v != nil {
 			return nil, nil
 		}
+		// A RULING ON A GRADE MOTION TRANSLATES TO NO EVENT, as its motion does.
+		if v, ok := old.Fields["grade"]; ok && v != nil {
+			return nil, nil
+		}
 		bodies, err := (Registry{}).Translate(withoutSubject(old))
 		for _, b := range bodies {
 			if r, ok := b.(*recordpb.MotionRule); ok {
@@ -217,34 +205,13 @@ func eraMotionRuleEntry(old OldEvent) ([]proto.Message, error) {
 		}
 		return bodies, err
 	}
-	r := &recordpb.MotionRule{}
+	// THE FLAT ERA HELD GRADE AND INQUIRY RULINGS ONLY, and each translates to no event, as above.
 	subject, _ := old.Fields["subject"].(string)
 	ruling, _ := old.Fields["ruling"].(string)
-	if subject == "inquiry" {
-		return nil, nil // a ruling on an inquiry, as above: no equivalent
+	if subject == "inquiry" || subject == "grade" {
+		return nil, nil
 	}
-	for col, v := range old.Fields {
-		switch col {
-		case "subject", "ruling":
-		case "motion_id":
-			r.MotionId = proto.String(v.(string))
-		case "reason":
-			r.Opinion = proto.String(v.(string))
-		default:
-			return nil, fmt.Errorf("old column motion_rule.%s has no place on the ruling — extend the era motion-rule entry", col)
-		}
-	}
-	switch subject {
-	case "grade":
-		num, err := enumNumberOf(recordpb.GradeRuling(0).Descriptor(), ruling)
-		if err != nil {
-			return nil, fmt.Errorf("motion_rule.ruling (grade): %w", err)
-		}
-		r.Ruling = &recordpb.MotionRule_Grade{Grade: recordpb.GradeRuling(num)}
-	default:
-		return nil, fmt.Errorf("era motion-rule subject %q has no authored mapping — the era's census held grade and inquiry, so this is a new fact to rule on", subject)
-	}
-	return []proto.Message{r}, nil
+	return nil, fmt.Errorf("era motion-rule subject %q (ruled %q) has no authored mapping — the era's census held grade and inquiry, so this is a new fact to rule on", subject, ruling)
 }
 
 // withoutSubject drops a motion's or a ruling's `subject` column, which a source at epoch 26 or

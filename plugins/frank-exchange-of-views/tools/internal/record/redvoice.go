@@ -18,14 +18,14 @@ import (
 //
 // A reading's title reaches no report text: no reading places a citation.
 //
-// Only the UNAMBIGUOUS tells are refused — a seat or lens id, a finding or gap id,
+// Only the UNAMBIGUOUS tells are refused — a seat or lens id, a gap id,
 // a lane tag — because none of them has a reading as subject prose; the rest ("this
 // run", "the red team", "epoch 3") are advice, returned by the verb (gblock's fork ruling, D9; the
 // title and fix_new rulings, gblock 2026-09-15, plans/feov-lens-bar.md §III.9). Blue's edit advisory
 // on accepted text stays as a second net under fix_new: the refusal here is the first.
 //
 // `mint_reason` and a reading's reason ARE NEVER CHECKED. They are red's argument to the other
-// seats and stay on the record; they are where the run's part of a finding goes, so refusing process
+// seats and stay on the record; they are where the run's part of a gap goes, so refusing process
 // words there would close the one channel the refusal points to.
 //
 // The mint's check is an act judgement (judgeAct): an archived mint is what a seat DID, and the

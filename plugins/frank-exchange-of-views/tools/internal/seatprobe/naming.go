@@ -62,7 +62,7 @@ import (
 // anything any more, so that half read a shape nothing produces.
 //
 // A name WRITTEN INTO PROSE has to be marked as an invocation by something or it cannot be told
-// from English: `close`, `verify`, `position`, `finding` and `show` are ordinary words, and making
+// from English: `close`, `verify`, `position`, `mint` and `show` are ordinary words, and making
 // the role prefix optional once took the bench constitution from 0 surviving names to 11, every one
 // of them prose. The role in front is that mark, and it stays required even though a seat no longer
 // types it — this counts the SPELLING a hand-written catalogue uses, not an invocation.

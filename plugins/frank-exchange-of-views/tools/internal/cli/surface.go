@@ -137,7 +137,7 @@ func sharedAcrossSeats(path string) bool {
 // cobra's own `help` left out, because it is not part of the contract a seat learns.
 //
 // The path handed to fn is what a seat TYPES on that surface (`inquiry propose`,
-// `motion grade file`, `show`), never a join key. Everything that asks "what is on this surface"
+// `motion docket file`, `show`), never a join key. Everything that asks "what is on this surface"
 // walks here — the gates through commandsByPath, and `manual` directly — so the two cannot come to
 // disagree about what a surface holds.
 func walkSurface(root *cobra.Command, fn func(path []string, c *cobra.Command)) {
@@ -229,7 +229,7 @@ func CommandRecords() map[string]string {
 }
 
 // BareIsACapability marks a GROUP whose bare invocation does something, as opposed to one whose
-// bare invocation only teaches. `show` returns the seat's pending work; `blue` and `motion grade`
+// bare invocation only teaches. `show` returns the seat's pending work; `blue` and `motion docket`
 // answer "a verb is required". Only the first is a command path.
 const BareIsACapability = "bare-is-a-capability"
 

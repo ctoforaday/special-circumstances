@@ -104,7 +104,7 @@ func TestTheHandleFlagSaysWhichVerbsTakeOne(t *testing.T) {
 		absent string
 	}{
 		{"blue-respond", []string{"cite", "edit", "compute"}, "Only cite, compute and edit take a handle: no other verb on this surface has this flag", "retire"},
-		{"red-lens-evidence", []string{"finding", "mint"}, "Only finding and mint take a handle: no other verb on this surface has this flag", "close"},
+		{"red-lens-evidence", []string{"mint"}, "Only mint takes a handle: no other verb on this surface has this flag", "close"},
 	} {
 		root := NewRootFor(tc.seat)
 		for _, v := range tc.verbs {
@@ -122,25 +122,9 @@ func TestTheHandleFlagSaysWhichVerbsTakeOne(t *testing.T) {
 	}
 }
 
-// `finding --reason` SAYS IT CARRIES THE FINDING. The verbs on either side of it in a lens's own
-// sequence name the statement `--problem`, and this page gave --reason the text every act shares
-// — "why you graded, closed, ruled or edited" — which names four acts and not this one.
-func TestFindingsReasonSaysItCarriesTheFinding(t *testing.T) {
-	root := NewRootFor("red-lens-evidence")
-	u := cmdAt(root, []string{"finding"}).Flags().Lookup("reason").Usage
-	if strings.Contains(u, "graded, closed, ruled or edited") {
-		t.Errorf("finding --reason carries the text every act shares, which does not name a finding:\n%s", u)
-	}
-	for _, w := range []string{"the finding itself", "no other flag states the problem"} {
-		if !strings.Contains(u, w) {
-			t.Errorf("finding --reason does not say %q:\n%s", w, u)
-		}
-	}
-}
-
-// AN ARM'S REQUIREMENTS ARE MARKED FROM THE SCHEMA, ON THE VERB THAT FILLS THE ARM. A docket
-// ruling's four reasoning fields are required of the `docket` arm of a ruling; the page that
-// writes that arm says REQUIRED on each, and another subject's `rule` does not have the flags.
+// A DOCKET RULING'S OPINION IS MARKED ON ITS OWN PAGE. The bench's four reasoning fields are
+// refused when absent from its ruling; the page that writes it says REQUIRED on each, and another
+// subject's `rule` does not have the flags.
 func TestADocketRulingsRequirementsAreMarkedOnItsOwnPage(t *testing.T) {
 	docket := cmdAt(NewRootFor("judge"), []string{"motion", "docket", "rule"})
 	for _, name := range []string{"principle", "tension", "review-flag", "settled"} {
@@ -152,11 +136,11 @@ func TestADocketRulingsRequirementsAreMarkedOnItsOwnPage(t *testing.T) {
 			t.Errorf("motion docket rule --%s is required by the docket ruling's schema and its line does not say so:\n%s", name, f.Usage)
 		}
 	}
-	grade := cmdAt(NewRootFor("red-chair"), []string{"motion", "grade", "rule"})
-	if grade == nil {
-		t.Fatal("the chair has no `motion grade rule`")
+	petition := cmdAt(NewRootFor("judge"), []string{"motion", "petition", "rule"})
+	if petition == nil {
+		t.Fatal("the bench has no `motion petition rule`")
 	}
-	if f := grade.Flags().Lookup("principle"); f != nil {
-		t.Errorf("motion grade rule carries --principle, a docket ruling's field: %s", f.Usage)
+	if f := petition.Flags().Lookup("principle"); f != nil {
+		t.Errorf("motion petition rule carries --principle, a docket ruling's field: %s", f.Usage)
 	}
 }

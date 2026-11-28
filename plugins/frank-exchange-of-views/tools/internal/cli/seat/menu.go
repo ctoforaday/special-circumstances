@@ -106,12 +106,14 @@ func listsOf(c *cobra.Command) string {
 //
 // THE MISSING SET IS READ FROM FLAG STATE, the way cobra's own check reads it — a flag carrying
 // the required annotation that the call did not set — and never recovered from cobra's message.
+// A flag required unless another (RequiredUnless) is owed alike when neither was set, so one
+// refusal names every flag the call owes, whether cobra or the verb's handler raised it.
 // It returns nil when no required flag is missing, so a caller cannot render an empty list.
 func RefuseMissingFlags(c *cobra.Command, cause error) error {
 	var owed []*pflag.Flag
 	var names []string
 	c.Flags().VisitAll(func(f *pflag.Flag) {
-		if req := f.Annotations[cobra.BashCompOneRequiredFlag]; len(req) > 0 && req[0] == "true" && !f.Changed {
+		if owedFlag(c, f) {
 			owed = append(owed, f)
 			names = append(names, "--"+f.Name)
 		}
@@ -123,6 +125,36 @@ func RefuseMissingFlags(c *cobra.Command, cause error) error {
 		Diagnosis: "requires " + strings.Join(names, ", ") + "\n\n" + usageOf(c, owed...),
 		Path:      c.CommandPath(), Lists: listsOf(c), Cause: cause,
 	}
+}
+
+// owedFlag says the call owes f: f is required and was not set, or required unless another flag
+// (RequiredUnlessGiven) and neither was set. A condition in prose (RequiredUnless) is the
+// handler's to hold.
+func owedFlag(c *cobra.Command, f *pflag.Flag) bool {
+	if f.Changed {
+		return false
+	}
+	if req := f.Annotations[cobra.BashCompOneRequiredFlag]; len(req) > 0 && req[0] == "true" {
+		return true
+	}
+	name := f.Annotations[unlessFlagKey]
+	if len(name) == 0 {
+		return false
+	}
+	other := c.Flags().Lookup(name[0])
+	if other == nil {
+		panic("seat.RequiredUnlessGiven: `" + c.CommandPath() + "` has no flag --" + name[0])
+	}
+	return !other.Changed
+}
+
+// RequireOwed is a handler's refusal of the flags its call owes (owedFlag) — those required unless
+// another flag, which the parse leaves to it — in RefuseMissingFlags' words; nil when none is owed.
+func RequireOwed(c *cobra.Command) error {
+	if r := RefuseMissingFlags(c, feov.Errorf(feov.MissingField, "a required flag was left out")); r != nil {
+		return r
+	}
+	return nil
 }
 
 // RefuseUnknownFlag is the refusal for a flag the verb does not have. `said` is the parser's own

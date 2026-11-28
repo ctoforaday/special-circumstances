@@ -161,7 +161,7 @@ func recordPresent(run Run) error {
 }
 
 // LensEnvelope is what a lens returns to end its sitting, and it holds nothing. What a lens's
-// sitting did — its findings, mints, regrades, closes, judgements, closings and petitions — is on
+// sitting did — its mints, regrades, closes, judgements, closings and petitions — is on
 // the record as events, which every reader reads there, and the engine threads nothing from a lens
 // to the seats after it. A field here would be a second account of the record or a value no reader
 // reads. The envelope exists so that the sitting ends through the call EnvelopeRefusal answers.

@@ -76,9 +76,10 @@ func failedChecksOf(evs []*Event, win WindowIndex) []failedCheck {
 		at        int64
 	}
 	mints := map[string][]aboutMint{}
+	acting := mintersOf(evs)
 	for _, e := range evs {
 		if m, ok := recordpb.BodyAs[*recordpb.Mint](e); ok && m.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_ANCHOR {
-			mints[m.GetAboutRef()] = append(mints[m.GetAboutRef()], aboutMint{gap: m.GetGapId(), seat: e.GetSeatId(), at: win.Of(e).ID})
+			mints[m.GetAboutRef()] = append(mints[m.GetAboutRef()], aboutMint{gap: m.GetGapId(), seat: acting[m.GetGapId()], at: win.Of(e).ID})
 		}
 	}
 	var out []failedCheck
@@ -235,12 +236,12 @@ func requireFailedCheckAnswered(q recordsql.Querier, b *recordpb.Close) error {
 			if f.computation {
 				return feov.Errorf(feov.Conflict,
 					"gap %s carries computation %s, which %s's judgement at event %d still calls unsound, and the report still carries it — the defect has not left the report, so this close is refused. Nothing is recorded. "+
-						"The check clears once the computation is judged sound again, blue rewrites its sentence (the computation is then owed a fresh judgement), or the computation leaves the report, by blue's retire or a cut of its sentence (nothing is then owed of it). %s; a gap that carries the defect on is minted with --supersedes naming this one, which closes it, and while nothing answers this one's `source` or `computation` demand the successor carries its check kind and the demand with it, and the anchor's removal — a retire, or a cut of its sentence — or its own seat's check of it again that holds, made after the successor's mint, meets the successor's demand",
+						"The check clears once the computation is judged sound again, blue rewrites its sentence (the computation is then owed a fresh judgement), or the computation leaves the report, by blue's retire or a cut of its sentence (nothing is then owed of it). %s",
 					g, f.anchor, f.owner, f.since, demandAfterClear)
 			}
 			return feov.Errorf(feov.Conflict,
 				"gap %s carries citation %s, whose source no check since its sentence last changed has read (%s's check at event %d read nothing), and the report still cites it — the defect has not left the report, so this close is refused. Nothing is recorded. "+
-					"The check clears once blue retires the citation (its sentence stays), blue rewrites its sentence (the citation is then owed a fresh check), blue cuts its sentence (the citation leaves with it, and nothing is then owed of it) or a lens reads its source. %s; a gap that carries the defect on is minted with --supersedes naming this one, which closes it, and while nothing answers this one's `source` or `computation` demand the successor carries its check kind and the demand with it, and the anchor's removal — a retire, or a cut of its sentence — or its own seat's check of it again that holds, made after the successor's mint, meets the successor's demand",
+					"The check clears once blue retires the citation (its sentence stays), blue rewrites its sentence (the citation is then owed a fresh check), blue cuts its sentence (the citation leaves with it, and nothing is then owed of it) or a lens reads its source. %s",
 				g, f.anchor, f.owner, f.since, demandAfterClear)
 		}
 	}

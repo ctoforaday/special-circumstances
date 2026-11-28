@@ -234,8 +234,8 @@ func commandPathOf(args []string) string {
 	// THE LONGEST ARGV PREFIX THAT IS A REAL COMMAND PATH, asked of the cobra tree.
 	//
 	// This used to take at most TWO tokens and require the first to be a role — a two-level tree
-	// hard-coded into the tally. The command-groups work makes the tree deeper (`motion grade
-	// file` is three), and under the old rule that collapsed to `motion`, matched no real path,
+	// hard-coded into the tally. The command-groups work makes the tree deeper (`motion docket
+	// file regrade` is four), and under the old rule that collapsed to `motion`, matched no real path,
 	// and reported all seven motion verbs as NEVER INVOKED while the record showed 35 motion
 	// events. A tally that cannot see a path it was given reports a false absence, which is the
 	// same plausible-zero shape the gate exists to catch — one level up, in the gate itself.

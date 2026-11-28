@@ -11,23 +11,15 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
-// THE LENS-TURN ORACLE READS BLUE'S EVIDENCE ACTS ON A GAP (actsOnGaps): a citation placed as its
+// THE LENS-TURN ORACLE READS BLUE'S EVIDENCE ACTS ON A GAP, AND THE RAISER'S AMEND (actsOnGaps): a citation placed as its
 // answer, a lens's reading of that citation, and a retire or a pure cut that reaches it — through the
-// anchor the gap is about, or a reading the gap carries, or one its ancestor did where it carries the
-// ancestor's demand — naming no gap; and a cut that took the gap's own marker (F21). Without them the
-// oracle fails every plan that engages a lens a reaching retire or cut readied.
+// anchor the gap is about, or a reading the gap carries — naming no gap; and a cut that took the gap's
+// own marker (F21). Without them the oracle fails every plan that engages a lens a reaching retire or
+// cut readied.
 func TestTheLensTurnOracleReadsEvidenceActs(t *testing.T) {
 	const lens, blue = "red-lens-evidence", "blue-respond"
 	mint := func(gap string, about recordpb.AboutKind, ref string) *recordpb.Mint {
 		return &recordpb.Mint{GapId: proto.String(gap), AboutKind: about.Enum(), AboutRef: proto.String(ref)}
-	}
-	source := func(m *recordpb.Mint) *recordpb.Mint {
-		m.CheckKind = recordpb.CheckKind_CHECK_KIND_SOURCE.Enum()
-		return m
-	}
-	supersedes := func(m *recordpb.Mint, ancestor string) *recordpb.Mint {
-		m.Supersedes = []string{ancestor}
-		return m
 	}
 	evs := []*record.Event{
 		recordtest.At(t, lens, "", mint("G1", recordpb.AboutKind_ABOUT_KIND_SECTION, "Findings")),
@@ -37,38 +29,42 @@ func TestTheLensTurnOracleReadsEvidenceActs(t *testing.T) {
 		recordtest.At(t, lens, "", &recordpb.Verify{Anchor: proto.String("C-1")}),
 		recordtest.At(t, blue, "", &recordpb.Retire{Anchors: []string{"K-1"}}),
 		recordtest.At(t, blue, "", &recordpb.Retire{Anchors: []string{"C-2"}}),
-		recordtest.At(t, lens, "", source(mint("G4", recordpb.AboutKind_ABOUT_KIND_ANCHOR, "C-4"))),
-		recordtest.At(t, lens, "", supersedes(source(mint("G5", recordpb.AboutKind_ABOUT_KIND_SECTION, "Findings")), "G4")),
-		recordtest.At(t, lens, "", source(mint("G6", recordpb.AboutKind_ABOUT_KIND_ANCHOR, "C-6"))),
-		recordtest.At(t, lens, "", supersedes(mint("G7", recordpb.AboutKind_ABOUT_KIND_SECTION, "Findings"), "G6")),
-		recordtest.At(t, blue, "", &recordpb.Retire{Anchors: []string{"C-4"}}),
-		recordtest.At(t, blue, "", &recordpb.Retire{Anchors: []string{"C-6"}}),
 		recordtest.At(t, lens, "", mint("G8", recordpb.AboutKind_ABOUT_KIND_ANCHOR, "K-8")),
 		recordtest.At(t, lens, "", mint("G9", recordpb.AboutKind_ABOUT_KIND_SECTION, "Findings")),
 		recordtest.At(t, blue, "", &recordpb.BlueEdit{Old: proto.String("A cut sentence."), New: proto.String(""), RemovedAnchors: []string{"K-8", "G9"}}),
+		recordtest.At(t, lens, "", &recordpb.Amend{GapId: proto.String("G1"), Problem: proto.String("restated")}),
+		recordtest.At(t, "red-lens-logic", "", mint("G4", recordpb.AboutKind_ABOUT_KIND_GAP, "G3")),
+		recordtest.At(t, lens, "", &recordpb.Amend{GapId: proto.String("G3"), Answers: proto.String("G4"), Problem: proto.String("restated")}),
+		recordtest.At(t, lens, "", &recordpb.Regrade{GapId: proto.String("G3"), Answers: proto.String("G4")}),
 	}
-	acts, _ := actsOnGaps(evs, map[string][]string{"C-2": {"G3"}})
-	if slices.ContainsFunc(acts["G7"], func(a struct {
-		seat string
-		at   int
-	}) bool {
-		return a.seat == blue
-	}) {
-		t.Errorf("a retire of the anchor of an ancestor whose demand it does not carry is read as an act on G7: %+v", acts["G7"])
-	}
+	acts, changes, _ := actsOnGaps(evs, map[string][]string{"C-2": {"G3"}})
 	for _, w := range []struct {
 		name, gap, seat string
 		at              int
+		change          bool // a change to what the gap is about, naming no gap: its lens's turn, no act
 	}{
-		{"a citation placed as its answer", "G1", blue, 3},
-		{"a reading of that citation", "G1", lens, 4},
-		{"a retire of the anchor it is about", "G2", blue, 5},
-		{"a retire of the anchor of a reading it carries", "G3", blue, 6},
-		{"a retire of the anchor its ancestor, whose demand it carries, is about", "G5", blue, 11},
-		{"a cut taking the anchor it is about", "G8", blue, 15},
-		{"a cut taking its own marker", "G9", blue, 15},
+		{"a citation placed as its answer", "G1", blue, 3, false},
+		{"a reading of that citation", "G1", lens, 4, false},
+		{"a retire of the anchor it is about", "G2", blue, 5, true},
+		{"a retire of the anchor of a reading it carries", "G3", blue, 6, true},
+		{"a cut taking the anchor it is about", "G8", blue, 9, true},
+		{"a cut taking its own marker", "G9", blue, 9, true},
+		// THE RAISER'S AMEND IS ITS ACT ON THE GAP (§III.B3): seed 6's lens amended its gap, and the oracle,
+		// reading the mint as the lens's last act, held a plan that awaited blue's answer to the amend.
+		{"the raiser's amend", "G1", lens, 10, false},
+		{"the minter's amend naming a gap about its gap", "G4", lens, 12, false},
+		{"the minter's regrade naming a gap about its gap", "G4", lens, 13, false},
 	} {
-		if !slices.ContainsFunc(acts[w.gap], func(a struct {
+		in, other := acts, changes
+		if w.change {
+			in, other = changes, acts
+		}
+		for _, a := range other[w.gap] {
+			if a.at == w.at {
+				t.Errorf("%s is read on %s in the wrong list: an act names its gap, a change names none", w.name, w.gap)
+			}
+		}
+		if !slices.ContainsFunc(in[w.gap], func(a struct {
 			seat string
 			at   int
 		}) bool {

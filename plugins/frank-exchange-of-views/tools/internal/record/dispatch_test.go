@@ -53,24 +53,26 @@ func (b *stage) mint(evLens, gap, severity string) *stage {
 		Severity: &sev, Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)})
 }
 
-// mintSuperseding mints gap as the successor of ancestor — lineage the record keeps: a mint
-// superseding an open gap closes it.
-func (b *stage) mintSuperseding(evLens, gap, severity, ancestor string) *stage {
-	sev, _ := GradeOf(severity)
-	return b.add(evLens, &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), GapId: proto.String(gap), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Problem: proto.String("p"),
-		AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
-		Severity: &sev, Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
-		Supersedes: []string{ancestor}})
-}
-
-// docketMotion is a party escalating gap to the bench by hand — the route `motion docket file`
-// keeps open beside the dispatch's own docketing at impasse. The stage seeds it; a test that
-// files it live, after seeding, appends the same body.
+// docketMotion is a party's proposal on gap — a regrade of its severity to low, the act `motion docket
+// file regrade` proposes. The stage seeds it; a test that files it live, after seeding, appends the
+// same body.
 func docketMotion(id, gap string) *recordpb.Motion {
 	return &recordpb.Motion{MotionId: proto.String(id),
-		Basis: proto.String("escalated by hand"), Filing: &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String(gap)}}}
+		Basis: proto.String("escalated by hand"), Filing: &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String(gap)}},
+		Act: &recordpb.Motion_Regrade{Regrade: &recordpb.Regrade{GapId: proto.String(gap), Severity: recordpb.Grade_GRADE_LOW.Enum(), Basis: proto.String("overstated")}}}
 }
-func (b *stage) docketMotion(seat, id, gap string) *stage { return b.add(seat, docketMotion(id, gap)) }
+
+// docketing is the docketing `dispatch next` writes on gap at impasse, under id.
+func docketing(id, gap string) *recordpb.Docketing {
+	return &recordpb.Docketing{DocketingId: proto.String(id), GapId: proto.String(gap),
+		Cause: recordpb.DocketingCause_DOCKETING_CAUSE_IMPASSE.Enum(), Basis: proto.String(impasseBasis(gap))}
+}
+
+// docketMotion seeds docketing id on gap as the dispatch writes it, under the chair whatever seat the
+// fixture names: a gap reaches the bench only by the tool's docketing.
+func (b *stage) docketMotion(seat, id, gap string) *stage {
+	return b.add("red-chair", docketing(id, gap))
+}
 
 func (b *stage) dispatch(pin int64, seat string, gaps ...string) *stage {
 	return b.add("red-chair", &recordpb.Dispatch{Pin: proto.Int64(pin), SeatId: proto.String(seat), GapIds: gaps})
@@ -102,7 +104,7 @@ func (b *stage) seed() Run {
 
 const evLens = "red-lens-evidence"
 
-// One exchange is blue's sitting engaged on G and its minting lens's sitting that audits it, both
+// One exchange is blue's sitting engaged on G and its assignee's sitting that audits it, both
 // complete — each closed by THAT SEAT's next opening or its agent's stop. Movement in it resets the
 // stall; a null turn — blue sat and recorded nothing on G — leaves the lens nothing to audit, ends
 // the exchange there and stalls it. The sittings of the last epoch are still open: they are not
@@ -321,39 +323,9 @@ func TestAHandFiledDocketReadiesTheBenchWithoutImpasse(t *testing.T) {
 	}
 }
 
-// A SUPERSEDED ANCESTOR IS CLOSED, AND READIES NOBODY (ruled by gblock 2026-11-04). The successor's
-// mint closed it, so no seat is engaged on it, the plan gives it no reason, and the successor — a
-// trifle — holds no PASS.
-func TestASupersededAncestorReadiesNobody(t *testing.T) {
-	b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest(). // head = 2
-											register("red-chair").readFully(2, evLens).
-											mint(evLens, "G1", "low").mintSuperseding(evLens, "G2", "low", "G1").
-											register("red-chair")
-	plan, err := PlanDispatch(b.seed())
-	if err != nil {
-		t.Fatal(err)
-	}
-	engaged := map[string][]string{}
-	for _, p := range plan.Parties {
-		engaged[p.SeatID] = p.GapIDs
-	}
-	for seat, gaps := range engaged {
-		if slices.Contains(gaps, "G1") {
-			t.Errorf("%s is engaged on G1, which G2's mint closed", seat)
-		}
-	}
-	if !plan.PassPermitted {
-		t.Errorf("PASS is not permitted, held by %+v: the ancestor is closed and its successor is a trifle", plan.Blockers)
-	}
-	why := strings.Join(plan.Why, "\n")
-	if strings.Contains(why, "G1") || !strings.Contains(why, "G2: open and not material (graded low)") {
-		t.Errorf("the plan must name no reason on the closed ancestor, and the successor as readying nobody:\n%s", why)
-	}
-}
-
 // Empty is the termination signal: every cast lens retired and no material gap is open — PASS
-// permitted. With a material gap open and below its limits, blue is ready on it, and its minting
-// lens once blue has acted on it.
+// permitted. With a material gap open and below its limits, blue is ready on it, and its assignee
+// once blue has acted on it.
 func TestAnEmptyDispatchIsTermination(t *testing.T) {
 	b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest(). // head = 2
 											register("red-chair").sit(2, evLens).sit(2, evLens). // two barren sittings: retired
@@ -498,7 +470,7 @@ func TestABelowMaterialGapDoesNotHoldTheGate(t *testing.T) {
 	}
 }
 
-// A gap belongs to the lens that minted it: only that lens regrades or closes it. The chair may
+// A gap is its assignee's: only that lens regrades or closes it. The chair may
 // still carry a closure the archive holds; the bench disposes through its ruling.
 func TestOnlyTheMintingLensMayRegradeOrCloseItsGap(t *testing.T) {
 	run := newStage(t).cast(evLens, "red-lens-logic", "red-chair", "blue-respond", "judge").ingest().
@@ -509,19 +481,19 @@ func TestOnlyTheMintingLensMayRegradeOrCloseItsGap(t *testing.T) {
 	}
 	regrade := &recordpb.Regrade{GapId: proto.String("G1"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Basis: proto.String("b")}
 	for _, other := range []string{"red-chair", "red-lens-logic"} {
-		if _, err := Append(Identity{Run: run, SeatID: other}, regrade); err == nil || !strings.Contains(err.Error(), "minted by "+evLens) {
+		if _, err := Append(Identity{Run: run, SeatID: other}, regrade); err == nil || !strings.Contains(err.Error(), "assigned to "+evLens) {
 			t.Errorf("%s regraded another lens's gap: %v", other, err)
 		}
-		if _, err := Append(Identity{Run: run, SeatID: other}, closeG1()); err == nil || !strings.Contains(err.Error(), "originator") {
+		if _, err := Append(Identity{Run: run, SeatID: other}, closeG1()); err == nil || !strings.Contains(err.Error(), "only its assignee closes it") {
 			t.Errorf("%s closed another lens's gap: %v", other, err)
 		}
 	}
 	if _, err := Append(Identity{Run: run, SeatID: evLens}, regrade); err != nil {
-		t.Fatalf("the originator's regrade was refused: %v", err)
+		t.Fatalf("the assignee's regrade was refused: %v", err)
 	}
 	deliver(t, run, evLens)
 	if _, err := Append(Identity{Run: run, SeatID: evLens}, closeG1()); err != nil {
-		t.Fatalf("the originator's close was refused: %v", err)
+		t.Fatalf("the assignee's close was refused: %v", err)
 	}
 	// The chair may carry the closure the archive now holds.
 	if _, _, err := RegisterSeat(Identity{Run: run, SeatID: "red-chair"}, "", ""); err != nil {

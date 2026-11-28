@@ -4,11 +4,11 @@ import "testing"
 
 // AN ANCHOR IS NOT A WORD. A gap's location carries the anchor its own mint placed, and an edit's
 // span the anchors it carries, so text quoted from the report scores against a token set polluted
-// by "fx" and the hex id unless the layer is stripped. The failure is a lower score, never an
+// by "gap" and the hex id unless the layer is stripped. The failure is a lower score, never an
 // error — so it needs a test to be visible.
 func TestTokenizeIgnoresTheAnnotationLayer(t *testing.T) {
 	plain := Tokenize("Eight authoritative mathematical sources were consulted")
-	anchored := Tokenize("Eight authoritative mathematical sources were consulted<!--fx:F-dbd94684-->")
+	anchored := Tokenize("Eight authoritative mathematical sources were consulted<!--gap:G-dbd94684-->")
 	if len(plain) != len(anchored) {
 		t.Errorf("Tokenize saw %d token(s) plain and %d anchored — the anchor contributed vocabulary", len(plain), len(anchored))
 	}

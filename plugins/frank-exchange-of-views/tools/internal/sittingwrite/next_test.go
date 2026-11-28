@@ -67,7 +67,7 @@ func TestTheDeliveryFitsAndSaysWhatItCut(t *testing.T) {
 	long := strings.Repeat("Filler sentence about nothing in particular. ", 300)
 	loc := "the sentence the gap is about"
 	g := record.WorkGapJSON{ID: "G-1", Problem: "the problem", ProblemSynopsis: "the problem", YourTurn: true,
-		Location: loc, Passage: long + loc + ". " + long, MintedBy: "red-lens-logic", Backing: []record.GapBackingJSON{}, RegradesOwed: []record.OwedRegradeJSON{}}
+		Location: loc, Passage: long + loc + ". " + long, Assignee: "red-lens-logic", Backing: []record.GapBackingJSON{}}
 	w := record.WorkJSON{Open: []record.WorkGapJSON{g}, Sitting: record.SittingJSON{Seat: "red-lens-logic", Role: "lens", Open: []record.Item{}}}
 	text := RenderDispatchDelivery(w)
 	if len(text) > DeliveryBudget {
@@ -92,9 +92,9 @@ func TestTheDeliveryFitsAndSaysWhatItCut(t *testing.T) {
 
 // THE OPENING END STORES WHAT IT HANDED, AND THE FIRST CALL AFTER IT COMPARES AGAINST THAT: nothing
 // moved, so nothing is said. A lost file hands the head of the queue again. The chain is every
-// seat's: the chair is the seat here, since a lens's first sitting opens with report text, which the
-// opening end never hands — its first call does. The chair's item is its ruling on blue's grade
-// motion.
+// seat's: the bench is the seat here, since a lens's first sitting opens with report text, which the
+// opening end never hands — its first call does — and the bench is handed no report text. The
+// bench's item is the head of its queue: the docket sitting it was dispatched for.
 func TestAfterTheOpeningEndNothingMovedIsNothingSaid(t *testing.T) {
 	dir := newRun(t)
 	recordtest.Seed(t, dir,
@@ -106,26 +106,26 @@ func TestAfterTheOpeningEndNothingMovedIsNothingSaid(t *testing.T) {
 		recordtest.At(t, "red-lens-evidence", "lens:mint", &recordpb.Mint{GapId: proto.String("G1"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 			Problem: proto.String("p"), AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
 			Severity: recordtest.P(recordpb.Grade_GRADE_LOW), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}),
-		recordtest.At(t, "blue-respond", "blue:register", &recordpb.Register{}),
-		recordtest.At(t, "blue-respond", "blue:grade", &recordpb.Motion{MotionId: proto.String("M1"), Basis: proto.String("b"),
-			Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("G1"),
-				Dimension: recordpb.GradeDimension_GRADE_DIMENSION_LIKELIHOOD.Enum(), Proposed: recordpb.Grade_GRADE_LOW.Enum()}}}),
 		recordtest.At(t, "red-chair", "chair:dispatch", &recordpb.Dispatch{
-			SeatId: proto.String("red-lens-evidence"), Pin: proto.Int64(1)}))
-	const chair = "frank-exchange-of-views:red-chair"
+			SeatId: proto.String("red-lens-evidence"), Pin: proto.Int64(1)}),
+		recordtest.At(t, "red-chair", "chair:docketing", &recordpb.Docketing{DocketingId: proto.String("D1"), GapId: proto.String("G1"),
+			Cause: recordpb.DocketingCause_DOCKETING_CAUSE_IMPASSE.Enum(), Basis: proto.String("before the bench")}),
+		recordtest.At(t, "red-chair", "chair:dispatch:bench", &recordpb.Dispatch{
+			SeatId: proto.String("judge"), Pin: proto.Int64(1), GapIds: []string{"G1"}}))
+	const bench = "frank-exchange-of-views:lead-judge"
 	var opened bytes.Buffer
-	if err := Write(Sitting{RunDir: dir, Phase: Open, AgentID: "agent_02", AgentType: chair}, &opened); err != nil {
+	if err := Write(Sitting{RunDir: dir, Phase: Open, AgentID: "agent_02", AgentType: bench}, &opened); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(opened.String(), `"key": "`) {
-		t.Fatalf("the chair's opening end handed no item:\n%s", opened.String())
+		t.Fatalf("the bench's opening end handed no item:\n%s", opened.String())
 	}
 	var out bytes.Buffer
-	if err := WriteNextItem(dir, "agent_02", chair, "claude", &out); err != nil {
+	if err := WriteNextItem(dir, "agent_02", bench, "claude", &out); err != nil {
 		t.Fatal(err)
 	}
 	if out.Len() != 0 {
-		t.Errorf("nothing moved and the chair was handed:\n%s", out.String())
+		t.Errorf("nothing moved and the bench was handed:\n%s", out.String())
 	}
 	files, _ := filepath.Glob(filepath.Join(dir, deliveryDir, "agent_02-*.json"))
 	if len(files) != 1 {
@@ -134,7 +134,7 @@ func TestAfterTheOpeningEndNothingMovedIsNothingSaid(t *testing.T) {
 	if err := os.Remove(files[0]); err != nil {
 		t.Fatal(err)
 	}
-	if err := WriteNextItem(dir, "agent_02", chair, "claude", &out); err != nil {
+	if err := WriteNextItem(dir, "agent_02", bench, "claude", &out); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(out.String(), `"key": "`) {
@@ -165,9 +165,9 @@ func TestAfterTheOpeningEndNothingMovedIsNothingSaid(t *testing.T) {
 func TestEveryDeliveryFitsTheBudgetByConstruction(t *testing.T) {
 	long := strings.Repeat("Ünïcödé prose — every rune here is more than one byte. ", 40)
 	row := func(id, by string, turn bool) record.WorkGapJSON {
-		return record.WorkGapJSON{ID: id, MintedBy: by, YourTurn: turn, Class: "false_universal", Material: turn,
+		return record.WorkGapJSON{ID: id, Assignee: by, YourTurn: turn, Class: "false_universal", Material: turn,
 			Location: "the sentence " + id, Passage: long + "the sentence " + id + ". " + long, Problem: "problem of " + id,
-			RequiredFix: "fix " + id, AcceptanceCheck: "check " + id, Backing: backingOf(60), EditedSince: editsOf(10), RegradesOwed: []record.OwedRegradeJSON{}}
+			RequiredFix: "fix " + id, AcceptanceCheck: "check " + id, Backing: backingOf(60), EditedSince: editsOf(10)}
 	}
 	w := record.WorkJSON{Sitting: record.SittingJSON{Seat: "red-lens-voice", Role: "lens", Open: []record.Item{}}}
 	for i := 0; i < 40; i++ {
@@ -251,10 +251,10 @@ func TestAGapPastTheBudgetIsCutAndSaysSo(t *testing.T) {
 		{"huge edits, short prose", 0, 300, "short"},
 		{"long prose, huge lists", 1000, 500, long},
 	} {
-		g := record.WorkGapJSON{ID: "G-1", MintedBy: "red-lens-architecture", YourTurn: true, Class: "false_universal", Material: true,
+		g := record.WorkGapJSON{ID: "G-1", Assignee: "red-lens-architecture", YourTurn: true, Class: "false_universal", Material: true,
 			Location: "the sentence", Passage: long + "the sentence. " + long, Problem: "problem " + tc.prose, RequiredFix: "fix " + tc.prose,
 			AcceptanceCheck: "check " + tc.prose, FixBasis: "quoted", FixOld: "old " + tc.prose, FixNew: "new " + tc.prose,
-			Backing: backingOf(tc.backing), EditedSince: editsOf(tc.edits), RegradesOwed: []record.OwedRegradeJSON{}, FoundBy: []string{"F-1"}}
+			Backing: backingOf(tc.backing), EditedSince: editsOf(tc.edits)}
 		w := record.WorkJSON{Sitting: record.SittingJSON{Seat: "red-lens-architecture", Role: "lens",
 			Open: []record.Item{{Kind: record.ItemReaudit, Subject: &record.ItemSubject{Kind: record.SubjectGap, ID: "G-1"}, What: "gap G-1 was answered"}}},
 			Open: []record.WorkGapJSON{g}}

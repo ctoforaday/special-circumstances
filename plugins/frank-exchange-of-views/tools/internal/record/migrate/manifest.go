@@ -47,6 +47,13 @@ func NewManifest(sourcePath string, files []migration.SourceFile, unclassified [
 		ProseRewrites:       proseCounts(res.ProseRewrites),
 		Rewritten:           res.ProseRewrites,
 		DroppedPlanBlockers: res.DroppedPlanBlockers,
+		QuotelessReadings:   res.QuotelessReadings,
+		SettledEdits:        res.SettledEdits,
+		UnowedEngagements:   res.UnowedEngagements,
+		SupersedeLinks:      res.SupersedeLinks,
+		RekeyedAnchors:      res.RekeyedAnchors,
+		AmendedAncestorActs: res.AmendedAncestorActs,
+		Dockets:             res.Dockets,
 		Unclassified:        unclassified,
 	}
 }

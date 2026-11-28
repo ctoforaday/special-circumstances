@@ -15,18 +15,19 @@ import (
 // beside m37's, outside the migrate package's archive census.
 const m38Archive = "bundle-store/2026-11-04_is-91-prime-m38.tar.gz"
 
-// UNIVERSE-M38, REPLAYED (ruled by gblock 2026-11-05): a fate blue changed is its act on the gaps about
-// what it changed — the inquiry, and a section the tool composes that prints it.
+// UNIVERSE-M38, REPLAYED: a fate blue changed changes what the gaps about it are about — the inquiry,
+// and a section the tool composes that prints it (ruled by gblock 2026-11-05) — and, naming none of
+// them, it is each one's raiser's turn and no answer (F-FATE, 2026-11-24).
 //
-//   - G-ca807516, about the section "Research areas", which the tool composes from fates. Blue answered
-//     it at e10 by recording eight fates again, every status kept and every reason and method reworded.
-//     The plan that followed held the adversary off it ("not until blue has acted on it"), counted the
-//     round stalled, and at e12 docketed it with no re-audit. Folded again, the plan after blue's
-//     sitting readies the adversary on it, the docket is not filed, and capture's docket-order audit
-//     names the archived one.
-//   - G-845422d8, anchored on Q-b62beca0. Blue answered it at e2 and at e3 by recording `confirmed` again
-//     with a narrowed reason; both rounds were counted stalled. Folded again, they moved it.
-func TestM38AChangedFateIsBluesAct(t *testing.T) {
+//   - G-ca807516, about the section "Research areas", which the tool composes from fates. Blue recorded
+//     eight fates again at e10, every status kept and every reason and method reworded. The plan that
+//     followed held the adversary off it ("not until blue has acted on it"), and at e12 docketed it
+//     with no re-audit. Folded again, the plan after blue's sitting readies the adversary on it — its
+//     turn — the docket is not filed, and capture's docket-order audit names the archived one.
+//   - G-845422d8, anchored on Q-b62beca0. Blue recorded `confirmed` again at e2 and at e3 with a
+//     narrowed reason, naming no gap. Folded again, each is the lens's turn and moves nothing: the
+//     rounds are stalls in which blue did not act on the gap.
+func TestM38AChangedFateIsTheLensTurn(t *testing.T) {
 	const section, anchored, adversary = "G-ca807516", "G-845422d8", "red-lens-adversary"
 	whole := archivedEvents(t, m38Archive)
 	evs, win := mustEvents(t, archiveAt(t, m38Archive, whole, len(whole)))
@@ -69,13 +70,13 @@ func TestM38AChangedFateIsBluesAct(t *testing.T) {
 		if !slices.Contains(gapsOf(plan, adversary), section) {
 			t.Errorf("blue changed fates in a sitting engaged on %s, and the plan does not ready %s to re-audit them: parties %+v, why %q", section, adversary, plan.Parties, plan.Why)
 		}
-		docket := slices.IndexFunc(evs, func(e *Event) bool { return e.GetMotion().GetDocket().GetGapId() == section })
+		docket := slices.IndexFunc(evs, func(e *Event) bool { return e.GetDocketing().GetGapId() == section })
 		if docket < 0 {
-			t.Fatalf("the archive holds no docket on %s", section)
+			t.Fatalf("the archive holds no docketing on %s", section)
 		}
 		start := docket
 		for start > 0 {
-			if p, ok := recordpb.BodyAs[*recordpb.Motion](evs[start-1]); !ok || p.GetDocket().GetGapId() == "" {
+			if _, ok := recordpb.BodyAs[*recordpb.Docketing](evs[start-1]); !ok {
 				break
 			}
 			start--
@@ -84,8 +85,8 @@ func TestM38AChangedFateIsBluesAct(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if slices.Contains(before.ToFile, section) {
-			t.Errorf("the plan dockets %s with %s's audit of blue's answer still to come: to file %v, why %q", section, adversary, before.ToFile, before.Why)
+		if slices.Contains(docketGaps(before), section) {
+			t.Errorf("the plan dockets %s with %s's audit of blue's answer still to come: to file %v, why %q", section, adversary, docketGaps(before), before.Why)
 		}
 		// CAPTURE NAMES IT.
 		early, err := EarlyDockets(archiveAt(t, m38Archive, whole, len(whole)))
@@ -93,7 +94,7 @@ func TestM38AChangedFateIsBluesAct(t *testing.T) {
 			t.Fatal(err)
 		}
 		if !slices.ContainsFunc(early, func(d EarlyDocket) bool {
-			return d.GapID == section && d.Motion == evs[docket].GetMotion().GetMotionId()
+			return d.GapID == section && d.Docketing == evs[docket].GetDocketing().GetDocketingId()
 		}) {
 			t.Errorf("capture's docket-order audit does not name the docket on %s: %+v", section, early)
 		}
@@ -106,8 +107,14 @@ func TestM38AChangedFateIsBluesAct(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if g := x[anchored]; g == nil || g.Exchanges == 0 || g.Stalled != 0 {
-			t.Errorf("blue narrowed Q-b62beca0's reason in each round on %s, and the fold counts a stall: %+v", anchored, g)
+		g := x[anchored]
+		if g == nil || g.Exchanges == 0 || g.Stalled != g.Exchanges || !g.lensTurn {
+			t.Fatalf("blue narrowed Q-b62beca0's reason in each round on %s naming no gap: every round a stall and the lens's turn come, got %+v", anchored, g)
+		}
+		for _, r := range g.rounds {
+			if r.acted {
+				t.Errorf("a round on %s reads blue as having acted on it, and no act of blue's named it: %+v", anchored, g.rounds)
+			}
 		}
 	})
 }
@@ -176,20 +183,23 @@ func remandedAbout(t *testing.T, section string) *stage {
 	return st.docketAndRemandWith("M1", "G1", remandDirection)
 }
 
-// A CHANGED FATE ANSWERS A REMAND ONLY OF A GAP ABOUT WHAT IT CHANGED (ruled by gblock 2026-11-05).
-// Blue's sitting for the remand records Q-1's fate, changed, and nothing else. Where G1 is about the
-// section that prints Q-1, that is blue's act: its item stops holding the sitting, and the next plan
-// readies the lens alone to audit it. Where G1 is about a section blue writes, the fate is no act on it,
-// and the item still blocks; so does a fate repeated word for word.
+// A FATE ANSWERS A REMAND ONLY WHERE IT NAMES THE GAP (plans/findings-fold.md §III.B3, T-B45). Blue's
+// sitting for the remand records Q-1's fate, changed, and nothing else. Naming G1, about the section
+// that prints Q-1, it is blue's answer: its item stops holding the sitting, and the next plan readies
+// the lens alone to audit it. Naming no gap, it is the lens's turn and discharges no remand: the item
+// still blocks, and the lens is readied all the same. Where G1 is about a section blue writes, the fate
+// changes nothing G1 is about, and a fate repeated word for word changes nothing.
 func TestAChangedFateAnswersARemandOnlyOfAGapAboutIt(t *testing.T) {
+	named := func(f *recordpb.Inquiry) *recordpb.Inquiry { f.Answers = proto.String("G1"); return f }
 	for _, c := range []struct {
 		name, section string
 		fate          *recordpb.Inquiry
-		answers       bool
+		answers, turn bool
 	}{
-		{"a changed fate the gap's section prints", "Research areas", fateOn("Q-1", recordpb.InquiryStatus_INQUIRY_STATUS_CONFIRMED, "found"), true},
-		{"an unrelated changed fate", "Findings", fateOn("Q-1", recordpb.InquiryStatus_INQUIRY_STATUS_CONFIRMED, "found"), false},
-		{"a repeated fate", "Research areas", fateOn("Q-1", recordpb.InquiryStatus_INQUIRY_STATUS_UNDERWAY, "r"), false},
+		{"a changed fate the gap's section prints, naming it", "Research areas", named(fateOn("Q-1", recordpb.InquiryStatus_INQUIRY_STATUS_CONFIRMED, "found")), true, true},
+		{"a changed fate the gap's section prints, naming no gap", "Research areas", fateOn("Q-1", recordpb.InquiryStatus_INQUIRY_STATUS_CONFIRMED, "found"), false, true},
+		{"an unrelated changed fate", "Findings", fateOn("Q-1", recordpb.InquiryStatus_INQUIRY_STATUS_CONFIRMED, "found"), false, false},
+		{"a repeated fate", "Research areas", fateOn("Q-1", recordpb.InquiryStatus_INQUIRY_STATUS_UNDERWAY, "r"), false, false},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			st := remandedAbout(t, c.section)
@@ -202,8 +212,8 @@ func TestAChangedFateAnswersARemandOnlyOfAGapAboutIt(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if got := slices.Contains(gapsOf(after, evLens), "G1"); got != c.answers {
-				t.Errorf("the plan readies %s on G1 = %v, want %v: parties %+v, why %q", evLens, got, c.answers, after.Parties, after.Why)
+			if got := slices.Contains(gapsOf(after, evLens), "G1"); got != c.turn {
+				t.Errorf("the plan readies %s on G1 = %v, want %v: parties %+v, why %q", evLens, got, c.turn, after.Parties, after.Why)
 			}
 		})
 	}

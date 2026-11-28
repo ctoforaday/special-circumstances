@@ -464,13 +464,6 @@ func evidenceJSONIn(t *testing.T, report string, evs ...*Event) EvidenceJSON {
 	return EvidenceJSONOf(m.Events, m.At, report, nil)
 }
 
-// findingsJSONT is FindingsJSONOf over evs as the write path stores them.
-func findingsJSONT(t *testing.T, evs []*Event) FindingsJSON {
-	t.Helper()
-	m := loadedT(t, evs...)
-	return FindingsJSONOf(m.Events, m.At)
-}
-
 // THE BENCH'S SITTING IS PLACED AT ITS STORED OPENING, NOT AT THE REGISTER THAT STATES ITS OCCASION.
 // A bracketed bench states the occasion at a register that JOINED the bracket's sitting, so the
 // occasion is read off the register and the place off the sitting it is stored in (benchOccasionSittings).

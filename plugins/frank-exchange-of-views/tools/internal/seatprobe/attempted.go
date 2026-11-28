@@ -107,7 +107,7 @@ func ShowViewIn(command, binName string) (string, bool) {
 
 // verbIn finds the verb a shell command invokes, or "".
 //
-// THE LONGEST MATCHING PREFIX WINS, and that is not fussiness: `motion grade file` and `motion`
+// THE LONGEST MATCHING PREFIX WINS, and that is not fussiness: `motion docket file` and `motion`
 // are both real, and taking the first token would file every motion under a verb no expectation
 // is written against. The same shortcut in the fuzzer's trajectory reader once reported all seven
 // motion verbs as never invoked while 35 motion events sat in the record.
@@ -119,7 +119,7 @@ func verbIn(command, binName string, verbs map[string]bool) string {
 	// THE VERB IS NOT ALWAYS THE FIRST TOKEN, and assuming it was cost this counter a whole
 	// board. One probed seat wrote its flags first —
 	//
-	//	fxr.exe --run "." --seat-id red-lens-evidence lens finding --key F1 ...
+	//	fxr.exe --run "." --seat-id red-lens-evidence lens mint --key F1 ...
 	//
 	// — so a scan that stopped at the first dash found nothing and reported a seat with 22 tool
 	// calls as having reached for no verb at all. Which is precisely the reading this file exists
@@ -127,7 +127,7 @@ func verbIn(command, binName string, verbs map[string]bool) string {
 	//
 	cand := commandWords(fields)
 	for i := range cand {
-		for n := min(3, len(cand)-i); n >= 1; n-- {
+		for n := min(4, len(cand)-i); n >= 1; n-- {
 			if v := strings.Join(cand[i:i+n], " "); verbs[v] {
 				return v
 			}

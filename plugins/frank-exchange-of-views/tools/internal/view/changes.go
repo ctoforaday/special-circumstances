@@ -1,7 +1,6 @@
 package view
 
 import (
-	"cmp"
 	"fmt"
 	"strings"
 	"unicode/utf8"
@@ -40,9 +39,8 @@ func changesMD(in Input, gapID string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	refs := findingRefs(in.Events)
 	if sel.Gap != nil {
-		return changesForGap(sel, refs), nil
+		return changesForGap(sel), nil
 	}
 
 	out := []string{
@@ -75,13 +73,13 @@ func changesMD(in Input, gapID string) ([]byte, error) {
 			answers = "answers **" + id + "**"
 		}
 		out = append(out, fmt.Sprintf("- **#%d** (event %d) `%s` %s · %s — %s",
-			n, ed.EventID, ed.Seat, answers, what(ed, refs), ed.Reason))
+			n, ed.EventID, ed.Seat, answers, what(ed), ed.Reason))
 	}
 	if total == 0 {
 		// SAID, NOT IMPLIED. An empty section reads as "nothing to show"; on a run past
 		// epoch 0 it means blue changed the report through no recorded path, or did not
-		// respond at all. Both are findings, and neither should look like formatting.
-		out = append(out, "_No recorded edits. On a run past epoch 0 that is itself a finding:",
+		// respond at all. Both are defects, and neither should look like formatting.
+		out = append(out, "_No recorded edits. On a run past epoch 0 that is itself a defect:",
 			"either blue answered nothing, or the report moved outside blue's `edit`._", "")
 	} else {
 		out = append(out, "", fmt.Sprintf("_%d recorded change(s)._", total), "")
@@ -104,7 +102,7 @@ func changesMD(in Input, gapID string) ([]byte, error) {
 	out = append(out, "## Measurements", "",
 		fmt.Sprintf("- **Concrete proposals**: %d offered · %d applied verbatim · %d declined (blue counter-edited or disputed) · %d unanswered",
 			offered, applied, declined, offered-applied-declined),
-		fmt.Sprintf("- **Estoppel rejections**: %d — mints refused because their location was text red prescribed and blue applied verbatim", estoppel),
+		fmt.Sprintf("- **Estoppel rejections**: %d — mints refused because their location was text the minting lens prescribed and blue applied verbatim", estoppel),
 		"")
 	if offered > 0 && declined == 0 {
 		out = append(out, "> Blue declined NONE of red's concrete proposals this run. Applying is the cheapest path,",
@@ -115,7 +113,7 @@ func changesMD(in Input, gapID string) ([]byte, error) {
 }
 
 // changesForGap is the comparison form: what red required, then what blue did about it.
-func changesForGap(sel record.ChangesJSON, refs map[string]string) []byte {
+func changesForGap(sel record.ChangesJSON) []byte {
 	g := sel.Gap
 	out := []string{
 		fmt.Sprintf("# blue changes answering %s — RENDERED PROJECTION", g.ID),
@@ -169,7 +167,7 @@ func changesForGap(sel record.ChangesJSON, refs map[string]string) []byte {
 	for i, e := range sel.Edits {
 		if e.Retired != "" {
 			out = append(out,
-				fmt.Sprintf("### %d. `%s` #%d · %s", i+1, e.Seat, e.Sitting, what(e, refs)),
+				fmt.Sprintf("### %d. `%s` #%d · %s", i+1, e.Seat, e.Sitting, what(e)),
 				"",
 				"**Blue's reason**: "+e.Reason,
 				"",
@@ -192,10 +190,10 @@ func changesForGap(sel record.ChangesJSON, refs map[string]string) []byte {
 }
 
 // what names a change: a retire by the anchor it took off a kept sentence, named by its
-// kind's noun (a finding by its id and its lens's area, refs), an edit by its size change.
-func what(e record.EditJSON, refs map[string]string) string {
+// kind's noun, an edit by its size change.
+func what(e record.EditJSON) string {
 	if e.Retired != "" {
-		return "retired " + record.EvidenceNoun(e.Retired) + " " + cmp.Or(refs[e.Retired], e.Retired) + ", its sentence kept"
+		return "retired " + record.EvidenceNoun(e.Retired) + " " + e.Retired + ", its sentence kept"
 	}
 	return delta(e.Old, e.New)
 }

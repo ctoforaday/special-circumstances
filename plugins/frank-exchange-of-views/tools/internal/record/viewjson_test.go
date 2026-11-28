@@ -34,26 +34,23 @@ func TestDebateJSONMirrorsRenderSections(t *testing.T) {
 			Likelihood:      recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			Impact:          recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 		}),
-		// RED'S CLOSING IS THE MINTING LENS'S: the party to the gap's dispute.
+		// RED'S CLOSING IS THE ASSIGNEE'S: the party to the gap's dispute.
 		recordtest.At(t, lens, lens+":closing:G1", &recordpb.Closing{GapId: proto.String("G1"), Text: proto.String("red closes r1")}),
 	})
 	writeShard(t, runDir, []*Event{
 		recordtest.At(t, blue, blue+":closing:G1", &recordpb.Closing{GapId: proto.String("G1"), Text: proto.String("blue closes r1")}),
 	})
-	// THE BENCH'S DISPOSITION IS A DOCKET MOTION'S RULING, and it takes two events: the FILING
-	// carries the gap (that is the join the Lead rows read through MotionsOf(b.Events, b.At)) and the RULING
-	// carries the disposition and the bench's prose. Seeding only the ruling would leave the
-	// Lead row naming no gap, which is exactly the silent-empty this split exists to remove.
+	// THE BENCH'S DISPOSITION IS A DOCKETING'S RULING, and it takes two events: the DOCKETING
+	// carries the gap (that is the join the Lead rows read) and the RULING carries the disposition and
+	// the bench's prose. Seeding only the ruling would leave the Lead row naming no gap, which is
+	// exactly the silent-empty this split exists to remove.
 	writeShard(t, runDir, []*Event{
-		recordtest.At(t, merge, merge+":motion:M1", &recordpb.Motion{
-			MotionId: proto.String("M1"),
-			Basis:    proto.String("red cannot settle this one"),
-			Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}},
-		}),
-		recordtest.At(t, judge, judge+":motion-rule:M1", &recordpb.MotionRule{
-			MotionId: proto.String("M1"),
-			Opinion:  proto.String("because"),
+		recordtest.At(t, merge, merge+":docketing:D1", docketing("D1", "G1")),
+		recordtest.At(t, judge, judge+":motion-rule:D1", &recordpb.MotionRule{
+			Opinion: proto.String("because"),
 			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
+				DocketingId: proto.String("D1"),
+				SidedWith:   recordpb.SidedWith_SIDED_WITH_RAISER.Enum(),
 				Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED),
 				Principle:   proto.String("correctness first"),
 				Tension:     proto.String("speed against certainty"),
@@ -138,7 +135,7 @@ func TestDebateJSONBytesIsValidJSON(t *testing.T) {
 }
 
 // TestWorkIsOpenOnlyLeanAndEstoppedIsBenchRulingsOnly pins the working set: OPEN gaps only, in a
-// lean shape (grades + class + location + a TRUNCATED problem synopsis + found_by, but NOT
+// lean shape (grades + class + location + a TRUNCATED problem synopsis, but NOT
 // required_fix/acceptance_check), and `estopped` carrying BENCH rulings alone.
 //
 // A SEAT'S OWN CLOSURE IS NOT A BAR. Red may reopen what red closed, so a red closure on this list
@@ -158,7 +155,6 @@ func TestWorkIsOpenOnlyLeanAndEstoppedIsBenchRulingsOnly(t *testing.T) {
 			Severity:   recordtest.P(recordpb.Grade_GRADE_HIGH),
 			Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			Impact:     recordtest.P(recordpb.Grade_GRADE_MEDIUM),
-			FoundBy:    []string{"F-f0000001"},
 		}),
 		recordtest.At(t, m, m+":mint:G2", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			GapId: proto.String("G2"), Class: recordpb.GapClass_GAP_CLASS_POLICY_WITHOUT_MECHANISM.Enum(),
@@ -228,15 +224,12 @@ func TestWorkIsOpenOnlyLeanAndEstoppedIsBenchRulingsOnly(t *testing.T) {
 	if !strings.HasPrefix(g.Problem, "word word") || len([]rune(g.Problem)) <= synopsisLimit {
 		t.Errorf("the open gap has no UNTRUNCATED problem (%d runes) — the full statement is what the originator answers", len([]rune(g.Problem)))
 	}
-	if g.MintedBy != "red-chair" {
-		t.Errorf("the open gap does not name its minter as a seat id, so ownership is decodable only from found_by: %q", g.MintedBy)
+	if g.Assignee != "red-chair" {
+		t.Errorf("the open gap does not name its minter as a seat id, so ownership is not decodable: %q", g.Assignee)
 	}
-	// The lean open gap keeps its grades, class, location and found_by.
+	// The lean open gap keeps its grades, class and location.
 	if w.Open[0].Severity != "high" || w.Open[0].Class != "risk_coverage_omission" || w.Open[0].Location != "§open" {
 		t.Errorf("open gap lost a lean field: %+v", w.Open[0])
-	}
-	if len(w.Open[0].FoundBy) != 1 || w.Open[0].FoundBy[0] != "F-f0000001" {
-		t.Errorf("open gap lost found_by: %+v", w.Open[0].FoundBy)
 	}
 }
 
@@ -254,15 +247,12 @@ func TestABenchRulingIsEstoppedOnTheWorkList(t *testing.T) {
 			Likelihood: recordtest.P(recordpb.Grade_GRADE_HIGH),
 			Impact:     recordtest.P(recordpb.Grade_GRADE_HIGH),
 		}),
-		recordtest.At(t, m, m+":motion:M1", &recordpb.Motion{
-			MotionId: proto.String("M1"),
-			Basis:    proto.String("red cannot settle this one"),
-			Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G9")}},
-		}),
-		recordtest.At(t, "judge", "judge:motion-rule:M1", &recordpb.MotionRule{
-			MotionId: proto.String("M1"),
-			Opinion:  proto.String("because"),
+		recordtest.At(t, m, m+":docketing:D1", docketing("D1", "G9")),
+		recordtest.At(t, "judge", "judge:motion-rule:D1", &recordpb.MotionRule{
+			Opinion: proto.String("because"),
 			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
+				DocketingId: proto.String("D1"),
+				SidedWith:   recordpb.SidedWith_SIDED_WITH_RAISER.Enum(),
 				Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED),
 				Principle:   proto.String("correctness first"),
 				Tension:     proto.String("speed against certainty"),
@@ -271,6 +261,9 @@ func TestABenchRulingIsEstoppedOnTheWorkList(t *testing.T) {
 				Final:       proto.Bool(true),
 			}},
 		}),
+		// The row the write path writes beside the ruling; the shard is written past it.
+		recordtest.At(t, "judge", "judge:tombstone:D1", &recordpb.Tombstone{GapId: proto.String("G9"),
+			Kind: recordpb.TombstoneKind_TOMBSTONE_KIND_RULING.Enum(), DocketingId: proto.String("D1")}),
 	})
 	w, err := WorkJSONOfRun(mustRun(t, runDir))
 	if err != nil {
@@ -278,6 +271,9 @@ func TestABenchRulingIsEstoppedOnTheWorkList(t *testing.T) {
 	}
 	if len(w.Estopped) != 1 || w.Estopped[0].ID != "G9" {
 		t.Fatalf("a bench ruling is not on the estoppel register: %+v", w.Estopped)
+	}
+	if r := w.Estopped[0].Ruling; r.Docketing != "D1" || r.Word != "repaired" || r.Event == 0 || w.Estopped[0].Ends == "" {
+		t.Errorf("the estopped row names ruling %+v, ends %q; want docketing D1, its event, its word and what ends it", r, w.Estopped[0].Ends)
 	}
 	// NO CLOSER ON THE ROW: every row is the bench's word by what the register is, and `show board`
 	// answers who ended the gap (closed_by_bench) — a lens's close the bench ruled after reads false
@@ -291,10 +287,9 @@ func TestABenchRulingIsEstoppedOnTheWorkList(t *testing.T) {
 	}
 }
 
-// TestBoardJSONFlattensMintWithoutDuplicating pins the board de-duplication: a gap's lineage
-// (found_by, supersedes) used to live ONLY inside a nested `mint`
-// object that ALSO re-stated every top-level field, so each gap carried its prose twice. They are
-// now first-class and the nested object is gone — one copy, and nothing a reader needs is buried.
+// TestBoardJSONFlattensMintWithoutDuplicating pins the board's one copy of a gap: no nested `mint`
+// object re-states the top-level fields, so each gap carries its prose once and nothing a reader
+// needs is buried.
 func TestBoardJSONFlattensMintWithoutDuplicating(t *testing.T) {
 	runDir := newRun(t)
 	m := "red-chair"
@@ -314,10 +309,6 @@ func TestBoardJSONFlattensMintWithoutDuplicating(t *testing.T) {
 			CheckKind:       recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
 			Likelihood:      recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			Impact:          recordtest.P(recordpb.Grade_GRADE_MEDIUM),
-			Supersedes:      []string{"G1"},
-			// found_by is the OTHER promoted list, and the assertion below reads both. The earlier
-			// conversion dropped it, so the test asserted against a gap whose found_by named nobody.
-			FoundBy: []string{"F-f0000001", "L5-F3"},
 		}),
 	})
 	b, err := BoardJSONBytes(mustRun(t, runDir))
@@ -325,55 +316,12 @@ func TestBoardJSONFlattensMintWithoutDuplicating(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := string(b)
-	// The lineage + leaf-check fields are promoted to the top level (their only home now).
-	// Tokens, not a compact substring — BoardJSONBytes pretty-prints.
-	for _, want := range []string{`"found_by"`, `"F-f0000001"`, `"L5-F3"`, `"supersedes"`, `"G1"`} {
-		if !strings.Contains(s, want) {
-			t.Errorf("board gap is missing top-level %s:\n%s", want, s)
-		}
-	}
-	// The redundant nested `mint` object is gone, so the prose appears exactly ONCE.
+	// No nested `mint` object re-states the gap, so the prose appears exactly ONCE.
 	if strings.Contains(s, `"mint":`) {
-		t.Error("the board still carries the redundant nested `mint` object")
+		t.Error("the board carries a nested `mint` object")
 	}
 	if n := strings.Count(s, "an open problem"); n != 1 {
-		t.Errorf("the problem prose appears %d times, want exactly 1 (the duplication this removed)", n)
-	}
-}
-
-// UNMINTED FINDINGS.
-//
-// The old metric counted `observe` events with no `dispose` fate. Both verbs are retired, so it
-// would now be PERMANENTLY ZERO — a dead detector and a clean board printing the same number,
-// which is the exact shape this codebase keeps finding. A finding is addressed by coalescence,
-// so the honest question is whether it was ever named in a gap's found_by.
-func TestUnmintedFindingsCountsFindingsNoGapNames(t *testing.T) {
-	runDir := newRun(t)
-	s := "red-lens-evidence"
-	m := "red-chair"
-	writeShard(t, runDir, []*Event{
-		recordtest.At(t, s, s+":finding:F-f0000001", &recordpb.Finding{Id: proto.String("F-f0000001"), Text: proto.String("minted")}),
-		recordtest.At(t, s, s+":finding:F-f0000002", &recordpb.Finding{Id: proto.String("F-f0000002"), Text: proto.String("never minted")}),
-	})
-	writeShard(t, runDir, []*Event{
-		recordtest.At(t, m, m+":mint:k", &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
-			GapId: proto.String("k"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Problem: proto.String("p"),
-			AcceptanceCheck: proto.String("the check runs"),
-			CheckKind:       recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
-			Likelihood:      recordtest.P(recordpb.Grade_GRADE_MEDIUM),
-			Impact:          recordtest.P(recordpb.Grade_GRADE_MEDIUM),
-			FoundBy:         []string{"F-f0000001"},
-		}),
-	})
-	bj := mustBoardJSONT(t, mustRun(t, runDir))
-	if bj.Counts.UnmintedFindings != 1 {
-		t.Errorf("exactly one finding is named by no gap; got %d unminted", bj.Counts.UnmintedFindings)
-	}
-	for _, o := range bj.Observations {
-		want := o.ID == "F-f0000001"
-		if o.Minted != want {
-			t.Errorf("%s: minted=%v, want %v", o.ID, o.Minted, want)
-		}
+		t.Errorf("the problem prose appears %d times, want exactly 1", n)
 	}
 }
 

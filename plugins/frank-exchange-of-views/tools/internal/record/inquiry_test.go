@@ -308,7 +308,7 @@ func TestDispatchReadiesTheOwnersOfAnInquiry(t *testing.T) {
 }
 
 // BLUE-RESPOND'S LIST CARRIES EACH OPEN INQUIRY AS OWED, cleared by a fate it records this sitting.
-// The logic lens's list carries each unchecked inquiry with the findings other lenses filed about it.
+// The logic lens's list carries each unchecked inquiry.
 func TestTheWorkListsCarryTheInquiryDuties(t *testing.T) {
 	owes := func(t *testing.T, run Run, role, seat, frag string) bool {
 		w, err := WorkOfSeat(run, role, seat)
@@ -328,11 +328,10 @@ func TestTheWorkListsCarryTheInquiryDuties(t *testing.T) {
 	}
 	unchecked := inquiryBoard(t).add("blue-respond", fate("Q1", recordpb.InquiryStatus_INQUIRY_STATUS_PROPOSED, true)).
 		add("blue-respond", fate("Q1", recordpb.InquiryStatus_INQUIRY_STATUS_ABANDONED, false)).
-		add(evLens, &recordpb.Finding{Id: proto.String("F-1"), Text: proto.String("t"), AboutKind: recordpb.AboutKind_ABOUT_KIND_INQUIRY.Enum(), AboutRef: proto.String("Q1")}).
 		register(inquiryOwner)
 	run := unchecked.seed()
-	if !owes(t, run, "lens", inquiryOwner, "inquiry Q1 is settled") || !owes(t, run, "lens", inquiryOwner, "F-1 ("+evLens+")") {
-		t.Error("the logic lens's list does not owe the unchecked inquiry's check, naming the finding about it")
+	if !owes(t, run, "lens", inquiryOwner, "inquiry Q1 is settled") {
+		t.Error("the logic lens's list does not owe the unchecked inquiry's check")
 	}
 	if owes(t, run, "lens", evLens, "inquiry Q1") {
 		t.Error("a lens that does not own the check is owed it")

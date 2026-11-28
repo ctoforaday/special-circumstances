@@ -752,13 +752,10 @@ func Insert(db *sql.DB, ev *recordpb.Event) (int64, error) {
 		return 0, err
 	}
 	defer tx.Rollback() //nolint:errcheck // the commit below is what matters; a rollback after it is a no-op
-	// THE ID COMES BACK FROM InsertTx, NOT FROM last_insert_rowid().
-	//
-	// The first split of this function asked SQLite for the last inserted rowid after InsertTx
-	// returned — which is the id of the LAST row written, and InsertTx writes the envelope, then
-	// the body, then a row per repeated value. For a mint with two `supersedes` entries it handed
-	// back the id of a `mint_supersedes` row, and every caller then looked up an event that was
-	// not there.
+	// THE ID COMES BACK FROM InsertTx, NOT FROM last_insert_rowid(). SQLite's last inserted rowid
+	// is the id of the LAST row written, and InsertTx writes the envelope, then the body, then a row
+	// per repeated value: for an event with a repeated field — a close's `anchors`, a position
+	// hearing's `gap_ids` — it is a child row's id, and every caller would look up an event that is not there.
 	id, err := InsertTx(tx, ev)
 	if err != nil {
 		return 0, err
@@ -892,7 +889,7 @@ func LatestSitting(q queryRower, seat string) (open sql.NullInt64, rank int64, e
 // moment two processes shared one.
 //
 // THE STAMPS ARE WRITTEN IN THE SAME UNIT: the sitting and the two windows on the envelope, a
-// regrade's result grades, and the report checkpoint the event lands (stampReportCheckpoint).
+// regrade's result grades, an amend's resulting wording, and the report checkpoint the event lands (stampReportCheckpoint).
 func InsertTx(tx *sql.Tx, ev *recordpb.Event) (int64, error) {
 	p, err := sittingOf(tx, ev)
 	if err != nil {
@@ -913,6 +910,11 @@ func InsertTx(tx *sql.Tx, ev *recordpb.Event) (int64, error) {
 	}
 	if r, ok := body.(*recordpb.Regrade); ok {
 		if err := stampRegradeResult(tx, r); err != nil {
+			return 0, err
+		}
+	}
+	if a, ok := body.(*recordpb.Amend); ok {
+		if err := stampAmendResult(tx, a); err != nil {
 			return 0, err
 		}
 	}

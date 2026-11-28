@@ -94,17 +94,26 @@ func NewSurface(paths []string) Surface {
 				verb = parts[1]
 			}
 			byRole[parts[0]] = append(byRole[parts[0]], verb)
+		case len(parts) == 4 && parts[0] == "motion" && parts[2] == "file":
+			// A DOCKET PROPOSAL NAMES ITS ACT: each act is its own verb, filed by every role the
+			// subject's filing is.
+			subj, _ := record.MotionSubjectEnum(parts[1])
+			for _, r := range Roles {
+				if record.FilesOn(r, subj) {
+					byRole[r] = append(byRole[r], p)
+				}
+			}
 		case len(parts) == 3 && parts[0] == "motion":
 			subject, verb := parts[1], parts[2]
 			if verb == "rule" {
 				byRole[rulerOf(subject)] = append(byRole[rulerOf(subject)], p)
 				continue
 			}
-			// THE FILING IS EVERY OTHER ROLE'S: the role that rules a subject files nothing on it,
-			// read from the same predicate the command tree mounts the two verbs on.
+			// THE FILING IS THE FILING ROLES': read from the same predicate the command tree mounts
+			// the verb on.
 			subj, _ := record.MotionSubjectEnum(subject)
 			for _, r := range Roles {
-				if !record.HoldsGavel(r, subj) {
+				if record.FilesOn(r, subj) {
 					byRole[r] = append(byRole[r], p)
 				}
 			}
@@ -218,11 +227,19 @@ func Read(sf Surface, run record.Run, seatID string) (*Choices, error) {
 		}
 		// A MOTION'S VERB INCLUDES ITS SUBJECT, because that is the command a seat actually
 		// types and the expectations are written in those words. Reporting every filing as
-		// `motion file` would make `motion grade file` unmeetable BY CONSTRUCTION — an
+		// `motion file` would make `motion docket file` unmeetable BY CONSTRUCTION — an
 		// expectation that can never be met is the same plausible zero one layer up, and I
 		// wrote it into the first draft of this file.
 		if subject := motionSubject(e); subject != "" && strings.HasPrefix(verb, "motion ") {
 			verb = "motion " + subject + strings.TrimPrefix(verb, "motion")
+		}
+		// A DOCKET PROPOSAL'S VERB IS ITS ACT, and a docket ruling by the gap's assignee rather than
+		// the gavel is its accept: the record carries both, so the verb is read off them.
+		if m, ok := recordpb.BodyAs[*recordpb.Motion](e); ok && record.ActWord(m) != "" {
+			verb += " " + record.ActWord(m)
+		}
+		if r, ok := recordpb.BodyAs[*recordpb.MotionRule](e); ok && r.GetDocket() != nil && c.Role != rulerOf(subjectVerb(r.Subject())) {
+			verb = "motion " + subjectVerb(r.Subject()) + " accept"
 		}
 		c.Used[verb]++
 		// THE BODY IS THE TYPE, so asking for a Log body asks the same question
@@ -392,7 +409,7 @@ func Report(sf Surface, run record.Run, seats []string, expect []Expectation, at
 	// one expectation presumed a ruling the seat was free to make differently.
 	fmt.Fprintf(&b, "\n%d of %d expectations unmet. READ EACH AGAINST WHAT THE SEAT ACTUALLY DID.\n"+
 		"  · the board let the gap be satisfied WITHOUT the baited verb — a fixture bug, not a seat one\n"+
-		"  · the expectation presumed a judgement the seat could make differently (a REJECTED grade motion owes no regrade)\n"+
+		"  · the expectation presumed a judgement the seat could make differently (a proposal its raiser did not take owes no act)\n"+
 		"  · the seat had the verb, had the situation, and did not reach for it\n"+
 		"Only the third is a question about the CONSTITUTION or the verb's own --help.\n",
 		unmet, len(verdicts))

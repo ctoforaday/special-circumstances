@@ -33,7 +33,7 @@ func TestAttemptedSeesWhatTheRecordCannot(t *testing.T) {
 	p := writeTrajectory(t,
 		`ls -la /run`,
 		`"C:/tools/fxr.exe" blue show --run /run --view board`,
-		`"C:/tools/fxr.exe" blue show --run /run --view findings`,
+		`"C:/tools/fxr.exe" blue show --run /run --view evidence`,
 		`"C:/tools/fxr.exe" blue edit --quote "x" --new "y" --reason "z"`,
 		`grep -r show /run`,
 	)
@@ -60,18 +60,18 @@ func TestAttemptedSeesWhatTheRecordCannot(t *testing.T) {
 func TestAttemptedTakesTheLongestVerbNotTheFirstToken(t *testing.T) {
 	sf := surface()
 	p := writeTrajectory(t,
-		`"/x/fxr.exe" motion grade file --id G1 --dimension severity --proposed low --reason "r"`,
+		`"/x/fxr.exe" motion docket file close --id G1 --as not_a_defect --reason "r"`,
 	)
 	got, err := Attempted(p, "fxr.exe", sf, "blue")
 	if err != nil {
 		t.Fatal(err)
 	}
 	// Taking the first token files this under `motion`, and every expectation is written
-	// against `motion grade file` — so the verb becomes unmeetable BY CONSTRUCTION. The same
+	// against `motion docket file close` — so the verb becomes unmeetable BY CONSTRUCTION. The same
 	// shortcut in the fuzzer's trajectory reader reported all seven motion verbs as never
 	// invoked while 35 motion events sat in the record.
-	if got["motion grade file"] != 1 {
-		t.Fatalf("counted %v, want motion grade file×1", got)
+	if got["motion docket file close"] != 1 {
+		t.Fatalf("counted %v, want motion docket file close×1", got)
 	}
 }
 
@@ -129,16 +129,16 @@ func TestReportSeparatesRecordedFromInvoked(t *testing.T) {
 func TestAttemptedFindsTheVerbAfterLeadingFlags(t *testing.T) {
 	sf := surface()
 	p := writeTrajectory(t,
-		`"/s/fxr.exe" --run "." --seat-id red-lens-evidence lens finding --key F1 --reason "r"`,
-		`"/s/fxr.exe" --run "." --seat-id red-lens-evidence lens show --view findings`,
-		`"/s/fxr.exe" --run "." --seat-id red-lens-evidence record lens finding --key F2 --reason "r"`,
+		`"/s/fxr.exe" --run "." --seat-id red-lens-evidence lens mint --key K1 --reason "r"`,
+		`"/s/fxr.exe" --run "." --seat-id red-lens-evidence lens show --view board`,
+		`"/s/fxr.exe" --run "." --seat-id red-lens-evidence record lens mint --key K2 --reason "r"`,
 	)
 	got, err := Attempted(p, "fxr.exe", sf, "lens")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got["finding"] != 2 {
-		t.Errorf("finding counted %d, want 2 (one of them behind a stray `record` token the seat typed): %v", got["finding"], got)
+	if got["mint"] != 2 {
+		t.Errorf("mint counted %d, want 2 (one of them behind a stray `record` token the seat typed): %v", got["mint"], got)
 	}
 	if got["show"] != 1 {
 		t.Errorf("show counted %d, want 1: %v", got["show"], got)
@@ -148,12 +148,12 @@ func TestAttemptedFindsTheVerbAfterLeadingFlags(t *testing.T) {
 func TestAFlagValueNeverNominatesAVerb(t *testing.T) {
 	sf := surface()
 	// `close` and `verify` are real merge/lens verbs; here they are prose inside --reason.
-	p := writeTrajectory(t, `"/s/fxr.exe" lens finding --key F1 --reason "close the gap and verify it"`)
+	p := writeTrajectory(t, `"/s/fxr.exe" lens mint --key K1 --reason "close the gap and verify it"`)
 	got, err := Attempted(p, "fxr.exe", sf, "lens")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got) != 1 || got["finding"] != 1 {
+	if len(got) != 1 || got["mint"] != 1 {
 		t.Fatalf("counted %v — prose inside a flag's value was read as verbs", got)
 	}
 }
@@ -176,7 +176,7 @@ func TestShowViewSurvivesTheRoleLevelGoingAway(t *testing.T) {
 	}{
 		{"scoped: bare show is the work list", "/tmp/feov-record show --run /r", "work", true},
 		{"scoped: named view", "/tmp/feov-record show board --run /r", "board", true},
-		{"scoped: flags first", `/tmp/feov-record --run /r --seat-id red-chair show findings`, "findings", true},
+		{"scoped: flags first", `/tmp/feov-record --run /r --seat-id red-chair show evidence`, "evidence", true},
 		// The old spelling still resolves, so a trajectory from either era reads the same.
 		{"role-prefixed still reads", "/tmp/feov-record chair show board --run /r", "board", true},
 		{"not a show at all", "/tmp/feov-record mint --problem p --run /r", "", false},

@@ -51,23 +51,17 @@ func overtaken(t *testing.T, run Run, acts []*Event, write func() error) error {
 
 // raceStage is a run every guard below can be asked on: the cast, the report, and a chair, a lens,
 // blue and the bench each in a sitting, with G1 and G2 minted by the lens (both medium) and G1
-// docketed as M1. The lens's sitting holds its delivery, so its close is answered by the guard under
+// docketed as D1. The lens's sitting holds its delivery, so its close is answered by the guard under
 // test.
 func raceStage(t *testing.T) Run {
 	b := newStage(t).cast(evLens, "red-lens-logic", "red-chair", "blue-respond", "judge").ingest().
 		register("red-chair").register(evLens).
 		mint(evLens, "G1", "medium").mint(evLens, "G2", "medium").
-		docketMotion("red-chair", "M1", "G1").
+		docketMotion("red-chair", "D1", "G1").
 		register("blue-respond").register("judge").register("red-lens-logic")
 	run := b.seed()
 	deliver(t, run, evLens)
 	return run
-}
-
-func gradeMotion(id, gap string, proposed recordpb.Grade) *recordpb.Motion {
-	return &recordpb.Motion{MotionId: proto.String(id),
-		Basis: proto.String("the likelihood is overstated"), Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String(gap),
-			Dimension: recordpb.GradeDimension_GRADE_DIMENSION_LIKELIHOOD.Enum(), Proposed: proposed.Enum()}}}
 }
 
 func highMint(gap string) *recordpb.Mint {
@@ -115,57 +109,24 @@ func TestAWriteIsCheckedAgainstTheRecordItLandsOn(t *testing.T) {
 		},
 
 		{
-			name:  "a close while a docket motion on the gap lands",
+			name:  "a regrade while a docketing of the gap lands",
 			stage: raceStage,
 			acts: func(t *testing.T) []*Event {
-				return []*Event{recordtest.At(t, "blue-respond", "race:docket:G2", docketMotion("M9", "G2"))}
-			},
-			seat: evLens, body: func() proto.Message { return repairClose("G2") },
-			want: "motion M9 stands unruled on it",
-		},
-		{
-			name:  "a close superseded by a gap the bench closes",
-			stage: raceStage,
-			acts: func(t *testing.T) []*Event {
-				return []*Event{recordtest.At(t, "judge", "race:rule:M1", benchClosing("M1"))}
+				return []*Event{recordtest.At(t, "red-chair", "race:docketing:G2", docketing("D9", "G2"))}
 			},
 			seat: evLens, body: func() proto.Message {
-				c := repairClose("G2")
-				c.ClosureClass = recordpb.Disposition_DISPOSITION_REPAIRED_WITH_REGRESSION.Enum()
-				c.Successor = proto.String("G1")
-				return c
+				return &recordpb.Regrade{GapId: proto.String("G2"), Severity: recordtest.P(recordpb.Grade_GRADE_LOW), Basis: proto.String("smaller than it read")}
 			},
-			want: "--superseded-by names gap G1, which is already CLOSED",
+			want: "gap G2 is docketed (D9)",
 		},
 		{
-			name:  "a regrade while the bench's ruling closes the gap",
+			name:  "the raiser's concession while the bench's ruling closes the gap",
 			stage: raceStage,
 			acts: func(t *testing.T) []*Event {
-				return []*Event{recordtest.At(t, "judge", "race:rule:M1", benchClosing("M1"))}
+				return []*Event{recordtest.At(t, "judge", "race:rule:D1", benchClosing("D1"))}
 			},
-			seat: evLens, body: func() proto.Message {
-				return &recordpb.Regrade{GapId: proto.String("G1"), Severity: recordtest.P(recordpb.Grade_GRADE_LOW), Basis: proto.String("smaller than it read")}
-			},
-			want: "a grade only decides what happens NEXT",
-		},
-		{
-			name:  "a grade motion while the bench's ruling closes the gap",
-			stage: raceStage,
-			acts: func(t *testing.T) []*Event {
-				return []*Event{recordtest.At(t, "judge", "race:rule:M1", benchClosing("M1"))}
-			},
-			seat: "blue-respond", body: func() proto.Message { return gradeMotion("M8", "G1", recordpb.Grade_GRADE_LOW) },
-			want: "a grade motion asks for a DIFFERENT disposition",
-		},
-		{
-			name:  "a grade motion while the lens regrades to what it proposes",
-			stage: raceStage,
-			acts: func(t *testing.T) []*Event {
-				return []*Event{recordtest.At(t, evLens, "race:regrade:G2", &recordpb.Regrade{GapId: proto.String("G2"),
-					Likelihood: recordtest.P(recordpb.Grade_GRADE_LOW), Basis: proto.String("rarer than it read")})}
-			},
-			seat: "blue-respond", body: func() proto.Message { return gradeMotion("M8", "G2", recordpb.Grade_GRADE_LOW) },
-			want: "so this motion asks for no change",
+			seat: evLens, body: func() proto.Message { return repairClose("G1") },
+			want: "which is already CLOSED",
 		},
 		{
 			name:  "the cast while setup's cast lands",

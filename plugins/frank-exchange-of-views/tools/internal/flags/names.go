@@ -61,7 +61,7 @@ const (
 
 	// Quote is THE EXACT TEXT, quoted out of blue/report.md and nothing else, matched
 	// literally. Every verb that addresses a span of the report takes it: cite and compute
-	// splice an anchor there, finding flags it, mint says the defect lives there, edit
+	// splice an anchor there, mint says the defect lives there and anchors its gap, edit
 	// replaces it — or, replacing a whole sentence with nothing, cuts it and its anchors. A section heading prepended to it makes it match
 	// nothing, which is why the four words this replaced could not all be right.
 	Quote = "quote"
@@ -106,6 +106,21 @@ const (
 	// verb and a second one would be two words for one meaning — the defect this file's own
 	// header declares.
 	Accept = "accept"
+
+	// THE BENCH'S ANSWERS TO A DOCKETING (#1695 §III.B14): a side of the docketing's pair, whose
+	// statement the tool applies — red's or blue's, or lens against lens the filer's or the
+	// assignee's — the grade answer at grade movement, or a remand. No flag of the bench's chooses a
+	// word or a grade.
+	ForRaiser = "for-raiser"
+	ForAuthor = "for-author"
+	Keep      = "keep"
+	Restore   = "restore"
+	Remand    = "remand"
+
+	// Red's closing states its text as a road: --quote with --new, or the anchor's --retire; NoText says
+	// it states none, where every road it can state is refused.
+	Retire = "retire"
+	NoText = "no-text"
 
 	// An inquiry's QUESTION: what it asks, holding no predicted result. Its own flag, not the prose
 	// channel's --reason, because on the two acts of one inquiry --reason is the account of a fate.
@@ -161,8 +176,6 @@ const (
 	Likelihood = "likelihood"
 	Impact     = "impact"
 	Complexity = "complexity"
-	Proposed   = "proposed"
-	Dimension  = "dimension"
 
 	// Class is what KIND of thing this is, from a closed set the verb documents: a gap's class
 	// from the GapClass set, a petition's from a fixed four. Same arrangement as --as — one word,
@@ -173,6 +186,11 @@ const (
 	Problem = "problem"
 	Fix     = "fix"
 	Check   = "check"
+	// An amend's restatement of a gap's wording, each in the mint's sense: the Amend body's own field
+	// names, so an amend's flag says which field of the gap it replaces.
+	RequiredFix     = "required-fix"
+	AcceptanceCheck = "acceptance-check"
+	FixNew          = "fix-new"
 	// CheckKind says what would SETTLE the acceptance check — read a document, run a
 	// computation, or verify a source. It is what lets red demand evidence prose cannot fake.
 	CheckKind = "check-kind"
@@ -204,18 +222,14 @@ const (
 	// never answer.
 	At = "at"
 
-	// About names WHAT a finding is anchored to when the thing it names is not on the page — a
+	// About names WHAT a gap is anchored to when the thing it names is not on the page — a
 	// section that is missing something, an inquiry whose stated reason you are arguing
-	// against, a gap already on the docket. AboutKind says which.
+	// against, an anchor whose check failed. AboutKind says which.
 	About     = "about"
 	AboutKind = "about-kind"
 
-	// Lineage, in two directions on one relation: what this gap replaces, and what replaces
-	// it. Symmetric words, because the reader has to hold both at once.
-	Supersedes   = "supersedes"
-	SupersededBy = "superseded-by"
-	FoundBy      = "found-by"
-	CarriedFrom  = "carried-from"
+	// CarriedFrom is the epoch a carried closure restates.
+	CarriedFrom = "carried-from"
 
 	// Closure evidence: who checked it, with what, against what. NOT --anchor-*: --anchor is
 	// a document anchor id everywhere else in this vocabulary, and a seat that learned it
@@ -224,7 +238,7 @@ const (
 	VerifiedWith    = "verified-with"
 	VerifiedAgainst = "verified-against"
 
-	// Anchor is the DOCUMENT anchor — the id inside a `<!--cite:c-…-->`, `<!--fx:f-…-->` or
+	// Anchor is the DOCUMENT anchor — the id inside a `<!--cite:c-…-->`, `<!--gap:G-…-->` or
 	// `<!--computation:K-…-->` token — naming a place in the report by identity rather than by
 	// quoting it. Where --quote says the text, this says the marker.
 	//
@@ -261,9 +275,6 @@ const (
 	// so it answers neither ReopensOn nor Final.
 	Direction = "direction"
 	Relief    = "relief"
-	// Grounds is a reconsideration's: the act, by its id, that is new since the bench ruled the gap
-	// closed. Its quote form is --quote.
-	Grounds = "grounds"
 	// Lens is the lens an upheld ruling on the chair's withheld PASS names to audit its area.
 	Lens = "lens"
 
@@ -327,13 +338,14 @@ func All() []string {
 		ID, IDs, Areas, Key, Quote, New, Answers, Accept, URL, Title, Format, Window,
 		Sitting, Trajectory,
 		As, Confidence, Bridge, Occasion,
-		Severity, Likelihood, Impact, Complexity, Proposed, Dimension,
+		Severity, Likelihood, Impact, Complexity,
 		Class,
-		Problem, Fix, Check, CheckKind, Type, SourceSpan, SourceLines, TextSha, Page, Via, At, About, AboutKind, Question, Hypothesis, PartText, Dir, Cites, Variance, ExpectError,
-		Supersedes, SupersededBy, FoundBy, CarriedFrom,
+		Problem, Fix, Check, RequiredFix, AcceptanceCheck, FixNew, CheckKind, Type, SourceSpan, SourceLines, TextSha, Page, Via, At, About, AboutKind, Question, Hypothesis, PartText, Dir, Cites, Variance, ExpectError,
+		CarriedFrom,
 		VerifiedBy, VerifiedWith, VerifiedAgainst, Anchor, Match, Search,
 		Principle, Tension, ReviewFlag, Relief, Binds,
-		Settled, ReopensOn, Final, Direction, Grounds, Lens,
+		Settled, ReopensOn, Final, Direction, Lens,
+		ForRaiser, ForAuthor, Keep, Restore, Remand, Retire, NoText,
 		Method,
 		Topic, Bulk, Judgment, Seat, SkipModelCheck, Cite, Lanes, K, KMax, MaxEpochs, BinDir, RunID, ScriptPath, FromSession,
 		Card, Watch, Now, Serve,
@@ -360,7 +372,7 @@ var closedForm = map[string]bool{
 	VerifiedAgainst: true, CarriedFrom: true, Sitting: true, Trajectory: true, Sha: true, SourceLines: true, TextSha: true,
 	Bulk: true, Judgment: true, Seat: true, Cite: true, Lanes: true,
 	BinDir: true, RunID: true, ScriptPath: true, FromSession: true,
-	Card: true, Occasion: true, Grounds: true, Lens: true,
+	Card: true, Occasion: true, Lens: true,
 }
 
 // ForPayloadKey maps a stored payload key back to the flag a seat types to set it.
@@ -412,11 +424,11 @@ var payloadFlag = map[string]string{
 	"soundness":     As,
 	// Every span a verb addresses in blue/report.md is typed as --quote; the schema keeps the
 	// key that says WHICH span it is.
-	"location":         Quote,
-	"claim":            Quote,
-	"old":              Quote,
-	"fix_new":          New,
-	"successor":        SupersededBy,
+	"location": Quote,
+	"claim":    Quote,
+	"old":      Quote,
+	"fix_new":  New,
+
 	"acceptance_check": Check,
 	"complexity_cost":  Complexity,
 	"anchor_seat":      VerifiedBy,
@@ -478,7 +490,7 @@ free-text value by capturing it first with a QUOTED heredoc, then give the flag 
 	// is a dead flag in the making, and a section name in printed prose is a seat's note in the report.
 	DescQuoteAlone = "the EXACT report text, verbatim and NOTHING else — no section heading, dash or pipe: the whole string is matched against the report, so anything prepended matches nothing"
 	DescQuote      = DescQuoteAlone + ". Name the section in --reason, where prose belongs"
-	DescAccept     = "take red's prescribed fix EXACTLY as recorded on the gap named by --answers: the tool supplies --quote and --new, so you pass neither. --reason is still required — it is your argument for accepting. Refused when red prescribed no concrete text"
+	DescAccept     = "take the raiser's stated text on gap G EXACTLY as recorded — its mint's prescription, or the pair its closing states: the G- id of the gap; the edit answers it, so you pass no --answers. The tool supplies --quote and --new, so you pass neither. Under a docketing it is your concession, ending the docketing and your proposal on the gap with no ruling; refused under grade movement. --reason is still required — it is your argument for accepting. Refused when the raiser states no concrete text"
 	DescKey        = "your own stable handle, any word you choose: a repeat under the same handle returns the first result instead of acting twice"
 	DescURL        = "the source's http/https URL — fetched once and cached, so both sides read the same bytes. " + DescURLQuoting
 	// DescURLQuoting is on every flag that takes a URL. A URL carries characters the shell reads as

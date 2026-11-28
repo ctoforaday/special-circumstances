@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
-	"strings"
 
 	"google.golang.org/protobuf/proto"
 
@@ -87,10 +86,11 @@ const changedSinceSQL = `SELECT MIN("event_id") FROM (
   SELECT x."event_id" FROM "blue_edit_removed_anchors" x WHERE x."value" = ?2 AND x."event_id" > ?1)`
 
 // DeliveredTextRefusal is the delivered-text rule asked of one act, as the write asks it: the refusal
-// of body under seatID, or nil where the act depends on no report text or stands on its delivery. A
-// close (not a carry) depends on its gap's text, a spot-check on its sitting's delivery, and the
-// bench's ruling on a motion about gaps on their passages; a ruling on a position names no passage and
-// needs none.
+// of body under seatID, or nil where the act depends on no report text or stands on its delivery. The
+// rule governs an act that depends on report text its seat was handed: a close (not a carry) depends
+// on its gap's text, a spot-check on its sitting's delivery. A ruling depends on no report text: the
+// bench rules on the evidence the parties put on the record, their statements and closings, as a
+// court rules on what the parties present, so no ruling stands on a delivery.
 // The validate arms and migrate's replay ask this one function, so an archived act migrate drops is
 // exactly one the live write refuses.
 func DeliveredTextRefusal(q recordsql.Querier, seatID string, body proto.Message) error {
@@ -102,17 +102,6 @@ func DeliveredTextRefusal(q recordsql.Querier, seatID string, body proto.Message
 		return requireDeliveredText(q, seatID, "a close of "+b.GetGapId(), []string{b.GetGapId()})
 	case *recordpb.SpotCheck:
 		return requireDeliveredText(q, seatID, "a spot-check", nil)
-	case *recordpb.MotionRule:
-		// THE BENCH'S RULING, not the chair's: the chair rules blue's grade motions on the board it
-		// is handed, and its report text is its stale areas' changes alone.
-		if b.GetMotionId() == "" || seatclass.RoleOfSeat(seatID) != "bench" {
-			return nil
-		}
-		gaps, err := motionGaps(q, b.GetMotionId())
-		if err != nil || len(gaps) == 0 {
-			return err
-		}
-		return requireDeliveredText(q, seatID, "a ruling on a motion about "+gapsNamed(gaps), gaps)
 	}
 	return nil
 }
@@ -154,13 +143,13 @@ func requireDeliveredText(q recordsql.Querier, seatID, what string, anchors []st
 }
 
 // requireReportRead refuses a report_read the tool may not write: one under a seat that is not a
-// lens, the chair or the bench; a second in the seat's sitting; one whose head is not a head move at
+// lens or the chair; a second in the seat's sitting; one whose head is not a head move at
 // or before the report's head.
 func requireReportRead(q recordsql.Querier, seatID string, b *recordpb.ReportRead) error {
 	switch seatclass.RoleOfSeat(seatID) {
-	case "lens", "chair", "bench":
+	case "lens", "chair":
 	default:
-		return fmt.Errorf("a report read records report text delivered to a lens, the chair or the bench, and %s is none of them", seatID)
+		return fmt.Errorf("a report read records report text delivered to a lens or the chair, and %s is neither", seatID)
 	}
 	if _, held, err := DeliveryThisSitting(q, seatID); err != nil {
 		return err
@@ -181,42 +170,17 @@ func requireReportRead(q recordsql.Querier, seatID string, b *recordpb.ReportRea
 	return nil
 }
 
-// motionGapsSQL is the gaps a motion is about: a docket's, a remand's (a docket ruling) and a grade
-// motion's.
-const motionGapsSQL = `SELECT d."gap_id" FROM "motion" m JOIN "motion_docket" d ON d."event_id" = m."event_id" WHERE m."motion_id" = ?1
-  UNION SELECT g."gap_id" FROM "motion" m JOIN "motion_grade" g ON g."event_id" = m."event_id" WHERE m."motion_id" = ?1 AND g."gap_id" IS NOT NULL`
-
-// motionGaps is the gaps motion id is about, none for a motion about no gap.
-func motionGaps(q recordsql.Querier, id string) ([]string, error) {
-	rows, err := q.Query(motionGapsSQL, id)
-	if err != nil {
-		return nil, fmt.Errorf("asking which gaps motion %s is about: %w", id, err)
-	}
-	defer rows.Close()
-	var out []string
-	for rows.Next() {
-		var g string
-		if err := rows.Scan(&g); err != nil {
-			return nil, err
-		}
-		out = append(out, g)
-	}
-	return out, rows.Err()
-}
-
-// gapsNamed is ids joined for a message.
-func gapsNamed(ids []string) string { return strings.Join(ids, ", ") }
-
 // reportTextItems is the report text the seat is owed into its context this sitting, as blocking
 // items: none once its sitting holds its delivery, and none for a seat that is handed no report text.
 // open is the seat's list so far, from which the chair's stale areas are read.
 //
 //   - a lens: the whole report (its first whole delivery, or its full re-read, or after an upheld
 //     position named it), or the changes since its pin and its own gaps' passages;
-//   - the chair: each stale area with changes it has not borne (area_change);
-//   - the bench: each gap an unruled motion is about.
+//   - the chair: each stale area with changes it has not borne (area_change).
+//
+// The bench is handed none: its rulings stand on the parties' statements on the record.
 func reportTextItems(run Run, role, seatID string, open []Item) ([]Item, error) {
-	if role != "lens" && role != "chair" && role != "bench" {
+	if role != "lens" && role != "chair" {
 		return nil, nil
 	}
 	var out []Item
@@ -262,17 +226,6 @@ func reportTextItems(run Run, role, seatID string, open []Item) ([]Item, error) 
 					item(about(SubjectArea, it.Subject.ID), fmt.Sprintf("the %d change(s) behind %s's pin that you have not borne arrive on your work list this sitting, each as the paragraphs it touched before and after, one item after each of your tool calls; a spot-check of the area stands only once all of them have been delivered, and your envelope waits until they have", n, it.Subject.ID))
 				}
 			}
-		case "bench":
-			// THE MOTIONS THIS SITTING IS CONVENED TO RULE (benchHeld), each a blocking item on its list:
-			// a motion that waits for another sitting is not this one's to rule, and its passage is
-			// that sitting's text.
-			gaps, err := convenedGaps(q, open)
-			if err != nil {
-				return err
-			}
-			for _, gap := range gaps {
-				item(about(SubjectGap, gap), "the passage of gap "+gap+", which a motion this sitting is convened to rule is about, arrives on your work list this sitting, one item after each of your tool calls; a ruling on a motion about it stands only once it has been delivered, and your envelope waits until it has")
-			}
 		}
 		return nil
 	})
@@ -290,36 +243,13 @@ func RecordDelivery(run Run, seatID string, head int64) error {
 }
 
 // ReportTextSubjects is what a seat's report-text items are about, in list order: the chair's stale
-// areas, the bench's gaps. The delivery is cut from them (CutDelivery); a lens's items name the report.
+// areas. The delivery is cut from them (CutDelivery); a lens's items name the report.
 func ReportTextSubjects(w WorkJSON) []string {
 	var out []string
 	for _, it := range w.Sitting.Open {
-		if it.Kind == ItemReportText && it.Subject != nil && (it.Subject.Kind == SubjectArea || it.Subject.Kind == SubjectGap) {
+		if it.Kind == ItemReportText && it.Subject != nil && it.Subject.Kind == SubjectArea {
 			out = append(out, it.Subject.ID)
 		}
 	}
 	return out
-}
-
-// convenedGaps is the gaps the motions on open that this sitting is convened to rule are about, each
-// once, in list order.
-func convenedGaps(q recordsql.Querier, open []Item) ([]string, error) {
-	var out []string
-	seen := map[string]bool{}
-	for _, it := range open {
-		if it.Kind != ItemKind(BlockerUnruledMotion) || !it.Blocks || it.Subject == nil {
-			continue
-		}
-		gaps, err := motionGaps(q, it.Subject.ID)
-		if err != nil {
-			return nil, err
-		}
-		for _, g := range gaps {
-			if !seen[g] {
-				seen[g] = true
-				out = append(out, g)
-			}
-		}
-	}
-	return out, nil
 }

@@ -5,6 +5,8 @@ package record
 // requiredFieldsOf is RequiredFieldsFromSchema for each event body. See required.go.
 func requiredFieldsOf(typ string) []RequiredField {
 	switch typ {
+	case "amend":
+		return requiredAmend
 	case "certify":
 		return requiredCertify
 	case "close":
@@ -15,10 +17,10 @@ func requiredFieldsOf(typ string) []RequiredField {
 		return requiredComputation
 	case "dispatch":
 		return requiredDispatch
+	case "docketing":
+		return requiredDocketing
 	case "envelope_admitted":
 		return requiredEnvelopeAdmitted
-	case "finding":
-		return requiredFinding
 	case "halt":
 		return requiredHalt
 	case "inquiry":
@@ -49,6 +51,8 @@ func requiredFieldsOf(typ string) []RequiredField {
 		return requiredReproduce
 	case "retire":
 		return requiredRetire
+	case "tombstone":
+		return requiredTombstone
 	case "verify":
 		return requiredVerify
 	}
@@ -56,6 +60,10 @@ func requiredFieldsOf(typ string) []RequiredField {
 }
 
 var (
+	requiredAmend = []RequiredField{
+		{Key: "gap_id", Flag: "id"},
+		{Key: "basis", Flag: "reason"},
+	}
 	requiredCertify = []RequiredField{
 		{Key: "statement", Flag: "reason"},
 	}
@@ -72,11 +80,13 @@ var (
 		{Key: "pin", Flag: "pin"},
 		{Key: "seat_id", Flag: "seat"},
 	}
+	requiredDocketing = []RequiredField{
+		{Key: "docketing_id", Flag: "docketing-id"},
+		{Key: "gap_id", Flag: "gap-id"},
+		{Key: "cause", Flag: "cause"},
+	}
 	requiredEnvelopeAdmitted = []RequiredField{
 		{Key: "agent_id", Flag: "agent-id"},
-	}
-	requiredFinding = []RequiredField{
-		{Key: "id", Flag: "id"},
 	}
 	requiredHalt = []RequiredField{
 		{Key: "opinion", Flag: "reason"},
@@ -105,15 +115,11 @@ var (
 	requiredMotion = []RequiredField{
 		{Key: "motion_id", Flag: "motion-id"},
 		{Key: "gap_id", Flag: "id", Arm: "docket"},
+		{Key: "basis", Flag: "reason", Arm: "regrade"},
+		{Key: "gap_id", Flag: "id", Arm: "close"},
 	}
 	requiredMotionRule = []RequiredField{
-		{Key: "motion_id", Flag: "id"},
 		{Key: "opinion", Flag: "reason"},
-		{Key: "disposition", Flag: "as", Arm: "docket"},
-		{Key: "principle", Flag: "principle", Arm: "docket"},
-		{Key: "tension", Flag: "tension", Arm: "docket"},
-		{Key: "review_flag", Flag: "review-flag", Arm: "docket"},
-		{Key: "settled", Flag: "settled", Arm: "docket"},
 		{Key: "ruling", Flag: "as", Arm: "position"},
 	}
 	requiredOutcome = []RequiredField{
@@ -141,6 +147,10 @@ var (
 	}
 	requiredRetire = []RequiredField{
 		{Key: "reason", Flag: "reason"},
+	}
+	requiredTombstone = []RequiredField{
+		{Key: "gap_id", Flag: "gap-id"},
+		{Key: "kind", Flag: "kind"},
 	}
 	requiredVerify = []RequiredField{
 		{Key: "claim", Flag: "quote"},

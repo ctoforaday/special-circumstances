@@ -147,7 +147,7 @@ func TestChangesScopedRefusesAnUnknownGap(t *testing.T) {
 // An empty stack is a FINDING on a run past epoch 0, not blank formatting.
 func TestChangesSaysWhyItIsEmpty(t *testing.T) {
 	out := md(t, t.TempDir(), "changes")
-	if !strings.Contains(out, "itself a finding") {
+	if !strings.Contains(out, "itself a defect") {
 		t.Errorf("an empty change stack rendered as if there were simply nothing to show:\n%s", out)
 	}
 }
@@ -162,30 +162,5 @@ func TestDeltaCountsRunesNotBytes(t *testing.T) {
 	}
 	if got := delta("abcd", "ab"); got != "-2 chars" {
 		t.Errorf("delta = %q, want -2 chars", got)
-	}
-}
-
-// A RETIRED FINDING ANCHOR IS NAMED WITH ITS AREA. A retire takes an anchor of any kind off its kept
-// sentence, a finding's included, and the changes view names the finding as every text view does:
-// its id and its lens's area.
-func TestChangesNamesARetiredFindingWithItsArea(t *testing.T) {
-	runDir := t.TempDir()
-	writeShard(t, runDir, []*record.Event{
-		recordtest.At(t, "red-lens-logic", "red-lens-logic:finding:f1", &recordpb.Finding{
-			Id:   proto.String("F-0000aaa1"),
-			Text: proto.String("the claim outruns its evidence"),
-		}),
-	})
-	writeShard(t, runDir, []*record.Event{
-		recordtest.At(t, "blue-respond", "blue-respond:register:1", &recordpb.Register{}),
-		recordtest.At(t, "blue-respond", "blue-respond:retire:r1", &recordpb.Retire{
-			Claim:   proto.String("Seven is prime."),
-			Anchors: []string{"F-0000aaa1"},
-			Reason:  proto.String("the finding is answered elsewhere"),
-		}),
-	})
-	out := md(t, runDir, "changes")
-	if !strings.Contains(out, "F-0000aaa1 (logic), its sentence kept") {
-		t.Errorf("the changes view does not name the retired finding with its area:\n%s", out)
 	}
 }

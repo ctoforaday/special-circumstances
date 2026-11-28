@@ -26,9 +26,8 @@ const (
 // record's own — the list its write path resolves against — so the envelope cannot offer a word
 // the tool refuses or omit one it accepts.
 type vocabulary struct {
-	grades     []string // recordpb.GradeWords
-	dimensions []string // a grade motion's `dimension`
-	outcomes   []string // the run's outcome, in capitals
+	grades   []string // recordpb.GradeWords
+	outcomes []string // the run's outcome, in capitals
 
 	// benchSeat and lensOrBlue are the seats a plan's party can name (record.PartySeats), in the
 	// two shapes a party takes.
@@ -55,7 +54,6 @@ type vocabulary struct {
 func vocabularyFromTheRecord() (vocabulary, error) {
 	v := vocabulary{
 		grades:        recordpb.GradeWords(),
-		dimensions:    seatWords(record.MotionFields["grade"]["dimension"]),
 		plan:          record.PlanFields(),
 		party:         reflect.TypeFor[record.Party](),
 		lens:          record.LensEnvelopeFields(),
@@ -98,7 +96,6 @@ func renderVocabulary(v vocabulary) ([]byte, error) {
 		words      []string
 	}{
 		{"GRADE", "the grade scale", v.grades},
-		{"DISPUTE_DIMENSION", "a grade motion's dimensions", v.dimensions},
 		{"RUN_OUTCOME", "the run's outcomes", v.outcomes},
 	}
 	for _, s := range sets {

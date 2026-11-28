@@ -100,7 +100,7 @@ func requirePositionHearing(w writeView, seatID, positionID string, h *recordpb.
 		return fmt.Errorf("--as %s names the work the debate continues on, and names it one way: --lens for a lens to audit its area, or --ids for open gaps, comma-separated, sent back for one more exchange — not both, and not neither", positionUpheld)
 	}
 	if strings.TrimSpace(h.GetDirection()) == "" {
-		return fmt.Errorf("--as %s requires --direction: the work the ruling names owes it — what the lens audits its area for, or what each gap's one more exchange owes blue and its minting lens", positionUpheld)
+		return fmt.Errorf("--as %s requires --direction: the work the ruling names owes it — what the lens audits its area for, or what each gap's one more exchange owes blue and its assignee", positionUpheld)
 	}
 	if lens != "" {
 		cast, err := castAt(w.q)
@@ -128,14 +128,15 @@ func requirePositionHearing(w writeView, seatID, positionID string, h *recordpb.
 			return err
 		}
 		if err := requireOpenGap(w.q, g, "--ids",
-			"a remand sends a gap back for one more exchange, begun by blue's act on it and audited by its minting lens after, and a closed gap has none to have"); err != nil {
+			"a remand sends a gap back for one more exchange, begun by blue's act on it and audited by its assignee after, and a closed gap has none to have"); err != nil {
 			return err
 		}
-		var filed int64
-		if found, err := queryRowAt(w.q, []any{&filed}, `SELECT COALESCE("unruled_docket_filed", 0) FROM "gap" WHERE "gap_id" = ?`, g); err != nil {
+		docketing, _, err := standingOnGap(w.q, g)
+		if err != nil {
 			return err
-		} else if found && filed > 0 {
-			return fmt.Errorf("--ids %s stands docketed with a motion you have not ruled: it is before you already, and its docket motion is where its fate is decided", g)
+		}
+		if docketing != "" {
+			return fmt.Errorf("--ids %s stands docketed (docketing %s) and you have not ruled it: it is before you already, and its docketing is where its fate is decided", g, docketing)
 		}
 	}
 	p, err := w.files.params()
@@ -242,13 +243,13 @@ func overruledVerdictItem(positionID string) string {
 
 // upheldAuditItem is the named lens's work-list item for an upheld position: its audit of its area.
 func upheldAuditItem(b Blocker) string {
-	return fmt.Sprintf("the bench upheld the chair's position %s on the PASS it withheld and named your area: audit it on the ruling's direction — %q. The whole report arrives on your work list this sitting, one item at a time; a defect you find there is a finding and a gap. The PASS is refused until all of it has been delivered to you", b.Subject, b.Detail)
+	return fmt.Sprintf("the bench upheld the chair's position %s on the PASS it withheld and named your area: audit it on the ruling's direction — %q. The whole report arrives on your work list this sitting, one item at a time; a defect you find there is a gap. The PASS is refused until all of it has been delivered to you", b.Subject, b.Detail)
 }
 
 // upheldAuditDeliveredItem is that item once the sitting has had the whole report delivered: the audit
 // is the lens's to do, and nothing it owes the list stands on it.
 func upheldAuditDeliveredItem(b Blocker) string {
-	return fmt.Sprintf("the bench upheld the chair's position %s on the PASS it withheld and named your area: audit it on the ruling's direction — %q. This sitting has delivered you the whole report; a defect you find there is a finding and a gap. The PASS is refused until you sit through this sitting", b.Subject, b.Detail)
+	return fmt.Sprintf("the bench upheld the chair's position %s on the PASS it withheld and named your area: audit it on the ruling's direction — %q. This sitting has delivered you the whole report; a defect you find there is a gap. The PASS is refused until you sit through this sitting", b.Subject, b.Detail)
 }
 
 // upheldPositionGaps is the open gaps an upheld position ruling names — each one remanded, as a

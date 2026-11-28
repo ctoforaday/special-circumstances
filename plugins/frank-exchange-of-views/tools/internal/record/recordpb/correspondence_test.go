@@ -96,9 +96,16 @@ func TestEveryEventTypeHasABodyAndViceVersa(t *testing.T) {
 	// And one fewer for `sitting_limit`: a sitting's length is bounded by the agent definition's
 	// maxTurns, and a seat stopped there is a failed sitting, which the record derives.
 	//
+	// And one fewer for the lens's finding: a lens's defect is a gap it mints, and nothing else
+	// records one.
+	//
+	// And one more for the tombstone: the tool's mark that a gap's text is final, which no seat writes.
+	//
+	// And one more for the docketing: the tool putting a gap before the bench, which no seat writes.
+	//
 	// And two more for the question part and its check: the parts of the question the run was asked,
 	// each with its coverage, and the logic lens's judgement of each (#1830 P5).
-	const wantBodies = 36
+	const wantBodies = 38
 	if len(bodies) != wantBodies {
 		t.Errorf("the `body` oneof has %d fields, want %d — the event-type census in "+
 			"plans/record-protobuf.md §II.1 and this schema must agree", len(bodies), wantBodies)

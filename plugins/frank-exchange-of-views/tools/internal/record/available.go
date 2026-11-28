@@ -2,7 +2,6 @@ package record
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
@@ -43,7 +42,7 @@ import (
 // cite something" is not an affordance, it is advice; "claim c-3 is cited and nobody has verified
 // it" is a fact about this board with one act attached to it.
 //
-// NOT DERIVED, AND SAID RATHER THAN LEFT AS A SILENT HOLE: `motion grade file` and `retire` turn on a judgement
+// NOT DERIVED, AND SAID RATHER THAN LEFT AS A SILENT HOLE: `motion docket file` and `retire` turn on a judgement
 // (whether you disagree, whether an anchor should come off a sentence that stays) that no derivation can make for the seat.
 // An affordance line for those would be an expectation that cannot be honestly met, which is the
 // defect TestEveryExpectationIsReachableOnItsBoard exists to catch one layer up.
@@ -78,7 +77,7 @@ func availableOf(evs []*Event, win WindowIndex, gaps []WorkGapState, role, seatI
 		// answer still lacks — the work, not the argument for the gap, which stays on the board with
 		// the mint's reason and every regrade that moved a grade (gblock, 2026-10-18). It stays here
 		// until blue answers the gap again.
-		out = append(out, keptGradeItems(evs, win, gaps)...)
+		out = append(out, keptGradeItems(evs, win, gaps, seatID)...)
 	case "chair":
 		// AN OPEN GAP IS EITHER CLOSED OR DOCKETED, and until the docket was a motion this could
 		// not be said here at all — the note above used to record that "`closing` wants the
@@ -104,12 +103,17 @@ func availableOf(evs []*Event, win WindowIndex, gaps []WorkGapState, role, seatI
 		// after M2 was ruled `remanded` on R1-2, `show work` offered nothing on the gap, while a
 		// never-docketed R1-3 got the affordance.
 		//
-		// An UNRULED motion suppresses it, because filing a second time while the first is pending
-		// asks the bench the same question twice.
+		// AN UNRULED PROPOSAL OR A STANDING DOCKETING SUPPRESSES IT: a gap holds one proposal at a time,
+		// and no proposal is filed on a docketed gap (L38) — the parties' closings are its statements.
 		pending := map[string]bool{}
 		for _, m := range MotionsOf(evs, win) {
 			if m != nil && m.Subject == "docket" && m.GapID != "" && !m.Ruled() {
 				pending[m.GapID] = true
+			}
+		}
+		for _, k := range docketingsAt(evs, win.IDs(evs)) {
+			if k.Standing() {
+				pending[k.GapID] = true
 			}
 		}
 		for _, g := range gaps {
@@ -137,24 +141,8 @@ func availableOf(evs []*Event, win WindowIndex, gaps []WorkGapState, role, seatI
 				add(gapItem(ItemKind(BlockerRemandOwed), g.ID, remandedGapForChair(g, blueOut)))
 				continue
 			}
-			add(gapItem(ItemDocket, g.ID, "gap "+g.ID+" is open and you have not closed it — `motion docket file` puts it before the bench, which is the channel for a gap you cannot settle yourself"))
 		}
 	case "lens":
-		// Accepting a grade motion does not move the grade. Saying so is not doing it.
-		//
-		// ON THE ORIGINATOR'S LIST, AND ONLY WHERE THE WRITE PATH ADMITS THE REGRADE: requireOriginator
-		// refuses it from any other seat, requireOpenGap refuses it on a closed gap, and
-		// writeIn refuses a second regrade of one gap in one sitting. regradesAfforded holds
-		// all three, so no line here offers a seat an act its own write path refuses.
-		minted := mintedBy(evs)
-		//
-		// IT NAMES THE AXIS AND THE GRADE EACH RULING ACCEPTED, off the same reader the gap's
-		// `regrades_owed` field is filled from (WorkOfSeat). Without them the item said a regrade
-		// was owed and not which way: universe-wave-b's architecture lens found the motion's
-		// dimension and proposed grade on no surface it holds, and regraded another axis upward.
-		for _, o := range regradesAfforded(evs, win, gaps, minted, seatID) {
-			add(gapItem(ItemRegradeOwed, o.GapID, "gap "+o.GapID+" had a grade motion ACCEPTED and no regrade followed it: "+o.accepted()+" — accepting a dispute does not move the grade, and a grade that moved with no regrade event reads as though the dispute was answered by silence"))
-		}
 		// WHETHER BLUE ANSWERED, PER GAP, AND WHETHER THE RECORD CAN SAY (#1122).
 		//
 		// A lens dispatched on its own open gap has one question before it re-reads anything: did
@@ -163,243 +151,18 @@ func availableOf(evs []*Event, win WindowIndex, gaps []WorkGapState, role, seatI
 		// ("the report was at N and is at M"), which is not the same question: the report can move a
 		// great deal without a single edit answering this gap.
 		//
-		// ON THE ORIGINATOR'S LIST, by the same rule as the regrade line above: only the minting seat
-		// re-audits and closes its gap, so this is news for that seat and noise for any other.
+		// ON THE ORIGINATOR'S LIST: only the minting seat re-audits and closes its gap, so this is news for that seat and noise for any other.
 		out = append(out, blueAnswers(evs, win, gaps, seatID)...)
-		// ANOTHER LENS'S ARGUMENT ABOUT YOUR GAP REACHES YOU, because nobody else can act on it.
-		//
-		// A gap is its minter's from mint to close, so a lens that thinks another lens's gap is
-		// wrong has nothing it may DO about it — and until this item, nothing it filed reached the
-		// seat that could. So it filed in the log. Measured on universe-m12: three of ten `defect`
-		// entries were lenses arguing about gaps they did not mint ("G2 is incorrectly labeled as
-		// unverified", "G3 remains open and unanswered"), and the one interviewed said who it
-		// expected to read it — the operator, because the log was the only channel it believed
-		// reached anybody. `finding --about-kind gap` already existed for exactly this and was
-		// used zero times, because a finding anchored to a gap went to no one's list.
-		//
-		// It stays until the minter acts on that gap after the finding — a regrade, one that keeps the
-		// grade included, or a close — so it asks for an answer, not for the finding to be
-		// acknowledged.
-		out = append(out, findingsAboutYourGaps(evs, win, gaps, minted, seatID)...)
+		// A LENS THAT MINTED A GAP ANOTHER LENS RAISED A GAP ON IS THAT GAP'S AUTHOR: its raiser's kept
+		// grade is the author's work, as it is blue's on a gap about the report.
+		out = append(out, keptGradeItems(evs, win, gaps, seatID)...)
 	}
 	return out
 }
 
-// findingsAboutYourGaps is each finding another seat anchored to an open gap this seat minted, that
-// this seat has not acted on since.
-func findingsAboutYourGaps(evs []*Event, win WindowIndex, gaps []WorkGapState, minted map[string]string, seatID string) []Item {
-	open := map[string]bool{}
-	for _, g := range gaps {
-		if g.Open {
-			open[g.ID] = true
-		}
-	}
-	var out []Item
-	for _, f := range findingsAboutGapsOf(evs, win, open, minted) {
-		if f.minter != seatID {
-			continue
-		}
-		what := f.text
-		if r := []rune(what); len(r) > 160 {
-			what = string(r[:160]) + "…"
-		}
-		out = append(out, gapItem(ItemFindingOnGap, f.gap, f.filer+" filed a finding about your gap "+f.gap+" — "+what+
-			" — only you can act on "+f.gap+", so answer it: regrade it, close it, or keep its grade with a regrade that says why it stands"))
-	}
-	return out
-}
-
-// gapFinding is a finding another seat anchored to an open gap, standing until the gap's minter acts
-// on the gap after it.
-type gapFinding struct {
-	id, gap, minter, filer, text string
-	at                           int64 // the finding's events.id
-}
-
-// findingsAboutGapsOf is every finding a seat anchored to an open gap of open it did not mint, that
-// the minter has not acted on since: the one reading of it, which the minter is handed
-// (findingsAboutYourGaps) and owes while it has not sat since the finding (lensOwesOf).
-func findingsAboutGapsOf(evs []*Event, win WindowIndex, open map[string]bool, minted map[string]string) []gapFinding {
-	var out []gapFinding
-	for i, e := range evs {
-		f := e.GetFinding()
-		if f == nil || f.GetAboutKind() != recordpb.AboutKind_ABOUT_KIND_GAP {
-			continue
-		}
-		gap := f.GetAboutRef()
-		minter := minted[gap]
-		if !open[gap] || minter == "" || e.GetSeatId() == minter || actedOnGapAfter(evs[i+1:], minter, gap) {
-			continue
-		}
-		out = append(out, gapFinding{id: f.GetId(), gap: gap, minter: minter, filer: e.GetSeatId(), text: f.GetText(), at: win.Of(e).ID})
-	}
-	return out
-}
-
-// actedOnGapAfter is whether seatID — the gap's minting lens — recorded a regrade or a close on gap
-// among evs. A regrade that keeps the grade is one: it answers the finding with why the gap stands.
-func actedOnGapAfter(evs []*Event, seatID, gap string) bool {
-	for _, e := range evs {
-		if e.GetSeatId() != seatID {
-			continue
-		}
-		if r := e.GetRegrade(); r != nil && r.GetGapId() == gap {
-			return true
-		}
-		if c := e.GetClose(); c != nil && c.GetGapId() == gap {
-			return true
-		}
-	}
-	return false
-}
-
-// mintedBy maps each gap to the seat that minted it — the same fact requireOriginator reads off
-// the gap table, read here off the events this derivation already holds.
-func mintedBy(evs []*Event) map[string]string {
-	out := map[string]string{}
-	for _, e := range evs {
-		if m := e.GetMint(); m != nil && m.GetGapId() != "" {
-			if _, seen := out[m.GetGapId()]; !seen {
-				out[m.GetGapId()] = e.GetSeatId()
-			}
-		}
-	}
-	return out
-}
-
-// OwedRegradeJSON is one accepted grade motion that still waits for its regrade, as the gap's work
-// item carries it (WorkGapJSON.RegradesOwed): the motion, the axis it contested and the grade the
-// ruling accepted for that axis — the GradeDimension and Grade words, as the filing holds them.
-type OwedRegradeJSON struct {
-	MotionID  string `json:"motion_id"`
-	Dimension string `json:"dimension"`
-	Proposed  string `json:"proposed"`
-}
-
-// owedRegrade is one gap's owed regrade: every accepted grade motion on it that no regrade has
-// followed, in ruling order. One row per gap, because a sitting records one regrade of a gap and
-// that one act carries every axis.
-type owedRegrade struct {
-	GapID   string
-	Motions []OwedRegradeJSON
-	ruled   int64 // the events.id of the latest of their rulings
-}
-
-// accepted states each waiting motion's axis and grade for the work item's sentence. A filing that
-// states no axis or no grade says so in its place: an empty word would read as an axis named "".
-func (o owedRegrade) accepted() string {
-	word := func(w, missing string) string {
-		if w == "" {
-			return missing
-		}
-		return w
-	}
-	parts := make([]string, 0, len(o.Motions))
-	for _, m := range o.Motions {
-		parts = append(parts, fmt.Sprintf("%s to %s (motion %s)", word(m.Dimension, "an axis the motion does not state"), word(m.Proposed, "a grade the motion does not state"), m.MotionID))
-	}
-	return strings.Join(parts, ", ")
-}
-
-// regradesAfforded is each gap whose accepted grade motion still waits for its regrade, and whose
-// regrade record.Append admits from seatID now, with every such motion's axis and accepted grade.
-// It reads "which regrade does a ruling still wait for" off regradesAwaitedOf and adds the write
-// path's filters: the work item's sentence (availableOf) and the gap's `regrades_owed` field
-// (WorkOfSeat) both come from here.
-//
-// THE DEBT IS THE REGRADE AFTER THE RULING. An accepted grade motion asks the minting lens to move
-// the grade, and a regrade recorded before the ruling answers nothing the ruling said. Any regrade
-// of the gap after the ruling discharges it, whichever way it moves the grade: the item does not
-// block, and a lens that regrades and keeps the grade has answered the ruling on the record, in
-// its basis.
-//
-// IT IS LISTED ONLY WHERE THE WRITE PATH ADMITS IT. Append is validate, then writeIn, and
-// each refusal a regrade can meet on that path has its filter here:
-//
-//   - requireOriginator (the gap is another seat's)    → minted[gap] == seatID
-//   - requireGap (no such gap)                         → the gap is a row of gaps
-//   - requireOpenGap (the gap is CLOSED)               → that row's Open
-//   - writeIn's duplicate key (the seat's              → the seat's current sitting holds no
-//     current sitting already holds a regrade of it)     regrade of the gap
-//
-// The once-per-sitting duty does not reach a regrade (it is no singleton), and the required-field
-// walk refuses the seat's own input, never a state of the gap.
-// TestARegradeOnTheListIsOneTheWritePathAdmits holds the list to Append itself, row by row.
-//
-// THE SAME-SITTING HOLD IS EXACT. A regrade's key carries the count of its seat's sittings
-// (deriveKey) and its stored sitting is the seat's newest at the write; both read the `sittings`
-// view. So an earlier regrade's key is the one a regrade now would derive exactly when its stored
-// sitting is still the seat's latest. Nothing stands in for it this sitting: the first regrade
-// stands, and the duplicate-key refusal names the next sitting's regrade as the act that answers
-// it (supersede.go). The item appears at the seat's next sitting, which is the first that can
-// record the regrade.
-//
-// evs is one read of the whole record in id order. The reader is the work list's whole-record
-// snapshot (WorkOfSeat), so win knows every seat's latest sitting.
-//
-// THE JOIN IS motionsAt, NOT A SECOND COPY OF IT: the gap is on the FILING and the verdict on the
-// RULING, and motion.go's projection is the one that pairs them and says WHICH ruling a motion
-// carries and WHERE it sits — the first, in the place it was made. regradesAwaitedOf asks it for the
-// verdict and the place together, so the regrade is weighed against the ruling whose verdict is read.
-func regradesAfforded(evs []*Event, win WindowIndex, gaps []WorkGapState, minted map[string]string, seatID string) []owedRegrade {
-	latest := win.LatestSittingOf(seatID)
-	heldThisSitting := map[string]bool{} // gap → the seat's current sitting holds a regrade of it
-	for _, e := range evs {
-		if r := e.GetRegrade(); r != nil && r.GetGapId() != "" && e.GetSeatId() == seatID && win.Of(e).SittingID == latest {
-			heldThisSitting[r.GetGapId()] = true
-		}
-	}
-	open := map[string]bool{}
-	for _, g := range gaps {
-		if g.Open {
-			open[g.ID] = true
-		}
-	}
-	var out []owedRegrade
-	for _, o := range regradesAwaitedOf(evs, win, open) {
-		if minted[o.GapID] == seatID && !heldThisSitting[o.GapID] {
-			out = append(out, o)
-		}
-	}
-	return out
-}
-
-// regradesAwaitedOf is each open gap of open whose accepted grade motion no regrade has followed,
-// with every such motion's axis and accepted grade and the events.id of the latest ruling among
-// them. It is the one reading of "which regrade does a ruling still wait for" before the write
-// path's filters: the minting lens is offered it (regradesAfforded), and owes it while it has not
-// sat since the ruling (lensOwesOf).
-func regradesAwaitedOf(evs []*Event, win WindowIndex, open map[string]bool) []owedRegrade {
-	ids := win.IDs(evs)
-	lastRegrade := map[string]int64{} // gap → events.id of its last regrade, by any seat
-	for i, e := range evs {
-		if r := e.GetRegrade(); r != nil && r.GetGapId() != "" {
-			lastRegrade[r.GetGapId()] = ids[i]
-		}
-	}
-	var out []owedRegrade
-	row := map[string]int{} // gap → its row of out
-	for _, m := range motionsAt(evs, ids, win) {
-		if m.Subject != "grade" || m.Ruling != "accepted" {
-			continue
-		}
-		id := m.GapID
-		if id == "" || !open[id] {
-			continue
-		}
-		if at, regraded := lastRegrade[id]; regraded && at > m.ruled {
-			continue
-		}
-		k, listed := row[id]
-		if !listed {
-			k, row[id] = len(out), len(out)
-			out = append(out, owedRegrade{GapID: id})
-		}
-		out[k].Motions = append(out[k].Motions, OwedRegradeJSON{MotionID: m.ID, Dimension: m.Fields["dimension"], Proposed: m.Fields["proposed"]})
-		out[k].ruled = max(out[k].ruled, m.ruled)
-	}
-	return out
-}
+// assigneeOf maps each gap to its assignee, the seat that minted it — the fact requireOriginator
+// reads off the gap table — read here off the events this derivation already holds (mintersOf).
+func assigneeOf(evs []*Event) map[string]string { return mintersOf(evs) }
 
 // computationSeat is the computation lens's seat — the owner of every computation's check
 // (anchorOwnerOf).
@@ -429,7 +192,7 @@ func anchorOwnerOf(computation bool) string {
 }
 
 // remandItemsOf is the item a remand's exchange puts on the list of blue-respond, which the dispatch
-// readies for it, and of the gap's minting lens, whose turn comes after blue's act — carrying the
+// readies for it, and of the gap's assignee, whose turn comes after blue's act — carrying the
 // research direction the ruling states, so the bench's words reach both parties to the exchange. blue
 // says which of the two seatID is.
 //
@@ -456,22 +219,26 @@ func anchorOwnerOf(computation bool) string {
 // It stands while the plan's own route (routeOf) owes the remand's exchange, so it goes when the gap
 // closes, when a docket motion on it puts it back before the bench, and when an exchange in which
 // blue acted on the gap has been had.
-func remandItemsOf(evs []*Event, win WindowIndex, gaps []WorkGapState, seatID string, blue bool) []Item {
-	minted := mintedBy(evs)
+func remandItemsOf(evs []*Event, win WindowIndex, gaps []WorkGapState, seatID string) []Item {
+	minted := assigneeOf(evs)
+	author := authorsOn(evs)
 	var acts map[string][]gapAct
-	var dispatched int64 // blue's latest dispatch row, read with acts
+	var dispatched int64 // the author's latest dispatch row, read with acts
 	var out []Item
 	for _, g := range gaps {
-		if !g.Open || g.route != routeRemandOwed || (!blue && minted[g.ID] != seatID) {
+		// THE AUTHOR'S ITEM, OR THE RAISER'S: blue authors a gap about the report, a lens a gap about
+		// its own gap (authorOf).
+		isAuthor := author(g.ID) == seatID
+		if !g.Open || g.route != routeRemandOwed || (!isAuthor && minted[g.ID] != seatID) {
 			continue
 		}
-		what := remandItem(g, blue)
-		if !blue {
+		what := remandItem(g, isAuthor, seatID == blueRespondSeat)
+		if !isAuthor {
 			out = append(out, gapItem(ItemKind(BlockerRemandOwed), g.ID, what))
 			continue
 		}
 		if acts == nil {
-			acts = gapActsOf(evs, win.IDs(evs), win)
+			acts = gapActsOf(evs, win.IDs(evs))
 			dispatched = latestDispatchOf(evs, win, seatID)
 		}
 		switch {
@@ -500,16 +267,20 @@ func latestDispatchOf(evs []*Event, win WindowIndex, seatID string) int64 {
 	return at
 }
 
-// remandItem is the remand's sentence for blue or for the gap's minting lens: the direction, the act
+// remandItem is the remand's sentence for blue or for the gap's assignee: the direction, the act
 // that discharges it, and where the gap goes next.
-func remandItem(g WorkGapState, blue bool) string {
+func remandItem(g WorkGapState, author, blue bool) string {
 	const next = ". If this exchange leaves the gap at impasse, it goes back to the bench, to be closed"
-	if blue {
+	if author && !blue {
+		return "gap " + g.ID + ", about your gap " + g.AboutRef + ", was REMANDED by the bench and is back in the debate for ONE more exchange, which begins with your act — what you owe is the direction the ruling states: " + g.DocketDirection +
+			". Your sitting cannot end until you record an act that names " + g.ID + " as its answer: an amend or a regrade of " + g.AboutRef + " naming it — a change that names no gap does not answer it. Its raiser audits your answer after you have acted" + next
+	}
+	if author {
 		return "gap " + g.ID + " was REMANDED by the bench and is back in the debate for ONE more exchange, which begins with your act — what you owe is the research direction the ruling states: " + g.DocketDirection +
-			". Your sitting cannot end until you record an act on " + g.ID + ": an edit answering it, a citation or computation placed as its answer, a changed fate on the inquiry it is about or one the section it is about prints, or a motion on it. Its minting lens audits your answer after you have acted" + next
+			". Your sitting cannot end until you record an act that names " + g.ID + " as its answer: an edit, a retire of an evidence anchor, a citation or computation placed as its answer, or a fate or question part record — a change that names no gap does not answer it. Its assignee audits your answer after you have acted" + next
 	}
 	return "gap " + g.ID + ", which you minted, was REMANDED by the bench and is back in the debate for ONE more exchange — it begins when blue records an act on " + g.ID + " against the research direction the ruling states: " + g.DocketDirection +
-		". The dispatch readies you on " + g.ID + " once blue has acted or an edit has changed its sentence, and you audit it against that direction then: your audit is what ends this exchange" + next
+		". The dispatch readies you on " + g.ID + " once blue has acted or a change to what it is about has landed, and you audit it against that direction then: your audit is what ends this exchange" + next
 }
 
 // remandedGapForChair is the chair's row for a remanded gap: what the dispatch does with it next, by
@@ -519,13 +290,17 @@ func remandedGapForChair(g WorkGapState, blueOut bool) string {
 	const head = "gap "
 	switch {
 	case g.route == routeRemandOwed && blueOut && g.lensDue:
-		return head + g.ID + " is open because the BENCH REMANDED it — blue has acted on it, and the dispatch readies its minting lens to audit that answer, which ends the one more exchange; " + blueHeldOutClause + ": " + g.DocketDirection
+		return head + g.ID + " is open because the BENCH REMANDED it — blue has acted on it, and the dispatch readies its assignee to audit that answer, which ends the one more exchange; " + blueHeldOutClause + ": " + g.DocketDirection
 	case g.route == routeRemandOwed && blueOut:
 		return head + g.ID + " is open because the BENCH REMANDED it — its one more exchange begins with blue's act, and " + blueHeldOutClause + ", so that exchange cannot be had before the run ends; the gap stays open and holds the PASS: " + g.DocketDirection
 	}
 	switch g.route {
+	case routeBench:
+		return head + g.ID + " is open because the BENCH REMANDED it, and it is docketed again — the dispatch readies its parties for their closings, then the bench"
+	case routeProposal:
+		return head + g.ID + " is open because the BENCH REMANDED it, and a proposal stands on it — the dispatch readies its assignee for its window, and dockets the proposal for the bench if the assignee does not accept it there"
 	case routeRemandOwed:
-		return head + g.ID + " is open because the BENCH REMANDED it — the dispatch readies blue for one more exchange on the research direction the ruling states, and its minting lens once blue has acted: " + g.DocketDirection
+		return head + g.ID + " is open because the BENCH REMANDED it — the dispatch readies blue for one more exchange on the research direction the ruling states, and its assignee once blue has acted: " + g.DocketDirection
 	case routeRedocket:
 		return head + g.ID + " is open because the BENCH REMANDED it, and the exchange the remand granted left it at impasse — the dispatch dockets it for the bench again, to be closed"
 	case routeDocket:
@@ -535,7 +310,7 @@ func remandedGapForChair(g WorkGapState, blueOut bool) string {
 	case routeGradeMovement:
 		return head + g.ID + " is open because the BENCH REMANDED it, and its grades have moved since, with the open gaps' grade movement the bench has not ruled on past its threshold — the dispatch dockets it for the bench"
 	case routeLensFirst:
-		return head + g.ID + " is open because the BENCH REMANDED it, and it is at its limits — the dispatch readies its minting lens alone on it, and dockets it for the bench if it stands after that audit"
+		return head + g.ID + " is open because the BENCH REMANDED it, and it is at its limits — the dispatch readies its assignee alone on it, and dockets it for the bench if it stands after that audit"
 	}
-	return head + g.ID + " is open because the BENCH REMANDED it, and it is below its limits — the dispatch readies blue on it, and its minting lens once blue has acted on it since the lens last did"
+	return head + g.ID + " is open because the BENCH REMANDED it, and it is below its limits — the dispatch readies blue on it, and its assignee once blue has acted on it since the lens last did"
 }

@@ -63,11 +63,6 @@ func closeG1(t *testing.T, runDir, text string) {
 		"--verified-with", "read", "--verified-against", "blue/report.md", "--reason", text)
 }
 
-func fileGradeMotion(t *testing.T, runDir string) string {
-	return motionID(t, runDir, "motion", "grade", "file", "--seat-id", "blue-respond", "--id", "G1",
-		"--dimension", "severity", "--proposed", "low", "--reason", "the consequence is bounded")
-}
-
 func proposeQ1(t *testing.T, runDir string) {
 	t.Helper()
 	must(t, runDir, "inquiry", "propose", "--seat-id", "blue-respond", "--question", "a seeded question")
@@ -101,7 +96,7 @@ func actRows() map[string]actRow {
 	closingRow := func(seatID string) actRow {
 		return actRow{seat: seatID,
 			setup: func(t *testing.T, runDir string) actVars {
-				docketFile(t, runDir, "blue-respond", "G1", "the bench's to settle")
+				docketFile(t, runDir, "blue-respond", handleText(t, runDir, "G1"), "the bench's to settle")
 				return nil
 			},
 			act: func(_ actVars, text string) []string {
@@ -196,11 +191,6 @@ func actRows() map[string]actRow {
 			act: func(_ actVars, text string) []string {
 				return []string{"outcome", "--as", "UNVERIFIED", "--reason", text}
 			}},
-		"motion grade rule": {seat: "red-chair",
-			setup: func(t *testing.T, runDir string) actVars { return actVars{"m": fileGradeMotion(t, runDir)} },
-			act: func(v actVars, text string) []string {
-				return []string{"motion", "grade", "rule", "--id", v["m"], "--as", "rejected", "--reason", text}
-			}},
 		"motion petition rule": {seat: "judge",
 			setup: func(t *testing.T, runDir string) actVars {
 				return actVars{"m": motionID(t, runDir, "motion", "petition", "file", "--seat-id", lensSeat,
@@ -223,12 +213,14 @@ func actRows() map[string]actRow {
 			}},
 		"motion docket rule": {seat: "judge",
 			setup: func(t *testing.T, runDir string) actVars {
-				m := docketFile(t, runDir, "red-chair", "G1", "red cannot settle G1")
-				benchSitsOn(t, runDir, "G1")
-				return actVars{"m": m}
+				g := handleText(t, runDir, "G1")
+				m := docketFile(t, runDir, blueSeat, g, "red cannot settle G1")
+				k := docketNow(t, runDir, g, recordpb.DocketingCause_DOCKETING_CAUSE_PROPOSAL, m)
+				conveneBench(t, runDir, g)
+				return actVars{"k": k}
 			},
 			act: func(v actVars, text string) []string {
-				return []string{"motion", "docket", "rule", "--id", v["m"], "--as", "remanded",
+				return []string{"motion", "docket", "rule", "--id", v["k"], "--remand",
 					"--principle", "thoroughness over speed", "--tension", "cost against certainty",
 					"--review-flag", "none", "--settled", "nothing yet", "--direction", "a reproduction", "--reason", text}
 			}},

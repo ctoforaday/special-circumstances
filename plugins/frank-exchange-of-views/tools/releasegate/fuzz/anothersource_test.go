@@ -10,7 +10,7 @@ import (
 // claim_contradicts_source mint quoting the sentence lands on that reading; the lens's own refuting
 // reading of another source for the sentence is recorded with no debt — the open gap of the class
 // on the sentence discharges it (other_seat_gap) — and the lens's mint quoting the sentence is
-// refused by the one-gap rule naming the sibling's gap, its point filed as a finding about it. Run
+// refused by the one-gap rule naming the sibling's gap. Run
 // outside the release gate, on the drive's own sittings.
 func TestASecondLenssReadingIsDischargedByTheFirstsGap(t *testing.T) {
 	const (
@@ -42,7 +42,7 @@ func TestASecondLenssReadingIsDischargedByTheFirstsGap(t *testing.T) {
 	if second.refusedBy != "one_gap" || !strings.Contains(second.out, res.gap) || r.actErr != "" {
 		t.Fatalf("the lens's mint over the sibling's gap: refused by %q, naming %s %v (%s)", second.refusedBy, res.gap, strings.Contains(second.out, res.gap), r.actErr)
 	}
-	if r.oneGapRefused != 1 || r.oneGapFindings != 1 || r.reading.debtsDischarged["other_seat_gap"] != 1 {
-		t.Errorf("one-gap refused %d, findings %d, debts discharged by another seat's gap %d — want 1 each", r.oneGapRefused, r.oneGapFindings, r.reading.debtsDischarged["other_seat_gap"])
+	if r.oneGapRefused != 1 || r.reading.debtsDischarged["other_seat_gap"] != 1 {
+		t.Errorf("one-gap refused %d, debts discharged by another seat's gap %d — want 1 each", r.oneGapRefused, r.reading.debtsDischarged["other_seat_gap"])
 	}
 }

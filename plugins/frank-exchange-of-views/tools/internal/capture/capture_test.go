@@ -329,9 +329,11 @@ func screenRun(t *testing.T, outcome recordpb.SourceOutcome, url string) string 
 	return dir
 }
 
-// docketedRun seeds G1, minted by the logic lens and docketed by blue's motion M1, with each party's
-// acts after it: closers file their closings, and sitters sit through a sitting without one.
-func docketedRun(t *testing.T, closers, sitters []string) record.Run {
+// docketedRun seeds G1, minted by the logic lens, with blue's proposal M1 on it and, where docketing is
+// not "", the dispatch's PROPOSAL docketing of that id holding M1; then each party's acts after it:
+// closers file their closings, and sitters sit through a sitting without one. With no docketing the
+// proposal stands in its assignee's window, whose closings are owed as a docketing's are.
+func docketedRun(t *testing.T, docketing string, closers, sitters []string) record.Run {
 	t.Helper()
 	n := 0
 	at := func(seat string, body proto.Message) *record.Event {
@@ -346,7 +348,13 @@ func docketedRun(t *testing.T, closers, sitters []string) record.Run {
 			CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}),
 		at("blue-respond", &recordpb.Motion{MotionId: proto.String("M1"), Basis: proto.String("the bench's to settle"),
-			Filing: &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}}}),
+			Filing: &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}},
+			Act: &recordpb.Motion_Regrade{Regrade: &recordpb.Regrade{GapId: proto.String("G1"),
+				Severity: recordpb.Grade_GRADE_LOW.Enum(), Basis: proto.String("the harm needs two failures")}}}),
+	}
+	if docketing != "" {
+		evs = append(evs, at("red-chair", &recordpb.Docketing{DocketingId: proto.String(docketing), GapId: proto.String("G1"),
+			Cause: recordpb.DocketingCause_DOCKETING_CAUSE_PROPOSAL.Enum(), MotionId: proto.String("M1"), Basis: proto.String("unaccepted in its window")}))
 	}
 	for _, seat := range closers {
 		evs = append(evs, at(seat, &recordpb.Closing{GapId: proto.String("G1"), Text: proto.String("the case of " + seat)}))
@@ -361,7 +369,7 @@ func docketedRun(t *testing.T, closers, sitters []string) record.Run {
 }
 
 // RECORD-PARITY HOLDS WHAT IS OWED THE BENCH TO THE RECORD: the chair's position at a sitting that
-// withheld a PASS its plan permitted, and each party's closing on a docketing — the minting lens's
+// withheld a PASS its plan permitted, and each party's closing on a docketing — the assignee's
 // and blue-respond's. A party that sat since the docketing and filed none is short; one that never
 // sat after it had no sitting to file in, and is named, not failed.
 func TestRecordParityAudit(t *testing.T) {
@@ -389,19 +397,24 @@ func TestRecordParityAudit(t *testing.T) {
 		t.Errorf("a chair sitting with no PASS permitted owes no position: want PASS, got %s (%s)", a.Verdict, a.Detail)
 	}
 
+	// EACH CLOSING IS KEYED ON WHAT PUT THE GAP BEFORE THE BENCH: the docketing where one stands, and
+	// the proposal in its assignee's window where none does yet.
 	both := []string{"red-lens-logic", "blue-respond"}
-	if a := RecordParityAudit(docketedRun(t, both, both)); a.Verdict != "PASS" || !strings.Contains(a.Detail, "2 closing(s) owed on docketed gaps, each filed") {
-		t.Errorf("both parties filed: want PASS counting two closings, got %s (%s)", a.Verdict, a.Detail)
-	}
-	a := RecordParityAudit(docketedRun(t, []string{"blue-respond"}, both))
-	if a.Verdict != "FAIL" || !strings.Contains(a.Detail, "red-lens-logic's closing on G1 (docket motion M1) was not filed, and red-lens-logic sat since the docketing") {
-		t.Errorf("the lens sat since the docketing and filed none: want a FAIL naming it, got %s (%s)", a.Verdict, a.Detail)
-	}
-	if strings.Contains(a.Detail, "blue-respond's closing") {
-		t.Errorf("blue filed and is named short: %s", a.Detail)
-	}
-	if a := RecordParityAudit(docketedRun(t, []string{"blue-respond"}, nil)); a.Verdict != "PASS" || !strings.Contains(a.Detail, "not reached: red-lens-logic's closing on G1") {
-		t.Errorf("the lens never sat after the docketing: want PASS naming it not reached, got %s (%s)", a.Verdict, a.Detail)
+	d := record.NewID("docketing")
+	for _, tc := range []struct{ docketing, before string }{{d, "docketing " + d}, {"", "proposal M1"}} {
+		if a := RecordParityAudit(docketedRun(t, tc.docketing, both, both)); a.Verdict != "PASS" || !strings.Contains(a.Detail, "2 closing(s) owed on docketed gaps, each filed") {
+			t.Errorf("%s: both parties filed: want PASS counting two closings, got %s (%s)", tc.before, a.Verdict, a.Detail)
+		}
+		a := RecordParityAudit(docketedRun(t, tc.docketing, []string{"blue-respond"}, both))
+		if a.Verdict != "FAIL" || !strings.Contains(a.Detail, "red-lens-logic's closing on G1 ("+tc.before+") was not filed, and red-lens-logic sat since the docketing") {
+			t.Errorf("%s: the lens sat since and filed none: want a FAIL naming it, got %s (%s)", tc.before, a.Verdict, a.Detail)
+		}
+		if strings.Contains(a.Detail, "blue-respond's closing") {
+			t.Errorf("%s: blue filed and is named short: %s", tc.before, a.Detail)
+		}
+		if a := RecordParityAudit(docketedRun(t, tc.docketing, []string{"blue-respond"}, nil)); a.Verdict != "PASS" || !strings.Contains(a.Detail, "not reached: red-lens-logic's closing on G1") {
+			t.Errorf("%s: the lens never sat after it: want PASS naming it not reached, got %s (%s)", tc.before, a.Verdict, a.Detail)
+		}
 	}
 	// A record with no chair sitting and no docketed gap has nothing to hold to it.
 	if a := RecordParityAudit(seed(recordtest.At(t, "red-lens-logic", "red-lens-logic:register:#1", &recordpb.Register{}))); a.Verdict != "SKIP" {
@@ -549,12 +562,12 @@ func TestHarvestPrecedents(t *testing.T) {
 		recordtest.Event(t, "judge", &recordpb.Declare{
 			Holding: proto.String("verified means an act of looking"),
 		}),
-		// A grade ruling is deliberately NOT harvested: promoting it without the ask it
+		// An answer to a proposed act is deliberately NOT harvested: promoting it without the ask it
 		// answered would strip its scope. If this ever starts appearing, it was a decision.
-		recordtest.Event(t, "red-chair", &recordpb.MotionRule{
+		recordtest.Event(t, "judge", &recordpb.MotionRule{
 			MotionId: proto.String("M1"),
 			Opinion:  proto.String("disclosure does not lower likelihood"),
-			Ruling:   &recordpb.MotionRule_Grade{Grade: recordpb.GradeRuling_GRADE_RULING_REJECTED},
+			Ruling:   &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{SidedWith: recordpb.SidedWith_SIDED_WITH_RAISER.Enum()}},
 		}),
 	}})
 
@@ -965,8 +978,8 @@ func writeRunForLiveness(t *testing.T, n int, gap time.Duration, last time.Time,
 			}), ts))
 			continue
 		}
-		evs = append(evs, recordtest.Stamped(recordtest.At(t, "red-lens-evidence", fmt.Sprintf("red-lens-evidence:finding:k%d", i), &recordpb.Finding{
-			Id: proto.String(fmt.Sprintf("F%d", i)), Text: proto.String("a finding"),
+		evs = append(evs, recordtest.Stamped(recordtest.At(t, "red-lens-evidence", fmt.Sprintf("red-lens-evidence:verify:k%d", i), &recordpb.Verify{
+			Anchor: proto.String(fmt.Sprintf("C-%08x", i)), Text: proto.String("a reading"), Claim: proto.String("c"), Outcome: recordtest.P(recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS), Confidence: recordtest.P(recordpb.Confidence_CONFIDENCE_HIGH),
 		}), ts))
 	}
 	recordtest.Seed(t, dir, evs...)
@@ -1072,7 +1085,7 @@ func TestArchiveRecordKeepsTheShardsAndRefusesAnEmptyRun(t *testing.T) {
 	}
 
 	if err := os.WriteFile(filepath.Join(recs, "events-red-lens-evidence-aaaaaaaa.jsonl"),
-		[]byte(`{"seq":0,"ts":"2026-08-22T12:00:00.000000000Z","seatId":"red-lens-evidence","nonce":"aaaaaaaa","round":1,"role":"lens","type":"finding","key":"k","payload":{}}`+"\n"), 0o644); err != nil {
+		[]byte(`{"seq":0,"ts":"2026-08-22T12:00:00.000000000Z","seatId":"red-lens-evidence","nonce":"aaaaaaaa","round":1,"role":"lens","type":"mint","key":"k","payload":{}}`+"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	// The run's TERMS. Read at READ time by the dispatch verb, the write path, the tier report and
@@ -1486,7 +1499,7 @@ func TestAnArchivedRecordIsSealedAndShipsNoSharedMemoryFile(t *testing.T) {
 	}
 	// A shard, because ArchiveRecord refuses a run with no events.
 	if err := os.WriteFile(filepath.Join(recs, "events-red-lens-evidence-aaaaaaaa.jsonl"),
-		[]byte(`{"seq":0,"ts":"2026-09-20T12:00:00.000000000Z","seatId":"red-lens-evidence","nonce":"aaaaaaaa","round":1,"role":"lens","type":"finding","key":"k","payload":{}}`+"\n"), 0o644); err != nil {
+		[]byte(`{"seq":0,"ts":"2026-09-20T12:00:00.000000000Z","seatId":"red-lens-evidence","nonce":"aaaaaaaa","round":1,"role":"lens","type":"mint","key":"k","payload":{}}`+"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 

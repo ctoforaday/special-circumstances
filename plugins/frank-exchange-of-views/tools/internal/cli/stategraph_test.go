@@ -293,8 +293,10 @@ func gapProbe(t *testing.T) entityProbe {
 			// the point: `carried` defers and leaves the gap OPEN, anything else ends it. A probe
 			// that drove only the closing word would report a lifecycle whose defer state the
 			// record can reach and the graph cannot see.
-			{"motion docket file", []string{"motion", "docket", "file", "--id", "G1",
-				"--reason", "contested and not mine to close"}},
+			// A PROPOSAL IS THE GAP'S DISPUTE: another seat proposes the act it wants, the assignee
+			// may accept it, else the bench rules it.
+			{"motion docket file close", append([]string{"motion", "docket", "file", "close", "--id", "G1",
+				"--reason", "contested and not mine to close"}, closeFlags("not_a_defect")...)},
 			{"motion docket rule:remanded", docketRuleArgs("remanded")},
 			{"motion docket rule:not_a_defect", docketRuleArgs("not_a_defect")},
 		},
@@ -307,6 +309,8 @@ func gapProbe(t *testing.T) entityProbe {
 			if !build(t, runDir, gapMint()) {
 				t.Fatalf("no seat could mint, so the gap probe would measure a board it never reached")
 			}
+			// The gap has had its one exchange, so a proposal on it is admitted.
+			exchangeOn(t, runDir, "G1")
 			if state == "closed" && !build(t, runDir, close) {
 				t.Fatalf("no seat could close, so state %q was never reached", state)
 			}
@@ -400,7 +404,7 @@ func gapOf(t *testing.T, runDir, id string) *record.Gap {
 
 // motionProbe is the shape the motion subjects share.
 //
-// `prelude` is what must exist before the motion can: the gap a grade motion argues over. `order`
+// `prelude` is what must exist before the motion can: the gap a docket motion proposes an act on. `order`
 // maps each state to the act that reaches it.
 func motionProbe(subject, id string, prelude, acts []probeAct, states []string, order, terminal map[string]string) entityProbe {
 	return entityProbe{
@@ -481,19 +485,6 @@ func motionOf(t *testing.T, runDir, id string) *record.Motion {
 		}
 	}
 	return nil
-}
-
-func gradeMotionProbe() entityProbe {
-	return motionProbe("grade", "M1", []probeAct{gapMint()}, []probeAct{
-		{"file", []string{"motion", "grade", "file", "--id", "G1", "--dimension", "severity",
-			"--proposed", "low", "--reason", "the consequence is bounded by the caller's own validation"}},
-		{"rule", []string{"motion", "grade", "rule", "--id", "M1", "--as", "rejected",
-			"--reason", "the evidence does not reach it"}},
-	}, []string{"unfiled", "filed", "ruled"},
-		map[string]string{"filed": "file", "ruled": "rule"},
-		map[string]string{
-			"ruled": "BY DESIGN: the chair's ruling is the motion's one answer and it stands — record.RequireUnruledMotion refuses a second in terms. A seat that disagrees files a docket motion on the gap, or a new grade motion while the gap is open: each is a NEW entity with its own graph, and this motion's answer does not reopen.",
-		})
 }
 
 func petitionMotionProbe() entityProbe {
@@ -672,7 +663,7 @@ func TestEveryVerbThatTouchesAProbedEntityIsProbed(t *testing.T) {
 	}
 
 	probed := map[string]bool{}
-	for _, p := range []entityProbe{gapProbe(t), gradeMotionProbe(), petitionMotionProbe(), inquiryProbe()} {
+	for _, p := range []entityProbe{gapProbe(t), petitionMotionProbe(), inquiryProbe()} {
 		for _, a := range p.acts {
 			var path []string
 			for _, w := range a.args {
@@ -736,7 +727,7 @@ func TestEveryVerbThatTouchesAProbedEntityIsProbed(t *testing.T) {
 func TestNoEntityCanReachAStateNothingCanLeave(t *testing.T) {
 	t.Setenv("CLAUDE_PROJECT_DIR", recordtest.TmpRun(t))
 
-	probes := []entityProbe{gapProbe(t), gradeMotionProbe(), petitionMotionProbe(), inquiryProbe()}
+	probes := []entityProbe{gapProbe(t), petitionMotionProbe(), inquiryProbe()}
 
 	var edges []stateEdge
 	var deadEnds, overwrites []string

@@ -84,7 +84,7 @@ func TestADispatchedLensThatHasNotRegisteredOwesItsSitting(t *testing.T) {
 	// A sitting that ACTED is offered the log — its first sitting's entry does not close the channel —
 	// and is complete without an entry: a sitting that hit nothing has nothing to file.
 	acted := b5Shape(t).register(voiceLens).
-		add(voiceLens, &recordpb.Finding{Id: proto.String("F-f0000001"), Text: proto.String("an act this sitting made")}).seed()
+		mint(voiceLens, "G9", "medium").seed()
 	s = sittingOfRunT(t, acted, "lens", voiceLens)
 	if !listsItem(s, "the log is open") || !s.Complete {
 		t.Fatalf("a sitting that acted and filed no log is not offered it, or cannot finish: complete=%v open=%+v", s.Complete, s.Open)
@@ -105,7 +105,7 @@ func TestADispatchedLensThatHasNotRegisteredOwesItsSitting(t *testing.T) {
 	}
 }
 
-// Every seat a dispatch names is readied again by the same predicate — blue and the minting lens
+// Every seat a dispatch names is readied again by the same predicate — blue and the assignee
 // get no exchange counted, the bench has not sat for its docketing — so each owes the sitting on
 // its own list, and a seat no dispatch names owes none.
 func TestEveryDispatchedSeatOwesTheSittingItWasDispatchedFor(t *testing.T) {

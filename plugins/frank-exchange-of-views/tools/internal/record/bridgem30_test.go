@@ -14,18 +14,24 @@ import (
 const m30Archive = "2026-10-19_is-91-prime-m30.tar.gz"
 
 // M30'S BRIDGE OVER AN INVERTED TERM HAS NO HOME NOW. The evidence lens recorded
-// supports_with_bridge on C-4f4b8cfa at events 142 and 390 (the migrated record's ids: migrate
-// writes four closes before the second, which the delivered-text rule refuses, as no event) while its own reason said the source
-// names the base the liar and the report names the composite — none of the three bridges. Written
-// again, live, at the place it was written, each is refused for naming no bridge; the write that
-// would carry one must say which of the three it was.
+// supports_with_bridge on C-4f4b8cfa twice while its own reason said the source names the base the
+// liar and the report names the composite — none of the three bridges. Each is found from its row,
+// never from a number: migrate renumbers events.id. Written again, live, at the place it was
+// written, each is refused for naming no bridge; the write that would carry one must say which of
+// the three it was.
 func TestM30BridgesAreRefusedWithoutAKind(t *testing.T) {
 	whole := archivedEvents(t, m30Archive)
-	for _, n := range []int{142, 390} {
-		v := whole[n-1].GetVerify()
-		if v.GetAnchor() != "C-4f4b8cfa" || v.GetOutcome() != recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS_WITH_BRIDGE || v.Bridge != nil {
-			t.Fatalf("event %d is not the evidence lens's kindless supports_with_bridge on C-4f4b8cfa: %v", n, whole[n-1])
+	var at []int
+	for i, e := range whole {
+		if v := e.GetVerify(); v.GetAnchor() == "C-4f4b8cfa" && v.GetOutcome() == recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS_WITH_BRIDGE && v.Bridge == nil {
+			at = append(at, i+1)
 		}
+	}
+	if len(at) != 2 {
+		t.Fatalf("the migrated m30 holds %d kindless supports_with_bridge on C-4f4b8cfa at %v, want the evidence lens's 2", len(at), at)
+	}
+	for _, n := range at {
+		v := whole[n-1].GetVerify()
 		if !strings.Contains(v.GetText(), "liar") {
 			t.Fatalf("event %d's reason does not describe the inverted term: %q", n, v.GetText())
 		}

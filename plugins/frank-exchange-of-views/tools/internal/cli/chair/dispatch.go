@@ -19,9 +19,10 @@ import (
 // chair to read. The hook writes the stored plan into the chair's envelope (record.ChairEnvelope), so
 // the workflow dispatches what the record says and nothing else.
 //
-// At impasse the verb files the docket motion itself, once the gap's lens has had its audit, so
+// At impasse the verb writes the gap's docketing itself, once the gap's lens has had its audit, so
 // "docketed" and "at impasse" are one fact and no seat's discretion sits between a stalled gap
-// and the bench. An empty party list is the termination signal, not an error.
+// and the bench; it writes one too for the board's grade movement, and for a proposal its assignee
+// did not accept in its window. An empty party list is the termination signal, not an error.
 func newDispatch() *cobra.Command {
 	c := seat.New("dispatch", dispatchResult{}, func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		if _, err := s.Run(); err != nil {

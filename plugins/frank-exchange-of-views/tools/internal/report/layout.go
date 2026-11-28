@@ -171,16 +171,16 @@ var layout = []Section{
 		Path: "Blue's `cite` places a citation on the sentence its source backs, and blue's `compute` a computation on the sentence it establishes. No note is typed by hand under a number, or under K and a number: a footnote of the report's own — an aside that is neither a source nor a computation — takes a label that is a word."},
 
 	{File: FileDocket, Heading: "The board", Composer: Tool,
-		From:    "the gaps and findings on the record and the chair's spot-checks",
-		Path:    "No act writes it as text. A lens's `finding` and `mint` open its rows, and the lens's `close` and `regrade` move them; the chair's `spot-check` adds a spot-check.",
+		From:    "the gaps on the record and the chair's spot-checks",
+		Path:    "No act writes it as text. A lens's `mint` opens its rows, and the lens's `close` and `regrade` move them; the chair's `spot-check` adds a spot-check.",
 		compose: func(a *assembly, _ Section) string { return boardSection(a.run, a.fam) }},
 	{File: FileDebate, Heading: "The debate", Composer: Tool,
 		From:    "the positions, closings, verdicts, spot-checks and rulings on the record, sitting by sitting",
 		Path:    "The chair's `position`, `verdict` and `spot-check`, the lens's and blue's `closing` on a docketed gap, a lens's `regrade` that keeps a gap's grade, and the bench's rulings and `certify`.",
 		compose: func(a *assembly, _ Section) string { return debate(a.fam, a.partsAt) }},
 	{File: FileJudgments, Heading: "Motions", Composer: Tool, SubjectHeading: true,
-		From:    "the motions on the record, each with its ruling",
-		Path:    "A seat files one with `motion grade file`, `motion docket file` or `motion petition file`, and the seat that hears it answers with `motion grade rule`, `motion docket rule` or `motion petition rule`.",
+		From:    "the docketings and motions on the record, each with its ruling",
+		Path:    "The dispatch writes a docketing at impasse, at grade movement, or for a proposal its assignee did not accept, and the bench answers it with `motion docket rule`. A seat files a motion with `motion docket file regrade|close` or `motion petition file`, and the bench answers it with `motion docket rule` or `motion petition rule`.",
 		compose: func(a *assembly, _ Section) string { return motions(a.fam) }},
 	// inquiries.md is not a section of this table: it is the rendering `show inquiries` prints
 	// (view.InquiryBody), whole, under headings that carry each fate's count.

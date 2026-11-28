@@ -15,10 +15,10 @@ import (
 )
 
 // REPORT TEXT PRE-EMPTS THE CURRENT ITEM, AND THE ITEM RESUMES AFTER IT: the current item stays current
-// until it leaves the queue. The chair is handed motion M1; the head moves in its sitting, so a retired
-// lens's area goes stale and the chair is owed the change behind its pin, report text, which is handed
-// first; after it the chair's current item is M1 again, though the stale area's own item now heads the
-// queue.
+// until it leaves the queue. The chair's stored plan permits the PASS, so it is handed the verdict it
+// owes; the head moves in its sitting, so a retired lens's area goes stale and the chair is owed the
+// change behind its pin, report text, which is handed first; after it the chair's current item is the
+// verdict again, though the stale area's own item now heads the queue.
 func TestAnItemReportTextPreemptedResumesAfterIt(t *testing.T) {
 	dir := newRun(t)
 	const lens = "red-lens-logic"
@@ -40,14 +40,14 @@ func TestAnItemReportTextPreemptedResumesAfterIt(t *testing.T) {
 			Problem: proto.String("p"), AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
 			Severity: recordtest.P(recordpb.Grade_GRADE_LOW), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}),
 		recordtest.At(t, "blue-respond", "blue:register", &recordpb.Register{}),
-		recordtest.At(t, "blue-respond", "blue:grade", &recordpb.Motion{MotionId: proto.String("M1"), Basis: proto.String("b"),
-			Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("G1"),
-				Dimension: recordpb.GradeDimension_GRADE_DIMENSION_LIKELIHOOD.Enum(), Proposed: recordpb.Grade_GRADE_LOW.Enum()}}}),
 		recordtest.At(t, "red-chair", "chair:register", &recordpb.Register{}))
 	recordtest.Seed(t, dir, append(evs, recordtest.SettledQuestion(t)...)...)
+	plan := record.Plan{Head: 2, PassPermitted: true, Parties: []record.Party{}, Docket: []string{}, RemandOwed: []record.RemandOwed{},
+		Exchanges: []record.ExchangeCount{}, Why: []string{}, StaleAreas: []record.StaleArea{}, Blockers: []record.PlanBlocker{}}
+	recordtest.Seed(t, dir, recordtest.At(t, "red-chair", "chair:plan", &recordpb.Plan{Printed: proto.String(plan.WithKey().Printed())}))
 
 	const chair, agent = "frank-exchange-of-views:red-chair", "agent_02"
-	const worked = "unruled_motion:motion:M1"
+	const worked = "verdict_owed"
 	call := func() string {
 		t.Helper()
 		var out bytes.Buffer

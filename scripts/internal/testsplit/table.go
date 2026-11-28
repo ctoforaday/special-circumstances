@@ -19,6 +19,12 @@ import (
 //
 // THIS IS A TUNING TABLE, NOT A DERIVED CARRIER. A missing row costs time and never coverage:
 // every package without one runs under plain `go test`, in the same invocation of the tool.
+//
+// A ROW COSTS COVERAGE WHERE A PACKAGE JUDGES ITS WHOLE RUN. A process given a share of the names
+// runs with -test.run, and a TestMain that measures the whole suite — planguard's, which holds
+// every statement the run issued to plans.golden, shapes.golden and the source census — reads that
+// as a narrowed run and measures nothing. Such a package has no row (TestEveryRowOfTheTableIsWhole
+// refuses one), so a box that splits judges its plans as a four-core runner does.
 type Row struct {
 	Dir     string // the module's directory, relative to the repository root
 	Module  string // module path
@@ -39,11 +45,11 @@ const (
 // internal/record/migrate has NO row, deliberately: its archive store migrates each archived
 // run once per test PROCESS, so dealing its sweeps across N processes would migrate every
 // archive N times and pay back what the store saved.
+//
+// internal/record has NO row either: its TestMain installs planguard, which judges only a whole run.
 var Table = []Row{
 	{feovDir, feov, feov + "/internal/cli", 61,
 		"478 tests, 20 of them parallel; the rest are serialised by t.Setenv and a package-level fetcher swap"},
-	{feovDir, feov, feov + "/internal/record", 48,
-		"467 tests, almost all serial, each opening its own database"},
 }
 
 // For returns the rows of one module.

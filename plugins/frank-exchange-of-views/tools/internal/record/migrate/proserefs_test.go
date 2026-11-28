@@ -115,9 +115,6 @@ func TestArchivedProseIDsBecomeFields(t *testing.T) {
 
 // bodyID is the anchor id an act mints, or "".
 func bodyID(e *recordpb.Event) string {
-	if b, ok := recordpb.BodyAs[*recordpb.Finding](e); ok {
-		return b.GetId()
-	}
 	if b, ok := recordpb.BodyAs[*recordpb.Mint](e); ok {
 		return b.GetGapId()
 	}
@@ -151,6 +148,9 @@ func TestAStatedListIsCarriedAndProseIsNotReadAgain(t *testing.T) {
 	to := filepath.Join(recordtest.TmpRun(t), "run")
 	m, err := migrate.Migrate(run.Dir(), to, migrate.Entries(), migrate.Options{})
 	if err != nil {
+		if m != nil && len(m.Refusals) > 0 {
+			t.Fatalf("%v; the first: %+v", err, m.Refusals[0])
+		}
 		t.Fatal(err)
 	}
 	if len(m.Refusals) != 0 {

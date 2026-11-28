@@ -1,7 +1,7 @@
 # The record flow — event → record → views → seats
 
 The canonical channel between seats is the **record** (the append-only event log, written
-only through `feov-record`). Non-prose actions — findings, citations, gaps, closures,
+only through `feov-record`). Non-prose actions — gaps, readings, citations, closures,
 motions, opinions — are events; the markdown files are *projections* of the record for a
 human reading afterward, never the channel. This diagram is kept current with the code
 ([[fuzzers-and-diagrams-track-code]]); update it in the same PR as any record/protocol change.
@@ -14,52 +14,50 @@ the refusal of a second act where a sitting holds one. Nothing is edited, and ev
 act. A record from before epoch 27 may hold same-sitting corrections; `feov-migrate` writes each chain as
 its last replacement, in the place the chain began, and writes nothing for its later links.
 
-## Findings & citations onto the record (#62 pt1, #70/#71)
+## Gaps & citations onto the record (#62 pt1, #70/#71)
 
 ```mermaid
 flowchart TB
   subgraph lenses["red lens seats (L1–L6)"]
-    L["lens finding --key F1<br/>lens cite --claim …"]
+    L["lens mint / regrade / close<br/>lens verify"]
   end
+  B["blue cite"]
   subgraph record["THE RECORD (event log — the only inter-agent channel)"]
-    FE["finding events<br/>(TOOL-minted id)"]
+    ME["mint / close / regrade events<br/>(TOOL-minted gap id)"]
+    VE["verification events"]
     CE["cite events"]
-    ME["mint / close / regrade events"]
   end
   subgraph views["projections (show &lt;name&gt; — rendered just-in-time from the record)"]
-    FV["findings (live JSON)"]
     CL["evidence (live JSON)"]
     BD["board (live JSON)"]
     DBT["debate.md"]
   end
   chair["red-chair seat"]
-  score["feov-record scorecard<br/>(reads show findings)"]
+  score["feov-record scorecard<br/>(reads the board and debate projections)"]
   bench["lead-judge"]
 
-  L -->|emit| FE
-  L -->|emit| CE
-  FE --> FV
+  L -->|emit| ME
+  L -->|emit| VE
+  B -->|emit| CE
   CE --> CL
+  VE --> CL
   ME --> BD
-  FV -->|coalesce, do not transcribe| chair
-  chair -->|mint gap, found_by = finding IDS| ME
-  FV -->|per-role/epoch yield| score
+  BD -->|dispatch, verdict| chair
+  BD -->|per-role/epoch yield| score
   BD --> bench
   ME --> DBT
-
-  X["red/candidates/*.md<br/>(RETIRED — no longer written or read)"]
-  class X retired
-  classDef retired stroke-dasharray:5 5,color:#999,stroke:#999
 ```
 
 ## Invariants the diagram encodes
 
-- **Findings are events, not files.** A lens records each finding through `feov-record
-  finding --key <your handle>`; the tool mints the finding's id, and the lens's area prints
-  beside it wherever it is named. `red/candidates/*.md` is retired — nothing writes or reads it.
-- **The chair reads the findings VIEW**, structured JSON, and coalesces findings into gaps.
-  A gap's `found_by` names finding **ids**, which `verify.foundByResolves`
-  checks against the recorded findings.
+- **A lens reports a defect one way: it mints a gap.** `feov-record mint` records it; the tool mints
+  the gap's id, and the lens's area prints beside it wherever it is named. One open gap per class
+  stands on a sentence, inquiry or citation: a second mint is refused, naming the gap that stands. A
+  lens that disputes that gap proposes the act it wants on it — a regrade or a close —
+  argued in its reason; the gap's lens may accept it, else the bench rules. Agreeing with a gap is no
+  act.
+- **The chair mints nothing.** It reads the board to dispatch and to decide the verdict; a gap is its
+  lens's from mint to close.
 - **Two readers of one replay never drift.** `viewjson.go` (the live JSON views) and
   `internal/view` (the markdown projections, rendered just-in-time on read) both derive from
   `BoardState`; neither parses the other's output, and neither materializes to disk.

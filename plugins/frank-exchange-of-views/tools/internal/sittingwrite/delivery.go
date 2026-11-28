@@ -458,7 +458,7 @@ func indexOf(w record.WorkJSON, q []record.QueueEntry, from int, skip ...int) []
 			state = "readied"
 		}
 		if e.Gap != nil {
-			out = append(out, fmt.Sprintf("%s · %s/%s · %s · %s", e.Gap.ID, e.Kind, e.Gap.Class, e.Gap.MintedBy, state))
+			out = append(out, fmt.Sprintf("%s · %s/%s · %s · %s", e.Gap.ID, e.Kind, e.Gap.Class, e.Gap.Assignee, state))
 			continue
 		}
 		out = append(out, fmt.Sprintf("%s · %s", e.Key, state))
@@ -467,19 +467,19 @@ func indexOf(w record.WorkJSON, q []record.QueueEntry, from int, skip ...int) []
 		for _, g := range list {
 			if !about[g.ID] {
 				about[g.ID] = true
-				out = append(out, fmt.Sprintf("%s · %s · %s · open", g.ID, g.Class, g.MintedBy))
+				out = append(out, fmt.Sprintf("%s · %s · %s · open", g.ID, g.Class, g.Assignee))
 			}
 		}
 	}
 	return out
 }
 
-// estoppedLines is one line per bench ruling the seat may not re-raise: the gap, its class, the fate,
-// and what the ruling settled.
+// estoppedLines is one line per gap a standing bench ruling bars: the gap, its class, the ruling's word
+// and docketing, what ends its tombstone, and what the ruling settled.
 func estoppedLines(w record.WorkJSON) []string {
 	out := []string{}
 	for _, e := range w.Estopped {
-		line := fmt.Sprintf("%s · %s · %s", e.ID, e.Class, e.Fate)
+		line := fmt.Sprintf("%s · %s · ruled %s on %s · ends on %s", e.ID, e.Class, e.Ruling.Word, e.Ruling.Docketing, e.Ends)
 		if e.Settled != "" {
 			line += " · settled: " + clip(e.Settled, 200)
 		}

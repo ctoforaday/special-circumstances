@@ -122,7 +122,7 @@ func TestAMixedEditIsARewrite(t *testing.T) {
 }
 
 // NO WRITER LEAVES A BARE ANCHOR. A rewrite that leaves a token of any kind on a sentence with no words is
-// refused, carried or not — a carried gap or finding marker included — naming the anchor and the two
+// refused, carried or not — a carried gap marker included — naming the anchor and the two
 // routes; a lane's part holding any anchor token is refused at ingest; a prescription that would leave a
 // token on no words is refused at the mint.
 func TestNoWriterLeavesABareAnchor(t *testing.T) {
@@ -151,8 +151,8 @@ func TestNoWriterLeavesABareAnchor(t *testing.T) {
 	}
 	t.Run("ingest", func(t *testing.T) {
 		runDir := laneRun(t, 1)
-		writePart(t, runDir, "blue-lane-1", "## The factors\n\n91 is 7 x 13"+anchor.Token("F-0000abcd")+".\n")
-		if _, err := ingestPart(t, runDir, "blue-lane-1"); err == nil || !strings.Contains(err.Error(), anchor.Token("F-0000abcd")) {
+		writePart(t, runDir, "blue-lane-1", "## The factors\n\n91 is 7 x 13"+anchor.Token("G-0000abcd")+".\n")
+		if _, err := ingestPart(t, runDir, "blue-lane-1"); err == nil || !strings.Contains(err.Error(), anchor.Token("G-0000abcd")) {
 			t.Errorf("a part holding an anchor token was not refused naming it: %v", err)
 		}
 		if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_REPORT_PART); n != 0 {
@@ -176,7 +176,7 @@ func TestNoWriterLeavesABareAnchor(t *testing.T) {
 // carry ord 0 for the splice and 1 for the remove, and the replayed report is the write's plan.
 func TestReplayRemovesWhatTheWriteRemoved(t *testing.T) {
 	for _, tc := range []struct {
-		name, on   string // the finding's quote
+		name, on   string // the gap's quote
 		quote      func(tok string) string
 		quotedForm string
 	}{
@@ -188,7 +188,7 @@ func TestReplayRemovesWhatTheWriteRemoved(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			runDir := citedRun(t, "https://grass/1")
 			registerLensOnce(t, runDir)
-			f := lensFinding(t, runDir, lensSeat, "F1", "--quote", tc.on)
+			f := markClaim(t, runDir, "G1", tc.on, "spec_underspecification")
 			tok := anchor.Token(f)
 			before := readReport(t, runDir)
 			q := tc.quote(tok)

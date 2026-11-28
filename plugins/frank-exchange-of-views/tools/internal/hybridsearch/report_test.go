@@ -13,7 +13,7 @@ import (
 func TestChunkReportStripsAnchorsAndExtractsAllTypes(t *testing.T) {
 	report := "# Findings\n\n" +
 		"Costs are rising.<!--cite:C-0a1b2c3d--> The trend holds<!--computation:K-0e0f1a2b-->.\n" +
-		"It was contested.<!--fx:F-11223344--><!--gap:G-55667788-->\n\n" +
+		"It was contested.<!--gap:G-11223344--><!--gap:G-55667788-->\n\n" +
 		"<!--gap:G-99aabbcc-->\n\n" +
 		"## Plain\n\nNo anchors here.\n"
 	chunks := ChunkReport(report)
@@ -27,7 +27,7 @@ func TestChunkReportStripsAnchorsAndExtractsAllTypes(t *testing.T) {
 	if strings.Contains(c.Text, "<!--") || strings.Contains(c.Text, "-->") {
 		t.Errorf("Text still carries anchor markup: %q", c.Text)
 	}
-	if want := []string{"C-0a1b2c3d", "K-0e0f1a2b", "F-11223344", "G-55667788"}; !slices.Equal(c.Anchors, want) || c.Anchor != want[0] {
+	if want := []string{"C-0a1b2c3d", "K-0e0f1a2b", "G-11223344", "G-55667788"}; !slices.Equal(c.Anchors, want) || c.Anchor != want[0] {
 		t.Errorf("Anchors = %v, Anchor = %q; want %v, %q", c.Anchors, c.Anchor, want, want[0])
 	}
 	if c.Heading != "# Findings" || c.StartLine != 3 || c.EndLine != 4 {

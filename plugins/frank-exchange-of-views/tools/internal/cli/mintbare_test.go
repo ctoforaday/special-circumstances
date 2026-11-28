@@ -102,8 +102,8 @@ func TestAMintPrescriptionBaringAnAnchorItLeavesOutIsRefused(t *testing.T) {
 	}
 }
 
-// A PRESCRIPTION CARRYING AN ANCHOR ONTO NO WORDS IS REFUSED: the accept moves a finding or gap marker at
-// the sentence's end with the gap's, and a carried marker may not stand bare (P12b: no writer leaves a bare anchor).
+// A PRESCRIPTION CARRYING AN ANCHOR ONTO NO WORDS IS REFUSED: the accept moves a gap marker at the
+// sentence's end with the gap's, and a carried marker may not stand bare (P12b: no writer leaves a bare anchor).
 func TestAMintPrescriptionCarryingAnAnchorOntoNoWordsIsRefused(t *testing.T) {
 	for _, kind := range anchor.Kinds() {
 		if kind == "citation" || kind == "computation" {

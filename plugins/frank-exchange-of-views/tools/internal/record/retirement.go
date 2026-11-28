@@ -50,8 +50,9 @@ import (
 //     limit, or one that never closed, is neither sat nor barren: a delivery in it moves no pin, and
 //     it adds nothing to the count.
 //   - A mint belongs to the sitting whose opening most recently precedes it.
-//   - A sitting is PRODUCTIVE when it minted a fresh gap (superseding nothing) that is material NOW,
-//     or recorded a close, a verify, a reproduce or an inquiry check. A productive sitting returns
+//   - A sitting is PRODUCTIVE when it minted a gap that is material NOW — a re-raise of a defect
+//     whose gap closed is a mint like any other; an amend mints nothing and counts nothing — or
+//     recorded a close, a verify, a reproduce or an inquiry check. A productive sitting returns
 //     the count to zero, a retired lens's included.
 //
 // Nothing is ready before a report is ingested.
@@ -148,12 +149,12 @@ func unsatSitting(opened int64, reason string) string {
 func owedBlocker(b Blocker) string { return string(b.Kind) + " " + b.Subject }
 
 // lensOwesOf is what each lens owes, by seat, each named: an item its work list names as its own to
-// clear that is still undone. Each name is that item's alone — a finding and a remand by their own
+// clear that is still undone. Each name is that item's alone — a remand and a motion by their own
 // ids, since one gap may hold several — so a clause listing two items never reads as one listed twice.
 //
 //   - ON A GAP IT MINTED, WHAT IS NEW SINCE IT LAST SAT (gblock, 2026-10-18): blue's answer to the gap
-//     (blueAnswersOf), a reaching removal of it, by a retire or a cut (WindowIndex.Reaches), an accepted grade motion awaiting its regrade (regradesAwaitedOf), the bench's
-//     remand of it, another seat's finding about it (findingsAboutGapsOf) — each owed until the lens
+//     (blueAnswersOf), a reaching removal of it, by a retire or a cut (WindowIndex.Reaches), the bench's
+//     remand of it — each owed until the lens
 //     sits through a sitting opened after it arrived (satThrough), whether or not that sitting acts
 //     on it. A sitting that never closed does not end the debt. A gap it holds with
 //     nothing new on it owes nothing: every act a lens has on its own gap waits on another seat's act,
@@ -176,7 +177,7 @@ func lensOwesOf(evs []*Event, ids []int64, win WindowIndex, gaps []blockerGap, e
 	ends := satThroughOf(win, openings)
 	minted := map[string]string{}
 	for _, g := range gaps {
-		minted[g.id] = g.mintedBy
+		minted[g.id] = g.assignee
 	}
 	// owe names item for lens while it has sat through no sitting that opened since at.
 	owe := func(lens string, at int64, item string) {
@@ -206,7 +207,7 @@ func lensOwesOf(evs []*Event, ids []int64, win WindowIndex, gaps []blockerGap, e
 	return out
 }
 
-// gapNews is one act on a gap that its minting lens has not had: what it is, as a work list names
+// gapNews is one act on a gap that its assignee has not had: what it is, as a work list names
 // it, and the events.id it arrived at.
 type gapNews struct {
 	gap, item string
@@ -214,16 +215,17 @@ type gapNews struct {
 }
 
 // gapNewsOf IS "WHAT IS NEW ON A GAP" (gblock, 2026-10-18), for each gap of gaps: blue's answer to it
-// (blueAnswersOf), a reaching removal of it, by a retire or a cut (WindowIndex.Reaches), an accepted grade motion awaiting its regrade (regradesAwaitedOf), the bench's
-// remand of it, another seat's finding about it (findingsAboutGapsOf). It is one reading with two
-// readers: the minting lens owes each item until it sits through a sitting opened after it
+// (blueAnswersOf), a reaching removal of it, by a retire or a cut (WindowIndex.Reaches), a fate or
+// question part that changed what it is about naming no gap (fateActsOf), the bench's
+// remand of it. It is one reading with two
+// readers: the assignee owes each item until it sits through a sitting opened after it
 // (lensOwesOf), and a seat's act on the gap is refused while an item arrived after its sitting opened
 // (staleOf).
 func gapNewsOf(evs []*Event, ids []int64, win WindowIndex, gaps []blockerGap) []gapNews {
 	var out []gapNews
 	open, minted := map[string]bool{}, map[string]string{}
 	for _, g := range gaps {
-		open[g.id], minted[g.id] = true, g.mintedBy
+		open[g.id], minted[g.id] = true, g.assignee
 	}
 	motions := motionsAt(evs, ids, win)
 	answers := blueAnswersOf(evs, win, open, motions)
@@ -239,24 +241,48 @@ func gapNewsOf(evs []*Event, ids []int64, win WindowIndex, gaps []blockerGap) []
 		if a.metAt != 0 {
 			out = append(out, gapNews{gap: g.id, at: a.metAt, item: a.met.news() + ", " + a.met.how(g.id)})
 		}
+		// A FATE OR QUESTION PART THAT CHANGED WHAT THE GAP IS ABOUT, naming no gap, is news of its own
+		// as a reaching retire is: the lens's turn, and no answer of blue's.
+		if a.fateTurnAt != 0 {
+			out = append(out, gapNews{gap: g.id, at: a.fateTurnAt, item: "blue's fate `" + a.fateTurn + "` on " + string(a.fateTurnOn) + ", which changed what " + g.id + " is about"})
+		}
+		if a.partTurnAt != 0 {
+			out = append(out, gapNews{gap: g.id, at: a.partTurnAt, item: "blue's question part record (" + a.partTurnWhat + "), which changed what " + g.id + " is about"})
+		}
 	}
-	for _, o := range regradesAwaitedOf(evs, win, open) {
-		out = append(out, gapNews{gap: o.GapID, at: o.ruled, item: "the accepted grade motion on " + o.GapID})
-	}
-	// A RULED DOCKET MOTION ON AN OPEN GAP IS A REMAND: every other disposition closes the gap. Only a
-	// gap that is material carries one back into the debate (routeOf); the bench's ruling on any
-	// other leaves it where it was, readying nobody.
+	// A BENCH RULING THAT LEAVES A MATERIAL GAP OPEN IS NEWS, IN ITS OWN WORD: a remand, the act of a
+	// proposal it sided with, its ruling against one, or its keeping or restoring of the moved grades
+	// — every closing word closes the gap. Only a gap that is material carries it back into the debate
+	// (routeOf); the bench's ruling on any other leaves it where it was, readying nobody. The bench's
+	// rulings are its docketings' (docketingsAt); the assignee's own accept is its own act, and no news
+	// to it.
 	held := map[string]bool{}
 	for _, g := range gaps {
 		held[g.id] = g.material
 	}
+	act := map[string]string{}
 	for _, m := range motions {
-		if m.Subject == "docket" && m.Ruled() && held[m.GapID] {
-			out = append(out, gapNews{gap: m.GapID, at: m.ruled, item: "the bench's remand of " + m.GapID + " in " + m.ID})
-		}
+		act[m.ID] = m.Act
 	}
-	for _, f := range findingsAboutGapsOf(evs, win, open, minted) {
-		out = append(out, gapNews{gap: f.gap, at: f.at, item: f.filer + "'s finding " + f.id + " about " + f.gap})
+	for _, d := range docketingsAt(evs, ids) {
+		if !d.Ruled() || !held[d.GapID] {
+			continue
+		}
+		r := d.Docket()
+		item := "the bench's remand of " + d.GapID + " in " + d.ID
+		switch {
+		case r.GetMovedGrades() == recordpb.MovedGrades_MOVED_GRADES_RESTORED:
+			item = "the bench's restore of " + d.GapID + "'s moved grades on " + d.ID
+		case r.GetMovedGrades() == recordpb.MovedGrades_MOVED_GRADES_KEPT:
+			item = "the bench's keeping of " + d.GapID + "'s moved grades on " + d.ID
+		case d.appliesProposal():
+			item = "the bench's " + act[d.MotionID] + " of " + d.GapID + " on " + d.MotionID
+		case r.SidedWith != nil && d.MotionID != "":
+			item = "the bench's ruling against the " + act[d.MotionID] + " " + d.MotionID + " proposed on " + d.GapID
+		case r.SidedWith != nil:
+			item = "the bench's ruling " + d.Word() + " on " + d.GapID + " in " + d.ID
+		}
+		out = append(out, gapNews{gap: d.GapID, at: d.ruled, item: item})
 	}
 	return out
 }
@@ -387,9 +413,10 @@ func borneThroughOf(evs []*Event) map[string]int64 {
 	return out
 }
 
-// freshMaterialOf is the gap view's answer to "which gaps were minted fresh and are material now".
+// freshMaterialOf is the gap view's answer to "which gaps are material now": each one's mint is a
+// fresh material mint.
 func freshMaterialOf(db recordsql.Querier) (map[string]bool, error) {
-	rows, err := db.Query(`SELECT "gap_id" FROM "gap" WHERE "material" AND "supersedes_count" = 0`)
+	rows, err := db.Query(`SELECT "gap_id" FROM "gap" WHERE "material"`)
 	if err != nil {
 		return nil, fmt.Errorf("asking the record for its fresh material gaps: %w", err)
 	}
@@ -410,7 +437,7 @@ func freshMaterialOf(db recordsql.Querier) (map[string]bool, error) {
 func freshMaterialOfStates(gaps []WorkGapState) map[string]bool {
 	out := map[string]bool{}
 	for _, g := range gaps {
-		if g.Material && len(g.Supersedes) == 0 {
+		if g.Material {
 			out[g.ID] = true
 		}
 	}

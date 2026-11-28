@@ -43,18 +43,20 @@ func TestLongFormFieldsAcceptThePayloadChannel(t *testing.T) {
 	runDir := seatRun(t)
 	id := mintGap(t, runDir, "long-form", "spec_underspecification")
 	// The STATE each verb needs, not just the referent. A ruling answers a motion, so M1 is
-	// filed for the rule case to answer; the file case contests a DIFFERENT gap.
+	// filed for the rule case to answer; the docket filing puts a DIFFERENT gap before the bench.
 	undisputed := mintGap(t, runDir, "undisputed", "spec_underspecification")
-	if _, err := run(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond",
-		"--id", id, "--dimension", "severity", "--proposed", "low", "--reason", "b"); err != nil {
+	if _, err := run(t, "motion", "petition", "file", "--run", runDir, "--seat-id", "red-lens-evidence",
+		"--class", "safety", "--relief", "halt before the next round", "--reason", "b"); err != nil {
 		t.Fatal(err)
 	}
+	// A proposal on a gap is admitted once it has had its one exchange.
+	exchangeOn(t, runDir, undisputed)
 
 	for _, c := range []struct {
 		name, field string
 		// typ is the event type to look for. It used to be args[1] — the verb word, read back
 		// out of the argv the case had just composed. That works only while every command path
-		// is <role> <verb> AND the verb word equals the event type; `motion grade file` breaks
+		// is <role> <verb> AND the verb word equals the event type; `motion docket file` breaks
 		// both halves at once, and the failure was "no grade event in the log".
 		typ  recordpb.EventType
 		args []string
@@ -62,8 +64,8 @@ func TestLongFormFieldsAcceptThePayloadChannel(t *testing.T) {
 		// NO ROLE SEGMENT: the surface is the seat's, so `regrade` sits at the root of the lens
 		// tree. `motion …` below keeps its path because motion is a real subgroup within it.
 		{"lens regrade", "basis", recordpb.EventType_EVENT_TYPE_REGRADE, []string{"regrade", "--seat-id", lensSeat, "--id", id, "--severity", "low"}},
-		{"motion grade rule", "opinion", recordpb.EventType_EVENT_TYPE_MOTION_RULE, []string{"motion", "grade", "rule", "--seat-id", "red-chair", "--id", "M1", "--as", "accepted"}},
-		{"motion grade file", "basis", recordpb.EventType_EVENT_TYPE_MOTION, []string{"motion", "grade", "file", "--seat-id", "blue-respond", "--id", undisputed, "--dimension", "severity", "--proposed", "low"}},
+		{"motion petition rule", "opinion", recordpb.EventType_EVENT_TYPE_MOTION_RULE, []string{"motion", "petition", "rule", "--seat-id", "judge", "--id", "M1", "--as", "denied"}},
+		{"motion docket file regrade", "basis", recordpb.EventType_EVENT_TYPE_MOTION, []string{"motion", "docket", "file", "regrade", "--seat-id", "blue-respond", "--id", undisputed, "--severity", "low"}},
 		{"motion petition file", "basis", recordpb.EventType_EVENT_TYPE_MOTION, []string{"motion", "petition", "file", "--seat-id", "red-chair", "--class", "safety", "--relief", "halt"}},
 	} {
 		t.Run(c.name, func(t *testing.T) {

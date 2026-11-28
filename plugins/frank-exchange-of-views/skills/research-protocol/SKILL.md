@@ -24,7 +24,7 @@ Research that survives an adversary.
 
 ## The exchange is TOOL-MEDIATED
 
-Everything the two sides exchange — findings, closures, citations, computations, edits,
+Everything the two sides exchange — gaps, closures, citations, computations, edits,
 inquiries, disputes, log entries, opinions — is an **event on the record**, written through a
 verb that can refuse it, and read back through a projection. This is the governing clause
 of the protocol, not a storage preference: a hand-written file is an exchange nothing
@@ -34,7 +34,7 @@ exactly like a clean board. See [[facts-are-fields]].
 
 The report set is the instructive non-exception: prose, because its audience is human. But
 every point of *argument* in it carries a tool-placed anchor — `cite:` where a source backs
-a claim, `fx:` where red challenged, `computation:` where a program blue ran settles it, `gap:` where red
+a claim, `computation:` where a program blue ran settles it, `gap:` where red
 holds a gap open — and a rewrite that drops one is refused: an anchor leaves only by a retire naming
 it, or with its sentence in a cut. Write for the reader; put what the machinery depends on in a field.
 
@@ -47,11 +47,11 @@ report text only after a tool call, never at dispatch. A lens is delivered blue'
 whole, in context, at its first sitting and once more at its next — its full re-read — and at
 every other sitting each edit since its pin as the whole paragraphs it touched, before and after,
 with the passages of its own gaps; the chair is delivered each stale area's changes it has not
-borne, and the bench the passages of the gaps its motions are about. A snippet NEVER substitutes:
+borne. A snippet NEVER substitutes:
 a decontextualized quote is how audits go blind, which is why a change arrives as whole
 paragraphs. The tool records what it delivered when a delivery's last item reaches the seat, and
 the envelope waits until it has; a delivery that cannot advance ends the seat's turn at once; a
-close, a spot-check and a ruling on a motion about gaps stand only on delivered text. Where the
+close and a spot-check stand only on delivered text; the bench rules on the parties' statements on the record, and no ruling stands on delivered text. Where the
 report stands at a lens's pin and its full re-read is behind it, the read it is owed is the one
 already performed, and performing it again returns the same bytes to the same reader. Reading the report yourself is context: it
 records nothing and moves no pin. Under a harness whose hooks cannot yet deliver report text into

@@ -25,10 +25,6 @@ const (
 	// ItemReaudit is a lens's own open gap that blue answered, or whose sentence an edit changed,
 	// since the lens last acted on it — or that blue was engaged on and left unanswered (blueAnswers).
 	ItemReaudit ItemKind = "reaudit"
-	// ItemRegradeOwed is an accepted grade motion on a lens's own gap that no regrade has followed.
-	ItemRegradeOwed ItemKind = "regrade_owed"
-	// ItemFindingOnGap is another seat's finding anchored to a lens's own open gap.
-	ItemFindingOnGap ItemKind = "finding_on_gap"
 	// ItemNews is a closed gap of a lens's own whose answers have all left the report, by a retire or a
 	// cut: the closure stands, and the item says what a mint in answer would be.
 	ItemNews ItemKind = "news"
@@ -43,13 +39,11 @@ const (
 	// ItemAwaitingEvidence is a gap owed a citation or computation placed as its answer
 	// (WorkGapJSON.AwaitingEvidence).
 	ItemAwaitingEvidence ItemKind = "awaiting_evidence"
-	// ItemSuccessorOwed is blue-respond's engage on the open successors of gaps it found closed
-	// (EngagedJSON.SuccessorsOwed).
-	ItemSuccessorOwed ItemKind = "successor_owed"
+	// ItemEngagementOwed is blue-respond's engage on the gaps its sitting owes one more sitting on
+	// (EngagedJSON.Owed).
+	ItemEngagementOwed ItemKind = "engagement_owed"
 	// ItemNotMaterial is an open gap that does not hold the PASS, on the chair's list.
 	ItemNotMaterial ItemKind = "not_material"
-	// ItemDocket is the chair's affordance to docket an open material gap.
-	ItemDocket ItemKind = "docket"
 	// ItemStaleInquiry is an inquiry no fate has revisited since it was declared.
 	ItemStaleInquiry ItemKind = "stale_inquiry"
 	// ItemKeptGrade is a gap whose lens kept its grade on re-audit, with what its check still finds
@@ -63,9 +57,9 @@ const (
 	ItemNothingOwed ItemKind = "nothing_owed"
 	// ItemReportText is report text owed into the seat's context this sitting, handed one item after
 	// each of its tool calls: a lens's whole report or the changes since its pin and its own
-	// gap passages (subject the report), the chair's stale area's unborne changes (an area), the
-	// bench's passage of a gap a motion is about (a gap). It blocks until the sitting holds the
-	// delivery (report_read).
+	// gap passages (subject the report), the chair's stale area's unborne changes (an area). The
+	// bench is owed none: a ruling stands on the parties' statements. It blocks until the sitting
+	// holds the delivery (report_read).
 	ItemReportText ItemKind = "report_text"
 )
 
@@ -76,9 +70,9 @@ func ItemKinds() []ItemKind {
 	for _, r := range blockerKinds {
 		out = append(out, ItemKind(r.kind))
 	}
-	return append(out, ItemAudit, ItemReaudit, ItemRegradeOwed, ItemFindingOnGap, ItemNews, ItemLog,
-		ItemLaw, ItemRegisterOwed, ItemVerdictOwed, ItemAwaitingEvidence, ItemSuccessorOwed,
-		ItemNotMaterial, ItemDocket, ItemStaleInquiry, ItemKeptGrade, ItemComposedSource, ItemNothingOwed, ItemReportText)
+	return append(out, ItemAudit, ItemReaudit, ItemNews, ItemLog,
+		ItemLaw, ItemRegisterOwed, ItemVerdictOwed, ItemAwaitingEvidence, ItemEngagementOwed,
+		ItemNotMaterial, ItemStaleInquiry, ItemKeptGrade, ItemComposedSource, ItemNothingOwed, ItemReportText)
 }
 
 // SubjectKind is what kind of thing an item is about.

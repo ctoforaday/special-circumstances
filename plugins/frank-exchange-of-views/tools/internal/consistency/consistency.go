@@ -4,7 +4,7 @@
 // # Why this exists as a package rather than as one test
 //
 // The record is a single event log with at least ten independent readers — the gap family, the
-// board/work/findings JSON, five markdown renders, the telemetry series, the lineage graph, report
+// board/work JSON, five markdown renders, the telemetry series, the lineage graph, report
 // assembly, capture's audits. Every reader is its own traversal of the same facts, and the bug
 // class that architecture invites is PROJECTION DISAGREEMENT: two readers deriving different
 // answers from one record, each locally plausible. It is not hypothetical — the measured
@@ -20,7 +20,7 @@
 //
 // A violation is a DISAGREEMENT, not a verdict. When the family says a gap was closed by the bench
 // and the last closing event on the record is red's, the oracle reports both sides; which reader
-// is wrong is the finding's job to establish. The one thing a violation always means is that two
+// is wrong is the reader's job to establish. The one thing a violation always means is that two
 // carriers of one fact have diverged, which is the thing this codebase keeps paying for.
 package consistency
 
@@ -61,21 +61,18 @@ type gtGap struct {
 	lastCloseEpoch int
 	sev, lik, imp  recordpb.Grade
 	cx             recordpb.Grade
-	supersedes     []string
 	carriedCount   int // opinions whose disposition defers rather than closes
 }
 
 type groundTruth struct {
 	order          []string
 	gaps           map[string]*gtGap
-	findingLabels  map[string]bool
 	placedIDs      map[string]bool // every act that stored a quote, so an Anchor event owes its marker
 	anchorEvIDs    map[string]bool
 	computationIDs map[string]bool
 	citeEvents     int
 	verifyEvents   int
 	inquiries      map[string]string // inquiry id -> last status word
-	observations   int
 
 	// unpairedDocket are docket rulings whose filing this walk never saw. An oracle CANNOT
 	// `continue` past one: the miss and the honest zero are the same silence, and this fold's
@@ -96,7 +93,6 @@ func closesSet() map[string]bool {
 func walk(events []*record.Event) *groundTruth {
 	gt := &groundTruth{
 		gaps:           map[string]*gtGap{},
-		findingLabels:  map[string]bool{},
 		placedIDs:      map[string]bool{},
 		anchorEvIDs:    map[string]bool{},
 		computationIDs: map[string]bool{},
@@ -107,7 +103,11 @@ func walk(events []*record.Event) *groundTruth {
 	// given. `motion_rule.motion_id` carries no foreign key and a seeded record can present a
 	// ruling first, so the pairing is built before the walk — an oracle that quietly counted
 	// nothing would agree with a broken board, which is the one thing it must never do.
+	// A BENCH RULING'S GAP RIDES ITS DOCKETING (record.DocketRulingGap's rule): the docketing's gap,
+	// else, for the assignee's accept, its motion's filing's.
 	docketGap := map[string]string{}
+	docketingGap := map[string]string{}
+	docketingMotion := map[string]string{}
 	for _, e := range events {
 		if f, ok := recordpb.BodyAs[*recordpb.Motion](e); ok {
 			if d, isDocket := f.GetFiling().(*recordpb.Motion_Docket); isDocket {
@@ -115,6 +115,10 @@ func walk(events []*record.Event) *groundTruth {
 					docketGap[id] = d.Docket.GetGapId()
 				}
 			}
+		}
+		if k, ok := recordpb.BodyAs[*recordpb.Docketing](e); ok && k.GetDocketingId() != "" {
+			docketingGap[k.GetDocketingId()] = k.GetGapId()
+			docketingMotion[k.GetDocketingId()] = k.GetMotionId()
 		}
 	}
 
@@ -161,23 +165,9 @@ func walk(events []*record.Event) *groundTruth {
 			gt.gaps[id] = &gtGap{
 				open: true,
 				sev:  m.GetSeverity(), lik: m.GetLikelihood(), imp: m.GetImpact(), cx: m.GetComplexityCost(),
-				supersedes: append([]string{}, m.GetSupersedes()...),
 			}
 			if m.GetLocation() != "" {
 				gt.placedIDs[id] = true
-			}
-			// A MINT SUPERSEDING AN OPEN GAP CLOSES IT, as its lens's closing act: the first such
-			// mint, where no closing act of either arm came before it.
-			for _, anc := range m.GetSupersedes() {
-				a := gt.gaps[anc]
-				if a == nil || a.everClosed {
-					continue
-				}
-				a.firstCloser = "red"
-				a.open, a.everClosed = false, true
-				a.lastCloser = "red"
-				a.lastClass = record.ClosedSuperseded
-				a.lastCloseEpoch = epoch
 			}
 		case *recordpb.Regrade:
 			g := gt.gaps[m.GetGapId()]
@@ -232,9 +222,14 @@ func walk(events []*record.Event) *groundTruth {
 			// The write path refuses this today (`motion docket rule` rejects a motion id no
 			// filing created). That is exactly why it belongs here: the oracle's value is over
 			// records assembled some OTHER way, where the write path never ran.
-			gapID, paired := docketGap[m.GetMotionId()]
+			key := m.GetMotionId()
+			gapID, paired := docketGap[key]
+			if k := d.Docket.GetDocketingId(); k != "" {
+				key = k
+				gapID, paired = docketingGap[k]
+			}
 			if !paired || gapID == "" {
-				gt.unpairedDocket = append(gt.unpairedDocket, m.GetMotionId())
+				gt.unpairedDocket = append(gt.unpairedDocket, key)
 				continue
 			}
 			g := gt.gaps[gapID]
@@ -243,7 +238,11 @@ func walk(events []*record.Event) *groundTruth {
 				continue
 			}
 			w := recordpb.Word(d.Docket.GetDisposition())
-			if !closes[w] {
+			// A RULING WITH NO CLOSING WORD closes nothing here. The assignee's accept names no docketing,
+			// and closes through its act. An amend closes nothing.
+			if d.Docket.Disposition == nil {
+				continue
+			} else if !closes[w] {
 				g.carriedCount++
 				continue
 			}
@@ -254,18 +253,6 @@ func walk(events []*record.Event) *groundTruth {
 			g.lastCloser = "bench"
 			g.lastClass = w
 			g.lastCloseEpoch = epoch
-		case *recordpb.Finding:
-			gt.observations++
-			if id := m.GetId(); id != "" {
-				gt.findingLabels[id] = true
-				// A FINDING ANCHORED TO SOMETHING THAT IS NOT REPORT TEXT SPLICES NO MARKER, so
-				// it emits no anchor event and must not be required to have one. `--about-kind
-				// section|inquiry|gap` is the anchor an ABSENCE gets — there is no sentence to
-				// mark — so the crash-window rule below does not apply to it.
-				if m.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_UNSPECIFIED {
-					gt.placedIDs[id] = true
-				}
-			}
 		case *recordpb.Anchor:
 			if id := m.GetId(); id != "" {
 				gt.anchorEvIDs[id] = true
@@ -421,9 +408,6 @@ func Check(run record.Run) (Result, error) {
 	if bj.Counts.ClosedByBench != benchGT {
 		add("closer-attribution", "counts.closed_by_bench=%d; %d gaps were ended by a bench ruling", bj.Counts.ClosedByBench, benchGT)
 	}
-	if bj.Counts.TotalObservations != gt.observations {
-		add("counts", "counts.total_observations=%d, %d finding events on the record", bj.Counts.TotalObservations, gt.observations)
-	}
 	// Citations = verify events, CitationsAuthored = cite events — the #341 split. The field
 	// doc used to promise a different number (distinct cite events); implementing the doc is how
 	// the oracle found the disagreement, and the doc is what moved.
@@ -462,15 +446,6 @@ func Check(run record.Run) (Result, error) {
 		if was != raw.firstCloser {
 			add("closer-attribution", "board.closed %s: closed_by=%q, the closing event that ended it was %s's", g.ID, was, raw.firstCloser)
 		}
-	}
-
-	fj := record.FindingsJSONOf(fam.Events, fam.At)
-	gotLabels := map[string]bool{}
-	for _, f := range fj.Findings {
-		gotLabels[f.ID] = true
-	}
-	if !sameSet(keys(gotLabels), keys(gt.findingLabels)) {
-		add("findings", "findings projection ids %v, record carries %v", keys(gotLabels), keys(gt.findingLabels))
 	}
 
 	// ---- the markdown renders ----
@@ -530,36 +505,28 @@ func Check(run record.Run) (Result, error) {
 
 	// ---- the lineage graph ----
 	mmd := graph.Mermaid(fam)
-	for id, g := range gt.gaps {
+	for id := range gt.gaps {
 		if !strings.Contains(mmd, `["`+id) && !strings.Contains(mmd, id) {
 			add("graph", "gap %s has no node in the mermaid graph", id)
 		}
-		for _, anc := range g.supersedes {
-			if gt.gaps[anc] == nil {
-				add("lineage", "gap %s supersedes %s, which no mint created", id, anc)
-			}
-		}
-	}
-	if cyc := findCycle(gt); cyc != "" {
-		add("lineage", "supersedes cycle: %s", cyc)
 	}
 
 	// ---- the anchor layer ----
 	//
 	// The report-token↔events bijection lived here: it read the marker tokens PRESENT in
-	// blue/report.md and matched them against the cite/finding/computation events, to catch a torn splice
+	// blue/report.md and matched them against the cite/computation events, to catch a torn splice
 	// (a token on the page no event backs) or an orphan (an event whose marker never rendered).
 	// Under report-as-record (#709) the report IS the projection of these events — render places
 	// only recorded markers, and derives every token from an event — so both directions hold by
 	// construction and neither torn state can arise. Removed rather than kept as a check that can
-	// never fire. What survives is report-INDEPENDENT: the finding↔anchor-event pair below.
+	// never fire. What survives is report-INDEPENDENT: the act↔anchor-event pair below.
 	//
 	// An act that stored a quote and its anchor event are written as a PAIR, in one transaction
 	// (record.AppendPlaced); one with no anchor event is a pair an archived run split, which migrate
 	// carries as it stands. Report-independent, so it runs even when no report renders.
 	//
-	// QUOTE-ANCHORED ACTS ONLY, and the set above is what enforces that: an about-anchored finding
-	// or gap legitimately has no anchor, and reporting each one was a violation on an honest record.
+	// QUOTE-ANCHORED ACTS ONLY, and the set above is what enforces that: an about-anchored gap
+	// legitimately has no anchor, and reporting each one was a violation on an honest record.
 	for id := range gt.placedIDs {
 		if !gt.anchorEvIDs[id] {
 			add("anchor-record", "%s %s has no anchor event", anchor.Kind(id), id)
@@ -703,15 +670,6 @@ func openIDs(gt *groundTruth) []string {
 	return out
 }
 
-func keys(m map[string]bool) []string {
-	out := make([]string, 0, len(m))
-	for k := range m {
-		out = append(out, k)
-	}
-	sort.Strings(out)
-	return out
-}
-
 func sameSet(a, b []string) bool {
 	sort.Strings(a)
 	sort.Strings(b)
@@ -724,41 +682,4 @@ func sameSet(a, b []string) bool {
 		}
 	}
 	return true
-}
-
-// findCycle walks the supersedes edges; the write path makes a cycle unconstructible (an ancestor
-// must already exist), so a hit here means the record was built by something other than the tool.
-func findCycle(gt *groundTruth) string {
-	const white, grey, black = 0, 1, 2
-	color := map[string]int{}
-	var path []string
-	var visit func(string) string
-	visit = func(id string) string {
-		color[id] = grey
-		path = append(path, id)
-		g := gt.gaps[id]
-		if g != nil {
-			for _, anc := range g.supersedes {
-				switch color[anc] {
-				case grey:
-					return strings.Join(append(path, anc), " -> ")
-				case white:
-					if c := visit(anc); c != "" {
-						return c
-					}
-				}
-			}
-		}
-		color[id] = black
-		path = path[:len(path)-1]
-		return ""
-	}
-	for id := range gt.gaps {
-		if color[id] == white {
-			if c := visit(id); c != "" {
-				return c
-			}
-		}
-	}
-	return ""
 }

@@ -70,7 +70,7 @@ func requireOncePerSitting(q interface {
 		return fmt.Errorf("asking whether %s has already recorded a %s this sitting: %w", seatID, word, err)
 	}
 	tail := ""
-	if a := SupersedingAnswer(typ, body); a != "" {
+	if a := SupersedingAnswer(seatID, typ, body); a != "" {
 		tail = " " + a
 	}
 	return feov.Errorf(feov.Validation,

@@ -298,22 +298,29 @@ func stringsIn(t *testing.T, entry string) []string {
 }
 
 // censusRun is a run with at least one entry in every projection a seat can select from: gaps on the
-// board and the lens's list, findings, a motion, a position in the debate, an edit, a citation and
+// board and the lens's list, a motion, a position in the debate, an edit, a citation and
 // inquiries.
 func censusRun(t *testing.T) string {
 	t.Helper()
 	runDir, gap := answeredBoard(t)
 	editAnswering(t, runDir, gap)
+	// The motion below is a proposal, admitted once the gap has had its one exchange: blue answered it
+	// with the edit, so the lens's sitting on the answer ends the round.
+	exchangeOn(t, runDir, gap)
+	engage(t, runDir, lensSeat, gap)
+	for range 2 {
+		if _, err := run(t, "register", "--run", runDir, "--seat-id", lensSeat); err != nil {
+			t.Fatal(err)
+		}
+	}
 	withFetcher(t, &fakeFetcher{resp: map[string][]byte{"https://census/1": []byte("<html>the cost is moderate and rising</html>")}})
 	for _, args := range [][]string{
-		{"finding", "--seat-id", lensSeat, "--key", "F1", "--severity", "low", "--likelihood", "low", "--impact", "low",
-			"--quote", "The cost is moderate and rising.", "--reason", "the rising trend is asserted without a series"},
 		{"position", "--seat-id", "red-chair", "--reason", "the chair's position on the open gap"},
 		{"inquiry", "propose", "--seat-id", blueSeat, "--question", "does a second source give the same figure", "--hypothesis", "two sources agree within ten percent"},
 		{"inquiry", "propose", "--seat-id", blueSeat, "--question", "is the trend seasonal", "--hypothesis", "the rise repeats every winter"},
 		{"question", "split", "--seat-id", blueSeat, "--text", "whether the cost is rising"},
 		{"question", "split", "--seat-id", blueSeat, "--text", "whether the rise is seasonal"},
-		{"motion", "grade", "file", "--seat-id", blueSeat, "--id", gap, "--dimension", "likelihood", "--proposed", "low", "--reason", "the harm needs two failures"},
+		{"motion", "docket", "file", "regrade", "--seat-id", blueSeat, "--id", gap, "--severity", "low", "--reason", "the harm needs two failures; the bench should decide the gap"},
 		{"cite", "--seat-id", blueSeat, "--quote", "The cost is moderate and rising.", "--url", "https://census/1", "--title", "Census source"},
 	} {
 		if out, err := run(t, append(args, "--run", runDir)...); err != nil {

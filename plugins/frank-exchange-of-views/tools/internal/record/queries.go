@@ -123,7 +123,7 @@ func recordedOutcomeAt(q recordsql.Querier) (string, error) {
 }
 
 // EventsOf reads back only the named event families, in record order — the read for a
-// projection that renders one kind of act (findings, the log, the debate prose) and has no
+// projection that renders one kind of act (the log, the debate prose) and has no
 // business hauling the whole record through the loader to get it — with each event's stored window
 // (WindowIndex), so the projection prints the epoch and sitting the record holds without loading
 // the acts that opened them. A run with no record yet holds none of anything.
@@ -382,36 +382,10 @@ func partStandingAt(q recordsql.Querier, seat string) (recorded, changed bool, e
 	return recorded, changed, err
 }
 
-// FindingMarkerRecorded / ComputationMarkerRecorded — the "does an event already name this marker id"
+// The marker-recorded predicates — the "does an event already name this marker id"
 // membership questions — lived here. They served the torn-splice adoption the three splicing verbs
 // ran; under report-as-record (#709) a marker exists only as its event, the orphan state cannot
 // arise, and the adoption (and these) are gone.
-
-// gradeAtColumn names the regrade/mint column for a contested dimension; "" is a dimension this
-// binary cannot read a grade at — the same refusal Gap.GradeAt returns false for.
-func gradeAtColumn(d recordpb.GradeDimension) string {
-	switch d {
-	case recordpb.GradeDimension_GRADE_DIMENSION_SEVERITY:
-		return "severity"
-	case recordpb.GradeDimension_GRADE_DIMENSION_LIKELIHOOD:
-		return "likelihood"
-	case recordpb.GradeDimension_GRADE_DIMENSION_IMPACT:
-		return "impact"
-	case recordpb.GradeDimension_GRADE_DIMENSION_COMPLEXITY:
-		return "complexity_cost"
-	}
-	return ""
-}
-
-// gradeAt is a gap's CURRENT grade at one dimension — the gap view's current_* column: the result grades the gap's latest regrade stored (recordsql.stampRegradeResult), else the mint's.
-// found=false is a gap that is not on the record.
-func gradeAt(q recordsql.Querier, gapID, col string) (word string, found bool, err error) {
-	var v sql.NullString
-	// The column name is drawn from gradeAtColumn's closed set, never from input.
-	found, err = queryRowAt(q, []any{&v},
-		fmt.Sprintf(`SELECT %q FROM "gap" WHERE "gap_id" = ?`, "current_"+col), gapID)
-	return v.String, found, err
-}
 
 // latestSittingAt is recordsql.LatestSitting asked of q: the opening of seatID's latest sitting and
 // its rank. A db that is no record (noRecord) holds no sitting.

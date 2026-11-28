@@ -9,6 +9,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
@@ -153,59 +154,109 @@ func TestBlueAloneHeldOutEndsTheRunAtItsCeiling(t *testing.T) {
 	}
 }
 
-// A DOCKET IN THE EPOCH THAT HOLDS BLUE OUT readies the lens for its closing and says blue files none.
-func TestADocketInTheHeldOutEpochAwaitsTheLensAlone(t *testing.T) {
+// A DOCKETING IN THE EPOCH THAT HOLDS BLUE OUT AWAITS BOTH CLOSINGS (F-HO): blue's closing is no act
+// a lens audits, so blue is readied for it on no gap, beside the lens, and the bench sits once neither
+// closing is awaited — the run is not at its limit there.
+func TestADocketInTheHeldOutEpochAwaitsBothClosings(t *testing.T) {
 	run := atImpasse(t) // the chair opens epoch 5 with G1 at impasse
 	writeRunConfig(t, run.dir, `{"maxEpochs":6}`)
 	plan, _, err := DispatchNext(Identity{Run: run, SeatID: "red-chair"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !slices.Equal(plan.Docket, []string{"G1"}) {
-		t.Fatalf("plan = %+v, want G1 docketed", plan)
+	if !plan.BlueHeldOut() || !slices.Equal(plan.Docket, []string{"G1"}) || plan.EpochLimitReached || plan.Ceiling {
+		t.Fatalf("plan = %+v, want the epoch that holds blue out, G1 docketed, and the run short of its limit", plan)
 	}
 	if _, ok := partyOf(plan, evLens); !ok {
 		t.Errorf("the lens owes its closing and is not readied: parties %+v", plan.Parties)
 	}
-	if _, ok := partyOf(plan, blueRespondSeat); ok {
-		t.Errorf("blue is readied for its closing in the epoch that holds it out: parties %+v", plan.Parties)
+	if p, ok := partyOf(plan, blueRespondSeat); !ok || len(p.GapIDs) != 0 {
+		t.Errorf("blue owes its closing and is not readied for it alone, on no gap: parties %+v", plan.Parties)
 	}
-	if line := planLine(t, run, "G1"); !strings.Contains(line, "red-lens-evidence is readied to file its own; "+blueHeldOutClause) || strings.Contains(line, "each is readied") {
-		t.Errorf("G1's line is %q, want the lens readied and blue held out", line)
+	want := "G1: docketed — the closing of red-lens-evidence and blue-respond is owed on it, and each is readied to file it"
+	if line := planLine(t, run, "G1"); !strings.HasPrefix(line, want) {
+		t.Errorf("G1's line is %q, want %q", line, want)
 	}
-	// WITH THE LENS'S CLOSING FILED, nothing a dispatched party can file is awaited: the bench sits now,
-	// in the last epoch that dispatches it, rather than wait on a closing blue cannot file.
+	// WITH THE LENS'S CLOSING FILED, blue's is still awaited, and the bench waits on it.
 	recordtest.Seed(t, run.Dir(), recordtest.At(t, evLens, "m38:closing:G1", &recordpb.Closing{GapId: proto.String("G1"), Text: proto.String("the case on G1")}))
 	plan, err = PlanDispatch(run)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !slices.Contains(gapsOf(plan, "judge"), "G1") {
-		t.Errorf("with the lens's closing in and blue held out, the bench is not ready on G1: parties %+v, why %q", plan.Parties, plan.Why)
+	if slices.Contains(gapsOf(plan, "judge"), "G1") {
+		t.Errorf("with blue's closing awaited, the bench is ready on G1: parties %+v, why %q", plan.Parties, plan.Why)
 	}
-	if line := planLine(t, run, "G1"); !strings.Contains(line, blueHeldOutClause+", so it files no closing on the gap; no other party's closing is awaited, so the bench is ready") {
-		t.Errorf("G1's line is %q, want blue held out and the bench ready", line)
+	if _, ok := partyOf(plan, blueRespondSeat); !ok {
+		t.Errorf("blue's closing is awaited and blue is not readied for it: parties %+v", plan.Parties)
+	}
+	// WITH BOTH FILED, no closing is awaited: the bench sits now, in the last epoch that dispatches it.
+	recordtest.Seed(t, run.Dir(), recordtest.At(t, blueRespondSeat, "m38:closing:G1:blue", &recordpb.Closing{GapId: proto.String("G1"), Text: proto.String("blue's case")}))
+	plan, err = PlanDispatch(run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Contains(gapsOf(plan, "judge"), "G1") {
+		t.Errorf("with both closings in, the bench is not ready on G1: parties %+v, why %q", plan.Parties, plan.Why)
+	}
+	if line := planLine(t, run, "G1"); !strings.Contains(line, "docketed and unruled — the bench is ready, no party's closing being awaited") {
+		t.Errorf("G1's line is %q, want the bench ready", line)
 	}
 }
 
-// M38 DEFECT 5: THE FINAL SITTING'S DOCKET OWES NO CLOSING ANYONE CAN FILE. The docket stands, and the
-// terminal bench rules it at the exit; the plan says so, and readies no party for a closing.
-func TestTheFinalSittingsDocketSaysNoClosingCanBeFiled(t *testing.T) {
+// BLUE HELD OUT IS DISPATCHED FOR ITS CLOSINGS ONLY: where a docketing owes blue a closing and another
+// gap would ready it, blue sits for the closing, engaged on no gap, and the plan says why.
+func TestBlueHeldOutIsDispatchedForItsClosingsOnly(t *testing.T) {
+	b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
+		register("red-chair").sit(2, evLens).mint(evLens, "G1", "high")
+	for i := 0; i < 3; i++ {
+		b.register("red-chair").dispatch(2, evLens, "G1").dispatch(2, "blue-respond", "G1").register(evLens).register("blue-respond")
+	}
+	b.mint(evLens, "G2", "high") // open and material: blue would be readied on it
+	run := b.register("red-chair").seed()
+	writeRunConfig(t, run.dir, `{"maxEpochs":6}`)
+	plan, err := PlanDispatch(run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !plan.BlueHeldOut() {
+		t.Fatalf("fixture: epoch %d does not hold blue out under a limit of 6", plan.Epoch)
+	}
+	if p, ok := partyOf(plan, blueRespondSeat); !ok || len(p.GapIDs) != 0 {
+		t.Errorf("blue owes its closing on G1 and is not readied for it alone, on no gap: parties %+v", plan.Parties)
+	}
+	if !whyMentions(plan, "blue-respond: dispatched for its closings only — epoch 5 is the last that dispatches a lens") {
+		t.Errorf("the plan does not say blue sits for its closings only: %q", plan.Why)
+	}
+}
+
+// M38 DEFECT 5: THE FINAL SITTING'S DOCKETING AWAITS THE CLOSINGS OWED ON IT. At the limit the parties
+// that owe them sit for them and nothing else, engaged on no gap; the terminal bench rules the docketing
+// at the exit with those closings on the record. The plan says so.
+func TestTheFinalSittingsDocketReadiesItsPartiesForTheirClosingsAlone(t *testing.T) {
 	run := atImpasse(t)
 	writeRunConfig(t, run.dir, `{"maxEpochs":5}`)
 	plan, _, err := DispatchNext(Identity{Run: run, SeatID: "red-chair"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !plan.FinalSitting || !plan.EpochLimitReached || len(plan.Parties) != 0 || !slices.Equal(plan.Docket, []string{"G1"}) {
-		t.Fatalf("plan = %+v, want the final sitting, nobody dispatched, and G1 docketed", plan)
+	if !plan.FinalSitting || !plan.EpochLimitReached || !slices.Equal(plan.Docket, []string{"G1"}) {
+		t.Fatalf("plan = %+v, want the final sitting with G1 docketed", plan)
 	}
-	want := "G1: docketed and unruled — the closing of red-lens-evidence and blue-respond is owed on it, and no seat is dispatched after this sitting, so none can be filed; the bench rules it at the exit, on the record as it stands"
-	if !slices.Contains(plan.Why, want) {
-		t.Errorf("the final sitting's line for G1 is not %q: %q", want, plan.Why)
+	for _, seat := range []string{evLens, blueRespondSeat} {
+		if p, ok := partyOf(plan, seat); !ok || len(p.GapIDs) != 0 {
+			t.Errorf("%s owes its closing on G1 and is not readied for it alone: parties %+v", seat, plan.Parties)
+		}
 	}
-	if whyMentions(plan, "readied to file") {
-		t.Errorf("the final sitting's plan readies a party to file a closing: %q", plan.Why)
+	if _, ok := partyOf(plan, "judge"); ok {
+		t.Errorf("the bench is readied at the final sitting; it rules at the exit: parties %+v", plan.Parties)
+	}
+	for _, want := range []string{
+		"G1: docketed — the closing of red-lens-evidence and blue-respond is owed on it, and each is readied to file it",
+		"epoch limit 5 reached — this chair sitting opens the run's last epoch, so of the 2 party(ies) above only 2 sit, for the closings they owe and nothing else",
+	} {
+		if !whyMentions(plan, want) {
+			t.Errorf("the final sitting's plan does not say %q: %q", want, plan.Why)
+		}
 	}
 }
 
@@ -305,8 +356,60 @@ func TestARemandWaitingOnBlueIsNotOwedInTheHeldOutEpoch(t *testing.T) {
 	if !held.BlueHeldOut() || len(held.RemandOwed) != 1 || !slices.Contains(gapsOf(held, evLens), "G1") {
 		t.Errorf("blue answered the remand before the hold: the lens's audit is owed, remand_owed %+v, parties %+v", held.RemandOwed, held.Parties)
 	}
-	const audits = "G1 is open because the BENCH REMANDED it — blue has acted on it, and the dispatch readies its minting lens to audit that answer, which ends the one more exchange; " + blueHeldOutClause
+	const audits = "G1 is open because the BENCH REMANDED it — blue has acted on it, and the dispatch readies its assignee to audit that answer, which ends the one more exchange; " + blueHeldOutClause
 	if !workMentions(t, answered, "chair", "red-chair", audits) {
 		t.Errorf("the chair's row for G1 does not say the lens's audit ends the exchange while blue is held out")
+	}
+}
+
+// A SITTING FOR THE CLOSINGS ALONE OWES ONLY THE CLOSINGS (L44′): blue's remedy of a failed check is
+// owed — and refuses its envelope — in an ordinary sitting; in the epoch that holds blue out, and in the
+// final epoch, every act but a closing is refused (requireClosingsOnlySitting), so the item stays on
+// blue's list, holding the PASS, and no longer holds the sitting: the envelope is admitted.
+func TestASittingForTheClosingsAloneOwesOnlyTheClosings(t *testing.T) {
+	b := unsoundBoard(t).register("red-chair").dispatch(2, "blue-respond").register("blue-respond")
+	run := b.seed()
+	refusal, err := EnvelopeRefusal(run, "blue-respond", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(refusal, "K-1") {
+		t.Fatalf("setup: blue's envelope in an ordinary sitting is not refused over K-1's failed check: %q", refusal)
+	}
+	var epochs []int
+	if err := readSnapshot(run, func(q recordsql.Querier) (err error) { epochs, err = epochsAt(q); return err }); err != nil || len(epochs) == 0 {
+		t.Fatalf("the record's epochs: %v %v", epochs, err)
+	}
+	last := epochs[len(epochs)-1]
+	for _, c := range []struct {
+		name string
+		max  int
+	}{{"blue held out", last + 1}, {"the final epoch", last}} {
+		t.Run(c.name, func(t *testing.T) {
+			writeRunConfig(t, b.runDir, fmt.Sprintf(`{"maxEpochs":%d}`, c.max))
+			refusal, err := EnvelopeRefusal(run, "blue-respond", true)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if refusal != "" {
+				t.Errorf("blue's envelope in a sitting for its closings alone is refused over an item no act it may make clears: %q", refusal)
+			}
+			w, err := WorkOfSeat(run, "blue", "blue-respond")
+			if err != nil {
+				t.Fatal(err)
+			}
+			var held bool
+			for _, it := range w.Sitting.Open {
+				if it.Kind == ItemKind(BlockerFailedCheck) {
+					held = !it.Blocks && strings.Contains(it.What, closingsOnlyHolds)
+				}
+			}
+			if !held {
+				t.Errorf("K-1's failed check is not on blue's list as held for a later sitting: %+v", w.Sitting.Open)
+			}
+			if bs, err := PassBlockers(run); err != nil || len(bs) == 0 {
+				t.Errorf("the failed check no longer holds the PASS: %v %v", bs, err)
+			}
+		})
 	}
 }

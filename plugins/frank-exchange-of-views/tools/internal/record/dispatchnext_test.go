@@ -22,12 +22,12 @@ func atImpasse(t *testing.T) Run {
 	return b.register("red-chair").seed()
 }
 
-// askedElsewhere is what another asking of `dispatch next` on run writes for plan: the docket motion
-// for each gap it files at impasse, and its rows. elsewhere adds the plan it stores.
+// askedElsewhere is what another asking of `dispatch next` on run writes for plan: the docketing
+// for each gap it dockets at impasse, and its rows. elsewhere adds the plan it stores.
 func askedElsewhere(t *testing.T, plan Plan) []*Event {
 	var acts []*Event
-	for _, g := range plan.ToFile {
-		acts = append(acts, recordtest.At(t, "red-chair", "race:motion:"+g, docketMotion("M-race-"+g, g)))
+	for _, g := range docketGaps(plan) {
+		acts = append(acts, recordtest.At(t, "red-chair", "race:docketing:"+g, docketing("D-race-"+g, g)))
 	}
 	for _, p := range plan.Parties {
 		acts = append(acts, recordtest.At(t, "red-chair", "race:dispatch:"+p.SeatID, &recordpb.Dispatch{
@@ -36,7 +36,7 @@ func askedElsewhere(t *testing.T, plan Plan) []*Event {
 	return acts
 }
 
-// elsewhere is everything the other asking writes on a run staged by stage: its motions and rows,
+// elsewhere is everything the other asking writes on a run staged by stage: its docketings and rows,
 // then the plan as it printed it — the plan of the record they landed on.
 func elsewhere(t *testing.T, stage func(*testing.T) Run, plan Plan) []*Event {
 	acts := askedElsewhere(t, plan)
@@ -49,29 +49,29 @@ func elsewhere(t *testing.T, stage func(*testing.T) Run, plan Plan) []*Event {
 	return append(acts, recordtest.At(t, "red-chair", "race:plan", &recordpb.Plan{Printed: proto.String(printed.Printed())}))
 }
 
-// recorded counts the docket motions on gap and the dispatch rows on run's record.
-func recorded(t *testing.T, run Run, gap string) (motions, rows int) {
+// recorded counts the docketings on gap and the dispatch rows on run's record.
+func recorded(t *testing.T, run Run, gap string) (docketings, rows int) {
 	t.Helper()
 	evs, _, err := eventsAt(recordOf(t, run))
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, e := range evs {
-		if m := e.GetMotion(); m != nil && m.GetDocket().GetGapId() == gap {
-			motions++
+		if d := e.GetDocketing(); d != nil && d.GetGapId() == gap {
+			docketings++
 		}
 		if e.GetDispatch() != nil {
 			rows++
 		}
 	}
-	return motions, rows
+	return docketings, rows
 }
 
 // TWO ASKINGS OF `dispatch next` AT ONCE RECORD ONE DECISION. The chair asks for the prose and the
-// --json in one turn; each asking that finds no standing plan writes the rows, and at impasse files
-// the docket motion. Here the other asking's motion and rows commit, on their own connection, as this
+// --json in one turn; each asking that finds no standing plan writes the rows, and at impasse writes
+// the docketing. Here the other asking's docketing and rows commit, on their own connection, as this
 // one opens its transaction: it must find them standing and write nothing, as it does when they are
-// already on the record — one motion on G1, one set of rows.
+// already on the record — one docketing on G1, one set of rows.
 func TestTwoAskingsOfDispatchNextRecordOneDecision(t *testing.T) {
 	chair := func(run Run) Identity { return Identity{Run: run, SeatID: "red-chair"} }
 	before := atImpasse(t)
@@ -80,14 +80,14 @@ func TestTwoAskingsOfDispatchNextRecordOneDecision(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(plan.ToFile) != 1 || len(plan.Parties) == 0 {
-		t.Fatalf("fixture: the plan files %v and convenes %d parties, want G1 filed and the bench convened", plan.ToFile, len(plan.Parties))
+	if len(docketGaps(plan)) != 1 || len(plan.Parties) == 0 {
+		t.Fatalf("fixture: the plan files %v and convenes %d parties, want G1 filed and the bench convened", docketGaps(plan), len(plan.Parties))
 	}
 	if _, standing, err := DispatchNext(chair(before)); err != nil || standing {
 		t.Fatalf("fixture: asked once = standing %v, %v", standing, err)
 	}
 	if m, r := recorded(t, before, "G1"); m != 1 || r != rowsBefore+len(plan.Parties) {
-		t.Fatalf("fixture: asked once, %d docket motions on G1 and %d new rows, want 1 and %d", m, r-rowsBefore, len(plan.Parties))
+		t.Fatalf("fixture: asked once, %d docketings on G1 and %d new rows, want 1 and %d", m, r-rowsBefore, len(plan.Parties))
 	}
 
 	after := atImpasse(t)
@@ -106,7 +106,7 @@ func TestTwoAskingsOfDispatchNextRecordOneDecision(t *testing.T) {
 		t.Fatal(err)
 	}
 	if m, r := recorded(t, raced, "G1"); m != 1 || r != rowsBefore+len(plan.Parties) || !standing {
-		t.Fatalf("asked while the other asking committed: %d docket motions on G1 and %d new rows (standing %v), want 1 and %d — the plan was folded on a record its rows did not land on",
+		t.Fatalf("asked while the other asking committed: %d docketings on G1 and %d new rows (standing %v), want 1 and %d — the plan was folded on a record its rows did not land on",
 			m, r-rowsBefore, standing, len(plan.Parties))
 	}
 }
@@ -176,28 +176,39 @@ func TestDispatchNextRecordsThePlanOfTheRecordItLandsOn(t *testing.T) {
 	}
 }
 
-// THE IMPASSE DOCKET IS FILED AT THE FINAL SITTING TOO. A seat's motion filed there is refused
-// (HeardInTime), and the docket `dispatch next` files for a gap at impasse is not a seat's motion: it
-// is recorded, nobody is dispatched, and the plan lists it as the bench's to rule, which is what
+// THE IMPASSE DOCKETING IS WRITTEN AT THE FINAL SITTING TOO, AND ITS CLOSINGS ARE AWAITED. A seat's
+// motion filed there is refused (HeardInTime), and the docketing `dispatch next` writes for a gap at
+// impasse is no seat's act: it is recorded, the parties that owe closings on it are readied for those
+// closings alone — engaged on no gap — and the plan lists it as the bench's to rule, which is what
 // convenes the terminal bench at the exit.
-func TestTheFinalSittingStillDocketsAGapAtImpasse(t *testing.T) {
+func TestTheFinalSittingDocketsAGapAtImpasseAndAwaitsItsClosings(t *testing.T) {
 	run := atImpasse(t)
 	writeRunConfig(t, run.dir, `{"maxEpochs":5}`)
 	plan, _, err := DispatchNext(Identity{Run: run, SeatID: "red-chair"})
 	if err != nil {
 		t.Fatalf("dispatch next at the final sitting with G1 at impasse: %v", err)
 	}
-	if !plan.FinalSitting || !plan.EpochLimitReached || len(plan.Parties) != 0 || !slices.Equal(plan.Docket, []string{"G1"}) {
-		t.Fatalf("plan = %+v, want the final sitting, nobody dispatched, and G1 docketed", plan)
+	if !plan.FinalSitting || !plan.EpochLimitReached || !slices.Equal(plan.Docket, []string{"G1"}) {
+		t.Fatalf("plan = %+v, want the final sitting with G1 docketed", plan)
 	}
-	if motions, _ := recorded(t, run, "G1"); motions != 1 {
-		t.Fatalf("the final sitting recorded %d docket motion(s) on G1, want 1", motions)
+	var parties []string
+	for _, p := range plan.Parties {
+		parties = append(parties, p.SeatID)
+		if len(p.GapIDs) != 0 {
+			t.Errorf("%s is engaged on %v at the final sitting; a party there is readied for its closings alone", p.SeatID, p.GapIDs)
+		}
+	}
+	if !slices.Equal(parties, []string{evLens, "blue-respond"}) {
+		t.Errorf("the final sitting readies %v, want G1's two parties for their closings", parties)
+	}
+	if docketings, _ := recorded(t, run, "G1"); docketings != 1 {
+		t.Fatalf("the final sitting recorded %d docketing(s) on G1, want 1", docketings)
 	}
 	benchOwned := false
 	for _, b := range plan.Blockers {
-		benchOwned = benchOwned || (b.Kind == BlockerUnruledMotion && b.Owner == "judge")
+		benchOwned = benchOwned || (b.Kind == BlockerDocketed && b.Subject == "G1" && b.Owner == "judge")
 	}
 	if !benchOwned {
-		t.Errorf("the plan lists no motion for the bench to rule, so no terminal sitting convenes: %+v", plan.Blockers)
+		t.Errorf("the plan lists no docketing for the bench to rule, so no terminal sitting convenes: %+v", plan.Blockers)
 	}
 }

@@ -121,12 +121,9 @@ func TestVocabularyProseMutations(t *testing.T) {
 		{f + "agents/lead-judge.md", "rule the gap or CARRY it"},
 		{f + "agents/lead-judge.md", "carried is the gap's deadlock"},
 		{f + "agents/red-chair.md", "not in the log, which is the operator’s channel."},
-		// The blockage reading of the log, a tooling complaint or a capture-audit failure called a
-		// finding, and the whole log called friction — each where it stood.
+		// The blockage reading of the log, and the whole log called friction — each where it stood.
 		{f + "tools/internal/cli/seat/help/log.md", "An impediment you are merely NOTING has its own word"},
 		{f + "agents/red-chair.md", "the work was impeded and the seat is noting it"},
-		{f + "tools/internal/cli/seat/seat.go", "a missing capability is a finding about the tooling"},
-		{f + "agents/red-chair.md", "is a finding against you"},
 		{f + "tools/internal/seatenv/seatenv.go", "record it with the friction verb"},
 		{f + "tools/internal/cli/root.go", "the friction footer"},
 	} {

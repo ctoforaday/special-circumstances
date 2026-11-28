@@ -11,7 +11,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
 )
 
-// A SEAT'S WORDS REACH THE SET AS TEXT, THROUGH THE REAL ASSEMBLY. A lens files a finding that
+// A SEAT'S WORDS REACH THE SET AS TEXT, THROUGH THE REAL ASSEMBLY. A lens mints a gap whose problem
 // names the report's own computation footnote — a label report.md defines and the board document does
 // not — and logs a regex whose character class is the two characters that open a footnote. The
 // set that assembles carries both as typed and escaped, and capture's audit of it passes: the one
@@ -34,8 +34,9 @@ func TestASeatsWordsOpenNoFootnoteInTheSet(t *testing.T) {
 		"--question", "whether a tokenizer built on [^,]+ splits an empty field", "--hypothesis", "it does not"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := runAt(t, "finding", "--run", runDir, "--seat-id", "red-lens-evidence", "--quote", sentence,
-		"--reason", "the one footnote [^K1] cites types its constants instead of computing them",
+	if _, err := runAt(t, "mint", "--run", runDir, "--seat-id", "red-lens-evidence", "--key", "G-words", "--quote", sentence,
+		"--class", "spec_underspecification", "--problem", "the one footnote [^K1] cites types its constants instead of computing them",
+		"--check-kind", "document", "--check", "the constants are computed",
 		"--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
 		t.Fatal(err)
 	}
@@ -60,7 +61,7 @@ func TestASeatsWordsOpenNoFootnoteInTheSet(t *testing.T) {
 		t.Fatalf("the fixture's report does not carry the weave's own computation note and its definition:\n%s", body[report.FileReport])
 	}
 	if d := body[report.FileDocket]; !strings.Contains(d, `the one footnote \[^K1] cites`) {
-		t.Errorf("the board document does not carry the finding's words escaped:\n%s", d)
+		t.Errorf("the board document does not carry the gap's words escaped:\n%s", d)
 	}
 	// Its `<` ship as the entity, as every `<` outside code does.
 	if r := body[report.FileRun]; !strings.Contains(r, `grep -o '\[^&lt;>]{0,120}term\[^&lt;>]{0,120}'`) {
@@ -79,6 +80,6 @@ func TestASeatsWordsOpenNoFootnoteInTheSet(t *testing.T) {
 		t.Errorf("the inquiries document carries the inquiry's words unescaped:\n%s", av)
 	}
 	if a := capture.FootnoteIntegrity(runtest.Open(t, set)); a.Verdict != "PASS" {
-		t.Errorf("the set a finding and a log entry were printed into fails the footnote audit: %s", a.Detail)
+		t.Errorf("the set a gap and a log entry were printed into fails the footnote audit: %s", a.Detail)
 	}
 }

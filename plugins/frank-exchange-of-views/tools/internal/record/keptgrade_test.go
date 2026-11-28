@@ -12,7 +12,7 @@ import (
 
 const keptReason = "the acceptance check still fails: the sentence still names 7 as the only factor"
 
-// keepGrade is the minting lens's regrade that names no grade: it keeps the gap's grade, with why.
+// keepGrade is the assignee's regrade that names no grade: it keeps the gap's grade, with why.
 func (b *stage) keepGrade(lens, gap, reason string) *stage {
 	return b.add(lens, &recordpb.Regrade{GapId: proto.String(gap), Basis: proto.String(reason)})
 }
@@ -112,5 +112,45 @@ func TestTheBlueAnsweredItemNamesTheActThatKeepsTheGrade(t *testing.T) {
 	got := blueAnswersT(t, b.evs, []WorkGapState{{ID: "G1", Open: true, lensDue: true}}, evLens)
 	if len(got) != 1 || !strings.Contains(got[0], "keep its grade with a regrade that states what your own check still fails") {
 		t.Fatalf("the blue-answered item names no act for what the check still fails: %q", got)
+	}
+}
+
+// A GAP ON A GAP: THE KEEP'S REASON REACHES ITS AUTHOR, the minter of the gap it is about (X17). The
+// other lens raises H1 on G1; G1's minter answers H1 by a regrade of G1 naming it; H1's raiser keeps
+// H1's grade. The item is on G1's minter's work list, not blue's, and goes once that minter answers
+// H1 again.
+func TestTheAuthorOfAGapOnAGapReadsItsKeptGrade(t *testing.T) {
+	board := func() *stage {
+		b := newStage(t).cast(evLens, otherLens, "red-chair", "blue-respond", "judge").ingest().register("red-chair").register(evLens)
+		b.mint(evLens, "G1", "high")
+		m := rawMint("H1")
+		m.ClassMaterial = nil
+		m.AboutKind, m.AboutRef = recordpb.AboutKind_ABOUT_KIND_GAP.Enum(), proto.String("G1")
+		b.add(otherLens, m)
+		return b.add(evLens, &recordpb.Regrade{GapId: proto.String("G1"), Answers: proto.String("H1"), Severity: recordpb.Grade_GRADE_LOW.Enum(), Basis: proto.String("H1 is right")})
+	}
+	item := func(t *testing.T, b *stage, role, seat string) bool {
+		t.Helper()
+		s := sittingOfRunT(t, b.register(seat).seed(), role, seat)
+		return slices.ContainsFunc(s.Open, func(i Item) bool {
+			return strings.Contains(i.What, "gap H1: its lens re-audited it and KEEPS ITS GRADE") && strings.Contains(i.What, keptReason)
+		})
+	}
+	if !item(t, board().keepGrade(otherLens, "H1", keptReason), "lens", evLens) {
+		t.Errorf("G1's minter's work list does not carry the reason H1's raiser kept H1's grade")
+	}
+	if item(t, board().keepGrade(otherLens, "H1", keptReason), "blue", "blue-respond") {
+		t.Errorf("blue's work list carries a kept grade on H1, a gap blue does not author")
+	}
+	// A KEPT GRADE ON A GAP THE LENS DOES NOT AUTHOR is not its work: the other lens's own gap about the
+	// report, kept, is blue's.
+	other := board().mint(otherLens, "G2", "high").keepGrade(otherLens, "G2", keptReason)
+	if s := sittingOfRunT(t, other.register(evLens).seed(), "lens", evLens); slices.ContainsFunc(s.Open, func(i Item) bool { return strings.Contains(i.What, "gap G2: its lens re-audited it") }) {
+		t.Errorf("G1's minter's work list carries the kept grade of G2, a gap blue authors")
+	}
+	answered := board().keepGrade(otherLens, "H1", keptReason).
+		add(evLens, &recordpb.Regrade{GapId: proto.String("G1"), Answers: proto.String("H1"), Severity: recordpb.Grade_GRADE_MEDIUM.Enum(), Basis: proto.String("answered again")})
+	if item(t, answered, "lens", evLens) {
+		t.Errorf("the kept grade stays on G1's minter's list after it answered H1 again")
 	}
 }

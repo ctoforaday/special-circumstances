@@ -10,13 +10,15 @@ The sentence is found in the report as the record holds it, so a lane must have 
 
 A CITATION CAN BE A GAP'S ANSWER. Name the gap it answers, and the citation is placed as that gap's answer; while it stands it answers that gap, and retiring it takes the answer away. Only a live citation answers a gap whose check kind is `source`, and the demand on its close is this: {{.DemandClause}}. A citation may answer a gap of any check kind; only the demanded kind discharges a demand. A `source` gap whose fix rewords the sentence is not answered by the edit: cite the source on the reworded sentence as that gap's answer, and where that citation replaces an older one, retire the older one naming that gap too. A citation leaves by a `retire` naming it alone, its sentence kept, or with its sentence, when an edit cuts it.
 
+A STATEMENT STANDING ON A GAP HOLDS UNTIL ITS RULING. While a docketing or a proposal stands on a gap, the text the gap's lens states in its closing there is what the bench applies when it sides with it: a citation whose anchor lands inside the words that statement quotes, after which it no longer applies to the report, is refused, naming that docketing or proposal, and nothing is recorded. A citation that leaves each of them applying lands.
+
 To RESOLVE an anchor you meet while reading (not create one), read the `evidence` projection, which lists every source by anchor id.
 
 A CITATION HOLDS THE SOURCE'S WORDS. Where the tool holds the source's text — a page's text, a PDF's text layer, an OCR reading — the citation names the words it relies on, one of two ways: quote them, copied from that cached text, and the tool finds them there once at a boundary; or name their lines, as `show source` numbers them in the text its `text_sha` names, and the tool takes those lines whole — the way to cite a row of a table or a data file, which ends no clause. Either way the tool records the words, where they sit, and the source's text around them, and prints the words back; the citation is those words from then on. That text is what a lens reads your sentence against; your reason is shown beside it as yours. Copy enough of a quoted sentence that it is found once. OCR-DERIVED TEXT CAN MISREAD, so for it the tool also records the PDF page the span sits on — never type a page — and the span must sit whole on one page of the reading; the refusal says which fix applies when it does not. A source the tool holds no text for is cited without a span, and the citation records that its text origin is none.
 
 THE BOUNDARY RULE: {{.SpanBoundary}}.
 
-THE TEXT PRINTS ITS MARKUP, AND THE SPAN QUOTES IT: {{.TextMarkup}}.
+{{.TextMarkupRule}}
 
 THE TITLE IS PRINTED IN THE REPORT, in the source's note and its Bibliography entry; the tool adds the PDF page to the note of a quote from OCR text. Give the source's own name — author, work, section — for a reader of the SUBJECT, not an account of how you found or read it: no "this sitting" or "this run", no "re-read at the leaf". How much of the source you read is not the title's to say. Where that reading matters to a claim, say it in the report's prose, in the subject's terms: "the source, read in full, states…", "the abstract claims, and the body does not show, …". The tool flags a title that sounds like the run talking about itself; it refuses nothing, because a real source's own title can.
 

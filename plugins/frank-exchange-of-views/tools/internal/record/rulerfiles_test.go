@@ -16,11 +16,8 @@ import (
 func filingBy(subj recordpb.MotionSubject) proto.Message {
 	m := &recordpb.Motion{MotionId: proto.String("M9"), Basis: proto.String("the ask")}
 	switch subj {
-	case recordpb.MotionSubject_MOTION_SUBJECT_GRADE:
-		m.Filing = &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("G2"),
-			Dimension: recordtest.P(recordpb.GradeDimension_GRADE_DIMENSION_SEVERITY), Proposed: recordtest.P(recordpb.Grade_GRADE_LOW)}}
 	case recordpb.MotionSubject_MOTION_SUBJECT_DOCKET:
-		m.Filing = &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}}
+		return regradeMotion("M9", "G1", "the ask")
 	case recordpb.MotionSubject_MOTION_SUBJECT_PETITION:
 		m.Filing = &recordpb.Motion_Petition{Petition: &recordpb.PetitionMotion{Class: recordtest.P(recordpb.PetitionClass_PETITION_CLASS_SAFETY)}}
 	case recordpb.MotionSubject_MOTION_SUBJECT_POSITION:
@@ -74,11 +71,21 @@ func TestTheWriteRefusesAFilingByTheSubjectsRuler(t *testing.T) {
 		}
 		t.Run(word+", filed by another seat", func(t *testing.T) {
 			run := motionGuardRun(t)
+			if subj == recordpb.MotionSubject_MOTION_SUBJECT_DOCKET {
+				// A seat's docket filing waits on the gap's standing proposal and its first exchange:
+				// the bench answers M1 on docketing D1, and blue sits on G1 engaged and sits again.
+				mustAppend(t, sit(t, run, benchSeat), heldBy(actRule("M1", false, benchSeat), "D1"))
+				// The ruling's tombstone bars a proposal on G1 until blue's reword ends it; the end row
+				// that reword's write path writes stands in for it here.
+				recordtest.Seed(t, run.Dir(), recordtest.At(t, blueRespondSeat, "blue-respond:tombstone:end-G1", &recordpb.Tombstone{
+					GapId: proto.String("G1"), Kind: recordpb.TombstoneKind_TOMBSTONE_KIND_RULING.Enum(), Ends: proto.Bool(true)}))
+				exchangeOn(t, run, "G1")
+			}
 			mustAppend(t, sit(t, run, filer), filingBy(subj))
 		})
 		checked++
 	}
-	if checked < 4 {
+	if checked < vals.Len()-1 || checked < 3 {
 		t.Errorf("only %d subjects were driven — the walk is meant to cover the whole enum", checked)
 	}
 }

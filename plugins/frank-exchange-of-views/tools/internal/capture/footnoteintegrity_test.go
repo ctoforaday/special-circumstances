@@ -99,19 +99,19 @@ func TestFootnoteIntegritySkipsBeforeAssembly(t *testing.T) {
 }
 
 // A SEAT'S WORDS ARE NOT A REFERENCE ONCE ASSEMBLY HAS ESCAPED THEM, and they are one where it has
-// not. The two lines are the wave B smoke's: a finding in the board document naming the report's
+// not. The two lines are the wave B smoke's: a gap's text in the board document naming the report's
 // footnote, which report.md defines and docket.md does not, and a log entry in the run document
 // quoting a regex. Printed raw, each is a reference with no definition in its document — the board
 // document's became a citation link to nowhere in report.html — and the audit says so.
 func TestFootnoteIntegrityReadsAnEscapedNoteAsText(t *testing.T) {
 	const (
-		finding = "K-c53c6b2c, the other anchor on the same sentence and the one footnote %s cites, still types the constants."
+		gapText = "K-c53c6b2c, the other anchor on the same sentence and the one footnote %s cites, still types the constants."
 		logged  = "- **red-lens-evidence** (friction): the form grep -o '%s{0,120}term%s{0,120}', fails with a complexity-limit error."
 	)
 	set := func(open string) string {
 		run := writeReport(t, "# A report\n\nThe norms multiply to 8281[^K5].\n\n[^K5]: The norms of 7, 3 + 2i and 3 − 2i multiply to 8281.\n")
 		for name, body := range map[string]string{
-			"docket.md": "# the board\n\n### F-76352127 (dark-side)\n" + fmt.Sprintf(finding, open+"K5]") + "\n",
+			"docket.md": "# the board\n\n### G-76352127 (dark-side)\n" + fmt.Sprintf(gapText, open+"K5]") + "\n",
 			"run.md":    "# the run\n\n" + fmt.Sprintf(logged, open+"<>]", open+"<>]") + "\n",
 		} {
 			if err := os.WriteFile(filepath.Join(run, name), []byte(body), 0o644); err != nil {

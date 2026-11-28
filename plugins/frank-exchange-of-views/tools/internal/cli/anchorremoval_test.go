@@ -59,7 +59,7 @@ func TestAnchorRemovalIsOneView(t *testing.T) {
 		g := mintWithProposal(t, runDir, "G1", "Five independent verification approaches agree", prescribedText)
 		h := mintWithProposal(t, runDir, "H1", "Another sentence stays", "Another sentence stays, as written.")
 		registerBlue(t, runDir)
-		if _, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat, "--key", "A1", "--answers", g, "--accept",
+		if _, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat, "--key", "A1", "--accept", g,
 			"--reason", "red's wording"); err != nil {
 			t.Fatalf("accept: %v", err)
 		}
@@ -69,7 +69,7 @@ func TestAnchorRemovalIsOneView(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			_, ok := record.EstoppelConflict(fam, prescribedText)
+			_, ok := record.EstoppelConflict(fam, lensSeat, prescribedText)
 			return ok
 		}
 		if !estops() {

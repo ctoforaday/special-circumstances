@@ -8,6 +8,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
 // AN INQUIRY IS JUDGED FOR QUALITY, AS A CITATION AND A COMPUTATION ARE (ruled by gblock 2026-11-01:
@@ -32,8 +33,8 @@ import (
 // logic lens, whose area is leaps of faith, missing counterarguments and unexplored alternatives —
 // what an inquiry's fate claims to have weighed. ONE OWNER, for the reason a citation and a
 // computation have one (anchorOwnerOf): a duty on every lens's list puts lenses dispatched together
-// in a race over one judgement. Every other lens reads an inquiry as content, and mints its gap or
-// files its finding about one as it would about a sentence.
+// in a race over one judgement. Every other lens reads an inquiry as content, and mints its gap
+// about one as it would about a sentence.
 const inquiryOwner = "red-lens-logic"
 
 // InquiryOwner is the seat that owes every settled inquiry's check.
@@ -54,9 +55,8 @@ func inquiryCheckStands(a *Inquiry, at int64) bool {
 	return at > a.Fate && at > a.GapMint
 }
 
-// InquiryJudgement is one inquiry with its judged state's inputs: the open material gaps about it,
-// the latest act that put its check in question, and the findings other lenses filed about it since
-// its latest fate.
+// InquiryJudgement is one inquiry with its judged state's inputs: the open material gaps about it
+// and the latest act that put its check in question.
 type InquiryJudgement struct {
 	*Inquiry
 	// Wanting is the open material gaps about it, in board order.
@@ -65,8 +65,6 @@ type InquiryJudgement struct {
 	// mint, a regrade, a close or a docket ruling of a gap about it. Dispatch readies the owner once
 	// per cause.
 	cause int64
-	// findings is each finding another seat filed about it since its latest fate, as "<id> (<seat>)".
-	findings []string
 	// gaps is each gap minted about it since its latest check — every one where it has none — as
 	// "<id> (<seat>)": what put that check in question, which the owner judges the fate with in hand.
 	gaps []string
@@ -105,7 +103,7 @@ func inquiryJudgementsOf(evs []*Event, ids []int64, win WindowIndex, gaps []bloc
 		}
 	}
 	// EVERY ACT THAT MOVES A GAP ABOUT IT IS A CAUSE: the mint that made it wanting, and the regrade,
-	// close, superseding mint or docket ruling that may have ended that. A cause the owner has sat through since readies
+	// close or docket ruling that may have ended that. A cause the owner has sat through since readies
 	// it no more (dispatch's Source 4).
 	about := map[string]int{}
 	moved := func(gap string, at int64) {
@@ -120,9 +118,6 @@ func inquiryJudgementsOf(evs []*Event, ids []int64, win WindowIndex, gaps []bloc
 		}
 		switch t := body.(type) {
 		case *recordpb.Mint:
-			for _, anc := range t.GetSupersedes() {
-				moved(anc, ids[k])
-			}
 			if t.GetAboutKind() != recordpb.AboutKind_ABOUT_KIND_INQUIRY {
 				continue
 			}
@@ -130,25 +125,26 @@ func inquiryJudgementsOf(evs []*Event, ids []int64, win WindowIndex, gaps []bloc
 				about[t.GetGapId()] = i
 				out[i].cause = max(out[i].cause, ids[k])
 				if ids[k] > out[i].LastCheck {
-					out[i].gaps = append(out[i].gaps, t.GetGapId()+" ("+e.GetSeatId()+")")
+					out[i].gaps = append(out[i].gaps, t.GetGapId()+" ("+mintersOf(evs)[t.GetGapId()]+")")
 				}
 			}
 		case *recordpb.Regrade:
 			moved(t.GetGapId(), ids[k])
 		case *recordpb.Close:
 			moved(t.GetGapId(), ids[k])
-		case *recordpb.Finding:
-			if t.GetAboutKind() != recordpb.AboutKind_ABOUT_KIND_INQUIRY || e.GetSeatId() == inquiryOwner {
-				continue
-			}
-			if i, ok := byID[t.GetAboutRef()]; ok && ids[k] > out[i].Fate {
-				out[i].findings = append(out[i].findings, t.GetId()+" ("+e.GetSeatId()+")")
-			}
 		}
 	}
+	// THE ASSIGNEE'S ACCEPT APPLIES THE ACT IT ACCEPTS; A BENCH RULING MOVES ITS GAP BY WHAT ITS
+	// TRANSACTION WROTE (Docketing.movesGap): a ruling for the gap as it stands, and grades kept, move
+	// nothing the inquiry's owner reads again.
 	for _, m := range motionsAt(evs, ids, win) {
-		if m.Subject == "docket" && m.Ruled() {
+		if m.Subject == "docket" && m.Ruled() && seatclass.RoleOfSeat(m.RulingBy) != "bench" {
 			moved(m.GapID, m.ruled)
+		}
+	}
+	for _, d := range docketingsAt(evs, ids) {
+		if d.Ruled() && d.movesGap() {
+			moved(d.GapID, d.ruled)
 		}
 	}
 	return out
@@ -165,7 +161,7 @@ func inquiryBlockersOf(evs []*Event, ids []int64, win WindowIndex, gaps []blocke
 			out = append(out, Blocker{Kind: BlockerOpenInquiry, Subject: j.ID, Owner: blueRespondSeat, Detail: j.Status, since: j.Fate})
 		case len(j.Wanting) == 0 && j.Check == nil:
 			out = append(out, Blocker{Kind: BlockerUncheckedInquiry, Subject: j.ID, Owner: inquiryOwner, Detail: j.Status,
-				since: j.Fate, placed: j.cause, lastCheck: j.LastCheck, notes: j.findings, gaps: j.gaps, gapMint: j.GapMint})
+				since: j.Fate, placed: j.cause, lastCheck: j.LastCheck, gaps: j.gaps, gapMint: j.GapMint})
 		}
 	}
 	return out
@@ -209,15 +205,12 @@ func uncheckedInquiryFact(b Blocker) string {
 	return s
 }
 
-// uncheckedInquiryAct is how an unchecked inquiry is judged, with the findings other lenses filed
-// about it since its fate and the gaps minted about it since its last check, so the owner's
+// uncheckedInquiryAct is how an unchecked inquiry is judged, with the gaps minted about it since its
+// last check, so the owner's
 // judgement is not blind to them.
 func uncheckedInquiryAct(b Blocker) string {
 	s := fmt.Sprintf("%s owes the judgement: read its row (`show inquiries`) and the report's account of the research it names, then `inquiry check --id %s --reason \"<why its fate stands as the report's account of it>\"` where it is sound, or mint the gap about it (`mint --about-kind inquiry --about %s`) where it is wanting — class out_of_scope where it asks a question this run was not asked",
 		ownerOr(b, inquiryOwner), b.Subject, b.Subject)
-	if len(b.notes) > 0 {
-		s += ". Findings other lenses filed about it since its fate: " + strings.Join(b.notes, ", ")
-	}
 	if len(b.gaps) > 0 {
 		since := "since its last check, which they put in question"
 		if b.lastCheck == 0 {
@@ -277,7 +270,7 @@ func StandingInquiryCheck(run Run, id string) (*InquiryCheckStep, error) {
 func requireInquiryCheck(w writeView, seatID string, b *recordpb.InquiryCheck) error {
 	id := b.GetInquiryId()
 	if seatID != inquiryOwner {
-		return feov.Errorf(feov.RoleViolation, "the check of an inquiry is %s's, the lens that owns every inquiry's judgement; you are %s. Where you find inquiry %s wanting, mint the gap about it (`mint --about-kind inquiry --about %s`), or file a finding about it, which reaches %s's work list", inquiryOwner, seatID, id, id, inquiryOwner)
+		return feov.Errorf(feov.RoleViolation, "the check of an inquiry is %s's, the lens that owns every inquiry's judgement; you are %s. Where you find inquiry %s wanting, mint the gap about it (`mint --about-kind inquiry --about %s`), which %s reads when it judges the inquiry", inquiryOwner, seatID, id, id, inquiryOwner)
 	}
 	if err := requireInquiry(w.q, id, "--id"); err != nil {
 		return err

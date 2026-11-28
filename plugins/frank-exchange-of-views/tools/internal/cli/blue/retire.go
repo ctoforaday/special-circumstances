@@ -25,7 +25,7 @@ import (
 // names it — this verb, or the cut that took its sentence.
 //
 // A RETIRE TAKES ONE ANCHOR OFF A SENTENCE THAT STAYS: a citation whose source cannot be read, a
-// computation judged unsound, a finding, or a closed gap's marker. An open gap's own marker is refused
+// computation judged unsound, or a closed gap's marker. An open gap's own marker is refused
 // (F14): a cut of its sentence is its raiser's turn.
 func newRetire() *cobra.Command {
 	named := flags.IDList(flags.AnchorID)
@@ -43,6 +43,31 @@ func newRetire() *cobra.Command {
 			Reason:  proto.String(why),
 			Answers: proto.String(seat.Str(cmd, flags.Answers)),
 		}
+		// THE AUTHOR TAKES THE RAISER'S STATED RETIRE (--accept G): the tool supplies the anchor the gap
+		// is about, and the retire answers the gap, accepted. Under a docketing it is blue's concession.
+		if g := seat.Str(cmd, flags.Accept); g != "" {
+			for _, f := range []string{flags.Anchor, flags.Answers} {
+				if cmd.Flags().Changed(f) {
+					return nil, feov.Errorf(feov.Validation, "--accept %s supplies the anchor its raiser states a retire of, and names the gap the retire answers — passing --%s as well would be a second source for one fact. Drop it, or drop --accept and retire by your own judgment", g, f)
+				}
+			}
+			run, err := s.Run()
+			if err != nil {
+				return nil, err
+			}
+			st, found, err := record.StatementOf(run, g)
+			if err != nil {
+				return nil, err
+			}
+			if !found {
+				return nil, feov.Errorf(feov.NotFound, "--accept: no gap %s on the board", g)
+			}
+			if !st.Retire {
+				return nil, feov.Errorf(feov.Conflict, "--accept: gap %s's raiser states no retire of its anchor in its closing, so there is nothing for retire to take: a pair it states is taken by `edit --accept %s`", g, g)
+			}
+			body.Answers, body.Accepted = proto.String(g), proto.Bool(true)
+			return retireAnchor(s, body, []string{st.AboutRef})
+		}
 		return retireAnchor(s, body, named.Value())
 	}))
 
@@ -50,8 +75,10 @@ func newRetire() *cobra.Command {
 	// off the report.
 	seat.Supplies(c, "claim", "the sentence the retired anchor stood on, read off the report; it stays word for word")
 	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.Answers, "the gap id this retire responds to — the provenance join key an edit carries, so the gap's change log lists the retire beside what red asked for; omit only for a retire that answers no gap")
-	c.Flags().Var(named, flags.Anchor, "the one anchor `id`, of any kind, to retire while its sentence stays in the report word for word. An open gap's own marker is refused: carry it, or cut its sentence with an edit, which hands the gap to its lens. A citation a computation still in the report names as its method is refused while that computation stands: take the computation out first, by its own retire or a cut of its sentence")
-	return seat.Require(c, flags.Anchor)
+	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.Accept, "take the retire gap G's raiser states in its closing EXACTLY: the G- id of the gap. The tool supplies the anchor the gap is about, and the retire answers it, so you pass neither --anchor nor --answers. Under a docketing it is your concession, ending the docketing and your proposal on the gap with no ruling; refused under grade movement. --reason is still your own argument")
+	c.Flags().Var(named, flags.Anchor, "the one anchor `id`, of any kind, to retire while its sentence stays in the report word for word. An open gap's own marker is refused: carry it, or cut its sentence with an edit, which hands the gap to its raiser. A citation a computation still in the report names as its method is refused while that computation stands: take the computation out first, by its own retire or a cut of its sentence")
+	seat.RequiredUnlessGiven(c, flags.Anchor, flags.Accept)
+	return c
 }
 
 // retireAnchor takes one anchor of any kind off its sentence, which stays word for word. IT IS HOW BLUE
@@ -70,8 +97,18 @@ func retireAnchor(s seat.Context, body *recordpb.Retire, named []string) (seat.R
 		return nil, feov.Errorf(feov.Validation, "--anchor retires one anchor and keeps its sentence, and this names %d: %s. Retire each in its own retire, or cut the sentence they stand on with `edit`", len(named), strings.Join(named, ", "))
 	}
 	id := named[0]
+	if _, err := record.Append(s.Identity(), body, append([]record.Guard{record.Check(RetireAnchor(body, id))}, roadsHold(editRemedy)...)...); err != nil {
+		return nil, err
+	}
+	return retireResult{Claim: body.GetClaim(), Anchors: body.Anchors, Noun: record.EvidenceNoun(id), Answers: body.GetAnswers()}, nil
+}
+
+// RetireAnchor is the guard of a retire that keeps its sentence: it reads the sentence holding id's
+// token in the report the retire lands on into body, and refuses an anchor on no sentence. The bench's
+// answer for red applies a closing's --retire through it.
+func RetireAnchor(body *recordpb.Retire, id string) func(*record.Landing) error {
 	noun, tok := record.EvidenceNoun(id), anchor.Token(id)
-	guard := func(l *record.Landing) error {
+	return func(l *record.Landing) error {
 		md, err := l.Report()
 		if err != nil {
 			return feov.Wrap(feov.Internal, err, "the report could not be read from the record to find the sentence %s %s stands on, so nothing is recorded: %v", noun, id, err)
@@ -84,10 +121,6 @@ func retireAnchor(s seat.Context, body *recordpb.Retire, named []string) (seat.R
 		body.Anchors = []string{id}
 		return nil
 	}
-	if _, err := record.Append(s.Identity(), body, record.Check(guard)); err != nil {
-		return nil, err
-	}
-	return retireResult{Claim: body.GetClaim(), Anchors: body.Anchors, Noun: noun, Answers: body.GetAnswers()}, nil
 }
 
 // quoteCore is a quote or span reduced to what it says: anchors out, the list marker or block-quote

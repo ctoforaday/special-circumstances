@@ -36,7 +36,7 @@ import (
 // record's classes, the bench's dispositions, an envelope enum and the prose of a prompt — with no
 // mechanism able to see them disagree.
 // DispositionRemanded is the ONE bench disposition that does not end a gap: it sends the gap back
-// to the debate for one more exchange between its minting lens and blue, on the research direction
+// to the debate for one more exchange between its assignee and blue, on the research direction
 // the ruling states (remandStageOf says what a remand still owes).
 //
 // It stays a named constant because it is the word the CLI defaults to and the seat-facing help
@@ -159,34 +159,25 @@ const (
 
 // artifactByClass is the total part of the mapping. Its domain is the classes that close a gap
 // (ClosureClasses): ArtifactStateOf is asked only a closed gap's fate (EstoppedJSON, in
-// viewjson.go). `amends_prior` is absent on purpose: it inherits from the ruling it amends and
-// needs a lookup, not a table row.
+// viewjson.go).
 var artifactByClass = map[string]ArtifactState{
-	"repaired":                 ArtifactRepaired,
-	"repaired_with_regression": ArtifactDefectLive, // repaired here, and a live successor carries the remainder
-	"not_a_defect":             ArtifactNoDefect,
-	"defect_accepted":          ArtifactDefectLive,
-	"defect_owed_elsewhere":    ArtifactDefectLive,
+	"repaired":              ArtifactRepaired,
+	"not_a_defect":          ArtifactNoDefect,
+	"defect_accepted":       ArtifactDefectLive,
+	"defect_owed_elsewhere": ArtifactDefectLive,
 	// MOOT CLOSES THE GAP AND LEAVES THE MERITS UNANSWERED, which is why it is unexamined
 	// although it ends the gap. Closure and artifact state are orthogonal here and this is the
 	// class that shows it.
 	//
 	// It is not `repaired` — nobody verified a fix. It is not `no_defect` — that asserts red was
-	// WRONG, and a mooted finding may have been entirely right about text that has since gone. It
+	// WRONG, and a mooted gap may have been entirely right about text that has since gone. It
 	// is not `defect_live` — the text it attached to is not in the report to ship. What is true is
 	// that the question was never reached: the predicate expired underneath it.
 	"moot": ArtifactUnexamined,
 }
 
 // ArtifactStateOf answers what a closure class says about the ARTIFACT.
-//
-// `amends_prior` returns ok=false: it is defined relative to an earlier ruling, so this function
-// cannot answer alone and says so rather than guessing. The caller walks the lineage — and a
-// caller that cannot must report the miss, not substitute a plausible value.
 func ArtifactStateOf(class string) (ArtifactState, bool) {
-	if class == "amends_prior" {
-		return "", false
-	}
 	if s, ok := artifactByClass[class]; ok {
 		return s, true
 	}
@@ -248,11 +239,6 @@ var EnumFields = map[string][]EnumField{
 		Key: "type", Flag: flags.Type, Values: evsOf(recordpb.LogType(0).Descriptor()),
 		Why: "the operator triages this channel by FILTERING on the type; an untyped entry hands the reader back the reading this field exists to replace, so the write refuses one",
 	}},
-	// `finding`, and the ABOUT is the anchor a quote could not provide.
-	"finding": {{
-		Key: "about_kind", Flag: flags.AboutKind, Optional: true, Values: evsOf(recordpb.AboutKind(0).Descriptor()),
-		Why: "a subject that is not report text has no sentence to quote, and borrowing an innocent one as a handle points a reader at prose the finding itself calls fine. These targets are references the record can CHECK",
-	}},
 	// `inquiry`, the event type whose body holds the status set.
 	"inquiry": {{
 		Key: "status", Flag: flags.As, Values: InquiryStatuses,
@@ -268,13 +254,19 @@ var EnumFields = map[string][]EnumField{
 	// vocabulary it already has. The check carries the inquiry's id and prose, nothing else.
 	// THE MOTION SETS ARE NOT HERE (#344): they are keyed on (subject, key), which this map cannot
 	// express, and live in record/motion.go.
+	// `closing`: the author's word at an impasse docketing, the closing word a ruling for the author
+	// writes. The same set as a close's (#1695 L34).
+	"closing": {{
+		Key: "closure_class", Flag: flags.As, Values: ClosureClasses, Optional: true,
+		Why: "the author's statement at an impasse docketing: the closing word a ruling for the author writes, where the author's text stands as `not_a_defect` without one",
+	}},
 	"close": {{
 		Key: "closure_class", Flag: flags.As, Values: ClosureClasses,
 		// Optional per this file's own rule: closing a SET is not the same decision as making
 		// the flag REQUIRED, and conflating them here would make several flags mandatory as a
 		// side effect. required.go owns requiredness.
 		Optional: true,
-		Why:      "the class is HOW the gap ended, and every downstream reader interprets it — the closure index, the repair_regression denominator, and the successor invariant that fires on repaired_with_regression alone. An unrecognized class lands in no bucket and the gap reads as closed for no stated reason",
+		Why:      "the class is HOW the gap ended, and every downstream reader interprets it — the closure index and the report's closed rows. An unrecognized class lands in no bucket and the gap reads as closed for no stated reason",
 	}},
 	"mint": {
 		{
@@ -285,13 +277,11 @@ var EnumFields = map[string][]EnumField{
 			Key: "check_kind", Flag: flags.CheckKind, Values: evsOf(recordpb.CheckKind(0).Descriptor()),
 			Why: "the kind says WHAT WOULD SETTLE the acceptance check, and it is the lever that asks blue for a program. A run whose checks are all document probes can only ever ask whether the report SAYS something; a `computation` check is a demand that cannot be answered in prose",
 		},
-		// THE SET `finding` CARRIES, FROM THE SAME DECLARATION, because it is the same question asked
-		// at the next step of one act. Mint's help used to send an omission back to a borrowed quote —
-		// "quote the sentence where it SHOULD be" — which is the handle the finding had just been
-		// taught to stop using.
+		// AN OMISSION'S SUBJECT IS A REFERENCE, never a borrowed quote of the sentence where it SHOULD
+		// be.
 		{
 			Key: "about_kind", Flag: flags.AboutKind, Optional: true, Values: evsOf(recordpb.AboutKind(0).Descriptor()),
-			Why: "a gap about an absence has no sentence to quote either, and the gap list is the surface a reader actually walks: an anchor that points at prose the gap calls fine sends them to the wrong paragraph. These targets are references the record can CHECK",
+			Why: "a gap about what is not report text has no sentence to quote, and borrowing one sends a reader to prose the gap calls fine. These targets are references the record CHECKS",
 		},
 	},
 	// `position`, and its class is the mint's set: the same KIND-of-defect question asked of the

@@ -56,7 +56,7 @@ func ConfidenceOf(word string) (recordpb.Confidence, bool) {
 	return enumOf[recordpb.Confidence](recordpb.Confidence(0).Descriptor(), word)
 }
 
-// GradeDimensionOf resolves the axis a grade motion contests. Each axis is spelled as the flag
+// GradeDimensionOf resolves a grade axis by its word. Each axis is spelled as the flag
 // that sets it; `complexity_cost` is the payload key the complexity grade is stored under, which no
 // seat types and this does not resolve.
 func GradeDimensionOf(word string) (recordpb.GradeDimension, bool) {
@@ -88,8 +88,7 @@ func DispositionOf(word string) (recordpb.Disposition, bool) {
 	return enumOf[recordpb.Disposition](recordpb.Disposition(0).Descriptor(), word)
 }
 
-// AboutKindOf resolves the word a seat types for what a finding or a gap is anchored to — one
-// vocabulary, because `lens finding` and `lens mint` name the same three things.
+// AboutKindOf resolves the word a seat types for what a gap is anchored to when it is not a sentence.
 func AboutKindOf(word string) (recordpb.AboutKind, bool) {
 	return enumOf[recordpb.AboutKind](recordpb.AboutKind(0).Descriptor(), word)
 }

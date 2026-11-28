@@ -11,10 +11,12 @@ TWO CONSEQUENCES:
 1 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
   · the whole report arrives on your work list this sitting, one item after each of your tool calls, and your envelope waits until all of it has been delivered to you. A lens is delivered the whole report at its first sitting and once more at its next — its full re-read — and at every other sitting the changes since its pin and its own gaps' passages; the PASS is refused while a lens that has sat still owes either whole delivery
 
-$ finding --run {RUN} --seat-id red-lens-evidence --key F1 --severity low --likelihood low --impact low --quote A claim sits under S2. --reason older shard
+$ mint --run {RUN} --seat-id red-lens-evidence --key K1 --class spec_underspecification --check-kind document --check x --severity low --likelihood low --impact low --quote A claim sits under S2. --problem older shard
 exit 0
 stdout:
-finding recorded: FINDING001 (evidence) — the id a gap's found_by names
+minted GAP001
+  acceptance check RECORDED as: x
+  (read it back — a shell may have rewritten it before this tool saw it; your amend restates it at your next sitting)
 1 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
   · the whole report arrives on your work list this sitting, one item after each of your tool calls, and your envelope waits until all of it has been delivered to you. A lens is delivered the whole report at its first sitting and once more at its next — its full re-read — and at every other sitting the changes since its pin and its own gaps' passages; the PASS is refused while a lens that has sat still owes either whole delivery
 
@@ -31,10 +33,12 @@ TWO CONSEQUENCES:
 1 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
   · the whole report arrives on your work list this sitting, one item after each of your tool calls, and your envelope waits until all of it has been delivered to you. A lens is delivered the whole report at its first sitting and once more at its next — its full re-read — and at every other sitting the changes since its pin and its own gaps' passages; the PASS is refused while a lens that has sat still owes either whole delivery
 
-$ finding --run {RUN} --seat-id red-lens-evidence --key F2 --severity low --likelihood low --impact low --quote A claim sits under S2. --reason newer shard
+$ mint --run {RUN} --seat-id red-lens-evidence --key K2 --class false_universal --check-kind document --check x --severity low --likelihood low --impact low --quote A claim sits under S2. --problem newer shard
 exit 0
 stdout:
-finding recorded: FINDING002 (evidence) — the id a gap's found_by names
+minted GAP002
+  acceptance check RECORDED as: x
+  (read it back — a shell may have rewritten it before this tool saw it; your amend restates it at your next sitting)
 1 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
   · the whole report arrives on your work list this sitting, one item after each of your tool calls, and your envelope waits until all of it has been delivered to you. A lens is delivered the whole report at its first sitting and once more at its next — its full re-read — and at every other sitting the changes since its pin and its own gaps' passages; the PASS is refused while a lens that has sat still owes either whole delivery
 
@@ -42,17 +46,17 @@ finding recorded: FINDING002 (evidence) — the id a gap's found_by names
 {"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}
 {"key":"harness:setup:report","report_part":{"text":"## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n"},"seat_id":"harness","ts":1,"type":"EVENT_TYPE_REPORT_PART"}
 {"key":"red-lens-evidence:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-lens-evidence","ts":2,"type":"EVENT_TYPE_REGISTER"}
-{"finding":{"finding_key":"F1","id":"FINDING001","impact":"GRADE_LOW","likelihood":"GRADE_LOW","location":"A claim sits under S2.","severity":"GRADE_LOW","text":"older shard"},"key":"red-lens-evidence:finding:FINDING001","seat_id":"red-lens-evidence","ts":3,"type":"EVENT_TYPE_FINDING"}
-{"anchor":{"id":"FINDING001","location":"A claim sits under S2."},"key":"red-lens-evidence:anchor:FINDING001","seat_id":"red-lens-evidence","ts":4,"type":"EVENT_TYPE_ANCHOR"}
+{"key":"red-lens-evidence:mint:GAP001","mint":{"acceptance_check":"x","check_kind":"CHECK_KIND_DOCUMENT","class":"GAP_CLASS_SPEC_UNDERSPECIFICATION","class_material":"CLASS_MATERIAL_BY_GRADE","fix_basis":"proposed","gap_id":"GAP001","impact":"GRADE_LOW","likelihood":"GRADE_LOW","location":"A claim sits under S2.","mint_key":"K1","problem":"older shard","required_fix":"","severity":"GRADE_LOW"},"seat_id":"red-lens-evidence","ts":3,"type":"EVENT_TYPE_MINT"}
+{"anchor":{"id":"GAP001","location":"A claim sits under S2."},"key":"red-lens-evidence:anchor:GAP001","seat_id":"red-lens-evidence","ts":4,"type":"EVENT_TYPE_ANCHOR"}
 {"key":"red-lens-evidence:register:#2","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-lens-evidence","ts":5,"type":"EVENT_TYPE_REGISTER"}
-{"finding":{"finding_key":"F2","id":"FINDING002","impact":"GRADE_LOW","likelihood":"GRADE_LOW","location":"A claim sits under S2.","severity":"GRADE_LOW","text":"newer shard"},"key":"red-lens-evidence:finding:FINDING002","seat_id":"red-lens-evidence","ts":6,"type":"EVENT_TYPE_FINDING"}
-{"anchor":{"id":"FINDING002","location":"A claim sits under S2."},"key":"red-lens-evidence:anchor:FINDING002","seat_id":"red-lens-evidence","ts":7,"type":"EVENT_TYPE_ANCHOR"}
+{"key":"red-lens-evidence:mint:GAP002","mint":{"acceptance_check":"x","check_kind":"CHECK_KIND_DOCUMENT","class":"GAP_CLASS_FALSE_UNIVERSAL","class_material":"CLASS_MATERIAL_ALWAYS","fix_basis":"proposed","gap_id":"GAP002","impact":"GRADE_LOW","likelihood":"GRADE_LOW","location":"A claim sits under S2.","mint_key":"K2","problem":"newer shard","required_fix":"","severity":"GRADE_LOW"},"seat_id":"red-lens-evidence","ts":6,"type":"EVENT_TYPE_MINT"}
+{"anchor":{"id":"GAP002","location":"A claim sits under S2."},"key":"red-lens-evidence:anchor:GAP002","seat_id":"red-lens-evidence","ts":7,"type":"EVENT_TYPE_ANCHOR"}
 
 ═══ RENDERS ═══
 -- inquiries
 # Inquiries — RENDERED PROJECTION (source of truth: the record, records/record.db)
 
-_No inquiries recorded. On a run past epoch 0 that is itself a finding: the exploration
+_No inquiries recorded. On a run past epoch 0 that is itself a defect: the exploration
 either did not happen or was not written down, and a report with no roads-not-taken is
 indistinguishable from one that never looked._
 
@@ -78,7 +82,8 @@ A claim sits under S4.
 
 | Risk | Likelihood | Impact | Complexity to mitigate | Mitigation / disposition |
 |---|---|---|---|---|
-| _(no open gaps)_ |  |  |  |  |
+| older shard | low | low | — | — |
+| newer shard | low | low | — | — |
 
 The matrix is a scan surface: a cell is the field's first sentence, or its first 100 characters cut at a word boundary and marked `…`. Each row's full problem statement, required fix and acceptance check are in [the board](docket.md).
 

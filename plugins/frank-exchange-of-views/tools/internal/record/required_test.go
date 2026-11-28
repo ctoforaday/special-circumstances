@@ -27,9 +27,9 @@ func TestAFalsyReviewFlagSatisfiesTheRequirement(t *testing.T) {
 	// `review_flag` is a STRING field carrying the seat's answer; "false" is an answer, and the
 	// requirement is satisfied by the field holding text, whatever that text reads as.
 	o := &recordpb.MotionRule{
-		MotionId: proto.String("M1"),
-		Opinion:  proto.String("r"),
+		Opinion: proto.String("r"),
 		Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
+			DocketingId: proto.String("D1"),
 			Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REMANDED),
 			Principle:   proto.String("p"), Tension: proto.String("t"),
 			ReviewFlag: proto.String("false"),
@@ -37,7 +37,7 @@ func TestAFalsyReviewFlagSatisfiesTheRequirement(t *testing.T) {
 			Direction:  proto.String("a reproduction on the shipped binary"),
 		}},
 	}
-	if err := validateRun(docketBench(t), "judge", recordpb.EventType_EVENT_TYPE_MOTION_RULE, o); err != nil {
+	if err := validateRun(docketBenchSat(t), "judge", recordpb.EventType_EVENT_TYPE_MOTION_RULE, o); err != nil {
 		t.Errorf("a legitimately falsy review_flag was treated as missing: %v", err)
 	}
 }
@@ -149,7 +149,7 @@ func TestMintRequiresTheGradesThatMultiplyIntoMass(t *testing.T) {
 // guarantee.
 //
 // The rule is subject-aware, so it is enforced where the subject is known (requireMotionSubjectRef).
-// This pins the arm a key would also hold: a grade ruling resolves against the MOTIONS and says which
+// This pins the arm a key would also hold: a docket ruling resolves against the MOTIONS and says which
 // it could not find.
 func TestARulingsReferentDependsOnItsSubject(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
@@ -158,14 +158,10 @@ func TestARulingsReferentDependsOnItsSubject(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// A GRADE ruling names a motion, and resolves against a different table entirely.
-	grade := &recordpb.MotionRule{
-		MotionId: proto.String("M9"),
-		Opinion:  proto.String("the grade stands"),
-		Ruling:   &recordpb.MotionRule_Grade{Grade: recordpb.GradeRuling_GRADE_RULING_REJECTED},
-	}
-	if err := validateRun(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_MOTION_RULE, grade); err == nil {
-		t.Error("a grade ruling named M9, which nobody filed, and was accepted — the ordering hazard stands for the subjects that DO have a filing")
+	// A DOCKET ruling names a motion, and resolves against a different table entirely.
+	docket := actRule("M9", false, "judge")
+	if err := validateRun(mustRun(t, runDir), "judge", recordpb.EventType_EVENT_TYPE_MOTION_RULE, docket); err == nil {
+		t.Error("a docket ruling named M9, which nobody filed, and was accepted — the ordering hazard stands for the subjects that DO have a filing")
 	}
 }
 

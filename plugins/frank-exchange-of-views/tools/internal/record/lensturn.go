@@ -20,8 +20,7 @@ type EarlyLensDispatch struct {
 // (ruled by gblock 2026-10-30) — what capture's lens-turn audit names. The plan engages a lens only
 // once its turn has come, so a row here is a plan defect, or a run dispatched by a binary that did
 // not hold the rule: universe-m36 holds seven, each a lens that sat first and audited an answer that
-// did not exist yet. A gap a successor names is not counted after that successor's mint: the mint
-// closed it, and a row naming it there engages no turn.
+// did not exist yet.
 func EarlyLensDispatches(run Run) ([]EarlyLensDispatch, error) {
 	var evs []*Event
 	var win WindowIndex
@@ -46,19 +45,11 @@ func EarlyLensDispatches(run Run) ([]EarlyLensDispatch, error) {
 // earlyLensDispatchesOf is EarlyLensDispatches over a read stream and the "remand" view's rows.
 func earlyLensDispatchesOf(evs []*Event, win WindowIndex, remands map[string][]remandRow) []EarlyLensDispatch {
 	ids := win.IDs(evs)
-	acts, mintedAt := gapActsOf(evs, ids, win), mintPlaces(evs, ids)
-	minted := mintedBy(evs)
-	turns := lensTurnActsOf(evs, ids, acts, gapSittingsOf(evs, ids, win, AfterTheRun, minted), minted)
-	superseded := map[string]int64{} // gap → the place of the first mint that names it superseded, which closed it
-	for i, e := range evs {
-		if m := e.GetMint(); m != nil {
-			for _, s := range m.GetSupersedes() {
-				if _, seen := superseded[s]; !seen {
-					superseded[s] = ids[i]
-				}
-			}
-		}
-	}
+	acts, mintedAt := gapActsOf(evs, ids), mintPlaces(evs, ids)
+	minted := assigneeOf(evs)
+	turns := lensTurnActsOf(evs, ids, win, acts, gapSittingsOf(evs, ids, win, AfterTheRun, minted), minted)
+	authorOf := authorsOn(evs)
+	opens := benchAmendPlaces(evs, ids)
 	var out []EarlyLensDispatch
 	for i, e := range evs {
 		d, ok := recordpb.BodyAs[*recordpb.Dispatch](e)
@@ -67,10 +58,12 @@ func earlyLensDispatchesOf(evs []*Event, win WindowIndex, remands map[string][]r
 		}
 		at := ids[i]
 		for _, g := range d.GetGapIds() {
-			if s, named := superseded[g]; named && s < at {
+			// A LENS ENGAGED ON A GAP IT DID NOT RAISE IS THAT GAP'S AUTHOR (a gap about its gap), whose
+			// turn is not the raiser's to audit: only the raiser's dispatch can come early.
+			if minted[g] != d.GetSeatId() {
 				continue
 			}
-			if !lensTurnOn(turns[g], d.GetSeatId(), mintedAt[g], latestBefore(remandPlaces(remands[g]), at), at) {
+			if !lensTurnOn(turns[g], d.GetSeatId(), authorOf(g), mintedAt[g], latestBefore(roundOpeners(remandPlaces(remands[g]), opens[g]), at), at) {
 				out = append(out, EarlyLensDispatch{At: at, SeatID: d.GetSeatId(), GapID: g})
 			}
 		}
@@ -78,20 +71,20 @@ func earlyLensDispatchesOf(evs []*Event, win WindowIndex, remands map[string][]r
 	return out
 }
 
-// EarlyDocket is one docket motion the dispatch filed on a gap whose minting lens still had its audit
-// to come (lensGoesFirst), read on the record as it stood at the filing.
+// EarlyDocket is one impasse docketing the dispatch wrote on a gap whose assignee still had its
+// audit to come (lensGoesFirst), read on the record as it stood at the docketing.
 type EarlyDocket struct {
-	At     int64  // the motion's events.id
-	Motion string // the motion's id
-	GapID  string
+	At        int64  // the docketing's events.id
+	Docketing string // the docketing's id
+	GapID     string
 }
 
-// EarlyDockets is every docket motion of the chair's on the record that came before its lens's
-// re-audit (ruled by gblock 2026-10-31) — what capture's docket-order audit names. The plan never files
-// one, so a row here is a plan defect, or a run dispatched by a binary that did not hold the rule:
-// universe-m37 holds six, five of them closed by the lens minutes after the filing. A motion a party
-// filed is not counted: the write admits it whatever the lens's turn. The chair's own `motion docket
-// file` is counted with the dispatch's: the order is the chair's to keep either way.
+// EarlyDockets is every impasse docketing on the record written before its lens's re-audit (ruled by
+// gblock 2026-10-31) — what capture's docket-order audit names. The plan never writes one, so a row
+// here is a plan defect, or a run dispatched by a binary that did not hold the rule: universe-m37 holds
+// six, five of them closed by the lens minutes after they were written. Only cause IMPASSE is counted:
+// routeLensFirst orders the lens's audit before the impasse docketing alone, grade movement is docketed
+// whatever the lens's turn, and a PROPOSAL docketing is a party's.
 func EarlyDockets(run Run) ([]EarlyDocket, error) {
 	p, err := RunParams(run)
 	if err != nil {
@@ -117,11 +110,11 @@ func EarlyDockets(run Run) ([]EarlyDocket, error) {
 	ids := win.IDs(evs)
 	var out []EarlyDocket
 	for i, e := range evs {
-		m, ok := recordpb.BodyAs[*recordpb.Motion](e)
-		if !ok || e.GetSeatId() != chairSeat || m.GetDocket().GetGapId() == "" {
+		d, ok := recordpb.BodyAs[*recordpb.Docketing](e)
+		if !ok || d.GetCause() != recordpb.DocketingCause_DOCKETING_CAUSE_IMPASSE || d.GetGapId() == "" {
 			continue
 		}
-		g := m.GetDocket().GetGapId()
+		g := d.GetGapId()
 		before := map[string][]remandRow{}
 		for _, r := range remands[g] {
 			if r.eventID < ids[i] {
@@ -129,7 +122,7 @@ func EarlyDockets(run Run) ([]EarlyDocket, error) {
 			}
 		}
 		if x := exchangesOf(evs[:i], ids[:i], win, p, WhileRunning, before)[g]; x != nil && (x.lensFirst || x.lensAudit) {
-			out = append(out, EarlyDocket{At: ids[i], Motion: m.GetMotionId(), GapID: g})
+			out = append(out, EarlyDocket{At: ids[i], Docketing: d.GetDocketingId(), GapID: g})
 		}
 	}
 	return out, nil

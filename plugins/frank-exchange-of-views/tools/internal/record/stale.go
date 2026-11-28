@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
 // StaleChange is one act on a gap that a seat's sitting opened before: its events.id, the seat
@@ -68,12 +69,12 @@ func Fresh(seatID, gapID string) Guard {
 
 // staleOf is StaleOn over a loaded stream.
 //
-// WHAT COUNTS AS A CHANGE is the work list's own news on a gap (gapNewsOf) — blue's answer, an
-// accepted grade motion, the bench's remand, another seat's finding about it — and the acts that
-// move the gap's state, which that fold leaves out because they are its minting lens's own or end
-// the gap: a close, a regrade, the bench's ruling on a docket motion on it, and its upholding of a
-// position naming it, which remands it. A seat's own acts are
-// never news to it.
+// WHAT COUNTS AS A CHANGE is the work list's own news on a gap (gapNewsOf) — blue's answer, a
+// reaching retire, the bench's remand — and the acts that
+// move the gap's state, which that fold leaves out because they are its assignee's own or end
+// the gap: a close, a regrade, an amend, the bench's ruling on a docket motion on it, and its upholding of a
+// position naming it, which remands it. On a gap about a gap, the close, regrade or amend of the gap
+// it is about is news too. A seat's own acts are never news to it.
 func staleOf(evs []*Event, win WindowIndex, seatID, gapID string) []StaleChange {
 	sitting := win.LatestSittingOf(seatID)
 	from := sitting
@@ -82,11 +83,14 @@ func staleOf(evs []*Event, win WindowIndex, seatID, gapID string) []StaleChange 
 	}
 	ids := win.IDs(evs)
 	seatAt := make(map[int64]string, len(evs))
-	minter := ""
+	minter, subject := "", ""
 	for i, e := range evs {
 		seatAt[ids[i]] = e.GetSeatId()
 		if m := e.GetMint(); m != nil && m.GetGapId() == gapID {
-			minter = e.GetSeatId()
+			minter = assigneeOf(evs)[gapID]
+			if m.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_GAP {
+				subject = m.GetAboutRef()
+			}
 		}
 		if s := e.GetStale(); s != nil && s.GetGapId() == gapID && e.GetSeatId() == seatID && win.Of(e).SittingID == sitting {
 			from = max(from, s.GetThrough())
@@ -103,20 +107,32 @@ func staleOf(evs []*Event, win WindowIndex, seatID, gapID string) []StaleChange 
 			out = append(out, StaleChange{ID: at, SeatID: seatAt[at], What: what})
 		}
 	}
-	for _, n := range gapNewsOf(evs, ids, win, []blockerGap{{id: gapID, mintedBy: minter}}) {
+	for _, n := range gapNewsOf(evs, ids, win, []blockerGap{{id: gapID, assignee: minter}}) {
 		add(n.at, n.item)
 	}
+	// A GAP ABOUT A GAP IS ABOUT THAT GAP'S WORDING AND GRADES: an act on it reads its subject as
+	// the sitting found it, so a close, regrade or amend of the subject is news to it too.
 	for i, e := range evs {
-		switch {
-		case e.GetClose() != nil && e.GetClose().GetGapId() == gapID:
-			add(ids[i], "closed "+gapID+" as "+recordpb.Word(e.GetClose().GetClosureClass()))
-		case e.GetRegrade() != nil && e.GetRegrade().GetGapId() == gapID:
-			add(ids[i], "regraded "+gapID)
+		for _, g := range []string{gapID, subject} {
+			switch {
+			case g == "":
+			case e.GetClose() != nil && e.GetClose().GetGapId() == g:
+				add(ids[i], "closed "+g+" as "+recordpb.Word(e.GetClose().GetClosureClass()))
+			case e.GetRegrade() != nil && e.GetRegrade().GetGapId() == g:
+				add(ids[i], "regraded "+g)
+			case e.GetAmend() != nil && e.GetAmend().GetGapId() == g:
+				add(ids[i], "amended "+g)
+			}
+		}
+	}
+	for _, d := range docketingsAt(evs, ids) {
+		if d.Ruled() && d.GapID == gapID {
+			add(d.ruled, "the bench ruled "+gapID+" "+d.Word()+" in "+d.ID)
 		}
 	}
 	for _, m := range motionsAt(evs, ids, win) {
-		if m.Subject == "docket" && m.Ruled() && m.GapID == gapID {
-			add(m.ruled, "the bench ruled "+gapID+" "+m.Ruling+" in "+m.ID)
+		if m.Subject == "docket" && m.Ruled() && m.GapID == gapID && seatclass.RoleOfSeat(m.RulingBy) != "bench" {
+			add(m.ruled, m.RulingBy+" accepted motion "+m.ID+"'s "+m.Act+" of "+gapID)
 		}
 		if slices.Contains(upheldPositionGaps(m), gapID) {
 			add(m.ruled, "the bench remanded "+gapID+" upholding position "+m.ID)

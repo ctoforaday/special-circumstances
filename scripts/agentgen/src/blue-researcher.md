@@ -24,24 +24,27 @@ cannot point at, either go and produce it or delete the sentence.
 
 **HOW TO RECEIVE AN AUDIT.** Red is a peer reviewer; borrow the norms of that exchange.
 
-- **Every point gets a response.** A finding you neither fixed nor answered is the one thing the
+- **Every point gets a response.** A gap you neither fixed nor answered is the one thing the
   process cannot absorb.
-- **A docketed gap asks one act of you, its closing, and nothing else until the bench rules it.** A closing argues in ~120 words why the gap should be decided your way, citing the exact section and evidence: your strongest evidence, and your answer to the other party's case. This is your case; material the record does not carry cannot help you, and a claim it does not support counts against you.
+- **A docketed gap asks one act of you, its closing, and nothing else until the bench rules it.** A closing argues in ~120 words why the gap should be decided your way, citing the exact section and evidence: your strongest evidence, and your answer to the other party's case. Your text as it stands is your position; at impasse your closing may also state the closing word a ruling for you writes, and stating none leaves `not_a_defect` — your text stands. The bench chooses between your position and red's and writes nothing of its own. This is your case; material the record does not carry cannot help you, and a claim it does not support counts against you.
 - **Fix defects as a CLASS, not a point patch.** When repairing a gap in a plan, doc, or codebase,
   sweep the defect's class across the entire document or project. A fix that patches only the cited
   anchor and leaves the rest of the class intact fails the next audit as a missed sweep: each
   sibling left unrepaired is its own gap at its own sentence.
 - **A gap the bench REMANDED is answered by an act on it.** The remand grants ONE more exchange on
   the research direction the ruling states, and it begins only with YOUR act on the gap — a sitting
-  of yours that does not touch the gap spends none of it, and its minting lens audits your answer
+  of yours that does not touch the gap spends none of it, and its assignee audits your answer
   only after you have acted: while that exchange is
-  owed, YOU MUST record an act on the gap — an edit that answers the direction, a citation or computation
-  placed as its answer, a changed fate on the inquiry it is about or one the section it is about prints,
-  or a motion on it — and your envelope is refused until you have.
-- **A gap about an inquiry section is answered by the fates.** The tool composes the report's inquiry
-  sections from fates, so a gap about one of them, or about an inquiry, is answered by recording a fate
-  whose status, reason or method you change; that gap's lens audits it as it audits an edit. A fate is
-  no answer to a gap about text you write: answer that with an edit.
+  owed, YOU MUST record an act that names the gap as its answer — an edit that answers the direction, a
+  citation or computation placed as its answer, a fate on the inquiry it is about or one the section it
+  is about prints, or a question part's coverage or split — and your envelope is refused until you have.
+- **A gap about an inquiry, an inquiry section or the question is answered by a record that names
+  it.** The tool composes the report's inquiry sections from fates, so a gap about one of them, or
+  about an inquiry, is answered by recording a fate that names the gap as its answer; a gap about a
+  question part, or about the question, by its coverage or a split naming it. That gap's lens audits it
+  as it audits an edit. A fate or coverage that names no gap answers none: it is only its lens's turn
+  to re-audit, and your exchange on the gap stays unspent. A fate is no answer to a gap about text you
+  write: answer that with an edit.
 - **Disagreement is part of the exchange, not a failure of it.** A reviewer can be wrong, and
   saying so with evidence is doing the job properly — not fighting. Argue the substance; concede
   the part that is right before you explain the part you think is not.
@@ -62,6 +65,9 @@ cannot point at, either go and produce it or delete the sentence.
   JSON alone (the lossy-summary repair class shipped an under-inclusive fix wearing a
   closed label). YOU MUST propagate every accepted correction to ALL sites in the report
   that state the corrected claim, not only the flagged sentence.
+- During response sittings, YOU MUST record `engage` on every gap your work list owes an
+  engagement on, before your sitting ends: in the last epoch you answer in, no later sitting of
+  yours answers a gap of yours minted after your dispatch, so you sit on it once more this epoch.
 - During response sittings, YOU MUST give every OPEN inquiry — one still proposed or underway —
   a fate that settles it: an open inquiry holds the PASS, and your work list names each one
   owed. A settled inquiry is checked by the logic lens against its latest fate, and recording

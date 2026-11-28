@@ -32,7 +32,7 @@ func (b *stage) benchDispatch(pin int64, gaps []string) *stage {
 
 // DISPATCH READIES THE SEAT THAT OWES ANOTHER SEAT'S BLOCKER, ONCE PER CAUSE (#1202, #1203). A
 // petition filed on the record by any party seat is on no plan: the record's read reports its hearing
-// owed; a docket motion whose gap has since closed convenes the bench for that docket; a
+// owed; a docketing whose closings are in convenes the bench for it, once; a
 // citation a lens's reading found against readies blue; a citation or computation unchecked since
 // its sentence changed readies its owner (anchorOwnerOf; TestAReopenedAnchorReadiesItsOwner). Each edge the definition
 // distinguishes is a row: an owner that has sat for the cause since it arose is not readied again,
@@ -73,26 +73,28 @@ func TestDispatchReadiesTheSeatThatOwesEachBlocker(t *testing.T) {
 		{"a petition filed after a petition sitting is heard", func(b *stage) {
 			b.benchRegister(recordpb.Occasion_OCCASION_PETITION).add(outsideLens, petitionMotion("M1"))
 		}, want{benchSeat, false, nil, "the bench hears it as soon as nothing is running", []BenchHearing{BenchHearing(occasionPetition)}}},
-		{"a docket motion on a closed gap", func(b *stage) {
-			b.mint(evLens, "G1", "low").closeGap(evLens, "G1").docketMotion("blue-respond", "M1", "G1")
-		}, want{benchSeat, true, []string{"G1"}, "G1: docket motion M1 stands unruled on a gap no longer open — the bench is ready", nil}},
-		{"a docket motion on a closed gap the bench has sat for", func(b *stage) {
-			b.mint(evLens, "G1", "low").closeGap(evLens, "G1").docketMotion("blue-respond", "M1", "G1").
-				dispatch(2, benchSeat, "G1").benchRegister(recordpb.Occasion_OCCASION_DOCKET)
-		}, want{benchSeat, false, nil, "and the bench has sat since it was filed — not re-readied", nil}},
+		// A DOCKETING WHOSE CLOSINGS ARE IN readies the bench on the plan; a petition beside it is the
+		// read's, never the plan's.
 		{"a docket and a petition at once: the docket on the plan, the hearing on the read", func(b *stage) {
-			b.mint(evLens, "G1", "low").closeGap(evLens, "G1").docketMotion("blue-respond", "M1", "G1").
+			b.mint(evLens, "G1", "high").docketMotion("blue-respond", "D1", "G1").
+				closing(evLens, "G1").closing("blue-respond", "G1").
 				add(outsideLens, petitionMotion("M2"))
 		}, want{benchSeat, true, []string{"G1"}, "M2: petition, unruled — the bench hears it as soon as nothing is running", []BenchHearing{BenchHearing(occasionPetition)}}},
 		// A HEARING ANSWERS NO DOCKET. The engine hears a petition between the row and the bench's
 		// docket sitting; keyed on the first register after the row, the hearing read as the docket's
 		// and the docket was never readied again.
 		{"a bench that sat only to hear a petition after its docket's row is readied for the docket again", func(b *stage) {
-			b.mint(evLens, "G1", "low").closeGap(evLens, "G1").docketMotion("blue-respond", "M1", "G1").
+			b.mint(evLens, "G1", "high").docketMotion("blue-respond", "D1", "G1").
+				closing(evLens, "G1").closing("blue-respond", "G1").
 				add(outsideLens, petitionMotion("M2")).
 				benchDispatch(2, []string{"G1"}).
 				benchRegister(recordpb.Occasion_OCCASION_PETITION).add(benchSeat, petitionRuling("M2"))
-		}, want{benchSeat, true, []string{"G1"}, "G1: docket motion M1 stands unruled on a gap no longer open — the bench is ready", nil}},
+		}, want{benchSeat, true, []string{"G1"}, "G1: docketed and unruled — the bench is ready", nil}},
+		{"a docketing the bench has sat for is not re-readied", func(b *stage) {
+			b.mint(evLens, "G1", "high").docketMotion("blue-respond", "D1", "G1").
+				closing(evLens, "G1").closing("blue-respond", "G1").
+				dispatch(2, benchSeat, "G1").benchRegister(recordpb.Occasion_OCCASION_DOCKET)
+		}, want{benchSeat, false, nil, "one bench sitting per docketing, so this gap is not re-readied", nil}},
 		// A READING THAT FINDS AGAINST IS ITS READER'S DEBT (readingDebtsOf): the reader is readied to
 		// mint the gap on it or read again; blue is readied by the gap, never by the debt.
 		{"a reading debt readies its reader", func(b *stage) {
@@ -252,8 +254,8 @@ func TestAPlanAskedAgainKeepsTheSittingsDocket(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !slices.Equal(plan.Docket, []string{"G1"}) || len(plan.ToFile) != 0 {
-		t.Fatalf("asked again: docket %v, to file %v — want [G1] and nothing to file", plan.Docket, plan.ToFile)
+	if !slices.Equal(plan.Docket, []string{"G1"}) || len(docketGaps(plan)) != 0 {
+		t.Fatalf("asked again: docket %v, to file %v — want [G1] and nothing to file", plan.Docket, docketGaps(plan))
 	}
 	if ok, err := dispatchStandsOn(t, run, plan); err != nil || !ok {
 		t.Fatalf("asked again with nobody sat, the plan stands = %v (%v)", ok, err)

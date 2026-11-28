@@ -80,9 +80,7 @@ func result(name, okDetail, badDetail string, violations []string) Check {
 func Run(f record.Family) []Check {
 	return []Check{
 		gapsDisposed(f),
-		foundByResolves(f),
 		dialecticRefsResolve(f),
-		supersedesResolve(f),
 		passClosesAllGaps(f),
 		registerBeforeAppend(f),
 	}
@@ -139,35 +137,6 @@ func gapsDisposed(f record.Family) Check {
 		"a gap is closed with no recorded reason (a torn closure, not a decision)", bad)
 }
 
-// foundByResolves: every gap's found_by names a finding or observation that actually
-// exists on the record. Enforced at write time; verified here against the replayed set in case
-// a shard was hand-edited or lost.
-func foundByResolves(f record.Family) Check {
-	labels := map[string]bool{}
-	for _, e := range f.Events {
-		if f, ok := recordpb.BodyAs[*recordpb.Finding](e); ok {
-			if l := f.GetId(); l != "" {
-				labels[l] = true
-			}
-		}
-	}
-	var bad []string
-	for _, g := range f.Gaps {
-		id := g.ID
-		if g == nil || g.Mint == nil {
-			continue
-		}
-		for _, l := range g.Mint.GetFoundBy() {
-			if !labels[l] {
-				bad = append(bad, fmt.Sprintf("%s→%s", id, l))
-			}
-		}
-	}
-	return result("found-by-resolves",
-		"every found_by names a real finding",
-		"a gap's found_by names a finding that no lens recorded (attribution to a finding nobody made)", bad)
-}
-
 // dialecticRefsResolve: every act that argues ABOUT a gap (a closing, or a motion filed about
 // it) names a gap that exists. A dialectic event pointing at a phantom gap is a thread
 // with no anchor — it renders under nothing and audits nothing.
@@ -183,7 +152,7 @@ func dialecticRefsResolve(f record.Family) Check {
 		}
 	}
 	return result("dialectic-refs-resolve",
-		"every closing/grade motion/docket motion names a gap that exists",
+		"every closing/docket motion names a gap that exists",
 		"a dialectic act argues about a gap that is not on the record", bad)
 }
 
@@ -207,35 +176,12 @@ func dialecticGapID(e *record.Event) (string, bool) {
 	case *recordpb.Closing:
 		return f.GetGapId(), true
 	case *recordpb.Motion:
-		switch fil := f.GetFiling().(type) {
-		case *recordpb.Motion_Grade:
-			return fil.Grade.GetGapId(), true
-		case *recordpb.Motion_Docket:
-			return fil.Docket.GetGapId(), true
+		if d := f.GetDocket(); d != nil {
+			return d.GetGapId(), true
 		}
 		return "", true
 	}
 	return "", false
-}
-
-// supersedesResolve: a successor gap's lineage names ancestors that exist — the chain the
-// docket detector follows must not dead-end at a phantom.
-func supersedesResolve(f record.Family) Check {
-	var bad []string
-	for _, g := range f.Gaps {
-		id := g.ID
-		if g == nil || g.Mint == nil {
-			continue
-		}
-		for _, anc := range g.Mint.GetSupersedes() {
-			if f.Gap(anc) == nil {
-				bad = append(bad, fmt.Sprintf("%s⊃%s", id, anc))
-			}
-		}
-	}
-	return result("supersedes-resolve",
-		"every supersedes ancestor is a real gap",
-		"a gap's lineage names an ancestor that is not on the record", bad)
 }
 
 // passClosesAllGaps: the #67 gate, verified after the fact. A PASS with an open MATERIAL gap is a
@@ -311,14 +257,11 @@ func outcomeWord(o recordpb.RunOutcome) string { return strings.ToUpper(recordpb
 // (gaps_with_closing/dispute/disposition) is how "is the argument on the record?" becomes a number
 // — the record-only migration's progress bar.
 type Stats struct {
-	Verdict          string         `json:"verdict"`
-	Events           map[string]int `json:"events"`
-	GapsTotal        int            `json:"gaps_total"`
-	GapsOpen         int            `json:"gaps_open"`
-	GapsClosed       int            `json:"gaps_closed"`
-	Findings         int            `json:"findings"`
-	FindingsMinted   int            `json:"findings_minted"`
-	FindingsUnminted int            `json:"findings_unminted"`
+	Verdict    string         `json:"verdict"`
+	Events     map[string]int `json:"events"`
+	GapsTotal  int            `json:"gaps_total"`
+	GapsOpen   int            `json:"gaps_open"`
+	GapsClosed int            `json:"gaps_closed"`
 	// Citations is the count of cite events on the record — the canonical source for
 	// the envelope's citations_checked, which red used to self-report (fabricated on
 	// haiku). Cite events are keyed by reference (deriveKey), so re-verifying a source
@@ -328,7 +271,7 @@ type Stats struct {
 	GapsWithClosing int `json:"gaps_with_closing"`
 	GapsWithDispute int `json:"gaps_with_dispute"`
 	// GapsWithDisposition counts gaps the BENCH has settled: a `docket` motion, RULED. Only that
-	// subject settles a gap — a grade or a petition ruling answers a different question — so it
+	// subject settles a gap — a petition or a position ruling answers a different question — so it
 	// is the subject, not the ruling event, that qualifies the count.
 	GapsWithDisposition int `json:"gaps_with_disposition"`
 }
@@ -349,17 +292,6 @@ func Compute(f record.Family) Stats {
 		}
 	}
 
-	minted := map[string]bool{}
-	for _, g := range f.Gaps {
-		id := g.ID
-		_ = id
-		if g != nil && g.Mint != nil {
-			for _, l := range g.Mint.GetFoundBy() {
-				minted[l] = true
-			}
-		}
-	}
-	findingLabels := map[string]bool{}
 	withClosing, withDispute, withDisposition := map[string]bool{}, map[string]bool{}, map[string]bool{}
 	for _, e := range f.Events {
 		// COUNTED ON THE TYPE, NOT THE BODY. A verify event with an unreadable body is still a
@@ -374,52 +306,28 @@ func Compute(f record.Family) Stats {
 			continue
 		}
 		switch f := body.(type) {
-		case *recordpb.Finding:
-			if l := f.GetId(); l != "" {
-				findingLabels[l] = true
-			}
 		case *recordpb.Closing:
 			if gid := f.GetGapId(); gid != "" {
 				withClosing[gid] = true
 			}
 		case *recordpb.Motion:
-			// The grade-challenge stat. It counted `dispute` events until the motion collapse
-			// retired the type, after which it reported 0 for every run — indistinguishable
-			// from a run where nobody challenged a grade.
-			//
-			// The subject is read from the ENUM and the gap from the grade filing's own
-			// message, which is the pair the schema keeps in step: a petition motion has no
-			// gap_id to find, and could not carry one.
-			if f.Subject() != recordpb.MotionSubject_MOTION_SUBJECT_GRADE {
-				continue
-			}
-			if g, isGrade := f.GetFiling().(*recordpb.Motion_Grade); isGrade {
-				if gid := g.Grade.GetGapId(); gid != "" {
-					withDispute[gid] = true
-				}
+			// The dispute stat: a docket motion proposing an act on the gap — a regrade, a close
+			// or a supersede. The gap is the docket filing's own.
+			if gid := f.GetDocket().GetGapId(); gid != "" && f.GetAct() != nil {
+				withDispute[gid] = true
 			}
 		}
 	}
-	// THE DISPOSITION STAT NEEDS THE JOIN, so it cannot be gathered in the loop above. A ruling
-	// carries only the ask's id; the gap rides the FILING. record.Motions is the one place that
-	// pairing is computed, and reading it a second way here is how counters come to disagree.
-	for _, m := range record.MotionsOf(f.Events, f.At) {
-		if m == nil || m.Subject != "docket" || !m.Ruled() {
-			continue
-		}
-		if m.GapID != "" {
-			withDisposition[m.GapID] = true
+	// THE DISPOSITION STAT NEEDS THE JOIN, so it cannot be gathered in the loop above. A bench ruling
+	// carries the docketing's id; the gap rides the DOCKETING. record.DocketingsOf is the one place
+	// that pairing is computed, and reading it a second way here is how counters come to disagree. A
+	// gap's assignee accepting a proposed act answers no docketing, and settled nothing before it.
+	for _, d := range record.DocketingsOf(f.Events) {
+		if d.Ruled() && d.GapID != "" {
+			withDisposition[d.GapID] = true
 		}
 	}
 
-	s.Findings = len(findingLabels)
-	for l := range findingLabels {
-		if minted[l] {
-			s.FindingsMinted++
-		} else {
-			s.FindingsUnminted++
-		}
-	}
 	for _, g := range f.Gaps {
 		if g == nil {
 			continue

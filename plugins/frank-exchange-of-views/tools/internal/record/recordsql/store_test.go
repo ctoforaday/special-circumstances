@@ -54,8 +54,6 @@ func event(t *testing.T, ord int32, typ recordpb.EventType, body proto.Message) 
 // joins, constraints and aggregates — which is the trade this test exists to refuse.
 func TestABodyIsWrittenAsColumns(t *testing.T) {
 	db := store(t)
-	mintGap(t, db, 1, "G1")
-	mintGap(t, db, 2, "G2")
 	id, err := Insert(db, event(t, 0, recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{ClassMaterial: recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE.Enum(), Severity: recordpb.Grade_GRADE_HIGH.Enum(),
 		GapId:           proto.String("G3"),
 		Class:           recordpb.GapClass_GAP_CLASS_RISK_COVERAGE_OMISSION.Enum(),
@@ -64,7 +62,6 @@ func TestABodyIsWrittenAsColumns(t *testing.T) {
 		CheckKind:       recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(),
 		Likelihood:      recordpb.Grade_GRADE_HIGH.Enum(),
 		Impact:          recordpb.Grade_GRADE_HIGH.Enum(),
-		Supersedes:      []string{"G1", "G2"},
 	}))
 	if err != nil {
 		t.Fatal(err)
@@ -86,24 +83,6 @@ func TestABodyIsWrittenAsColumns(t *testing.T) {
 	}
 	if means == "" {
 		t.Error("the grade joins to an empty meaning")
-	}
-
-	// A repeated field is rows, in order, so lineage is queryable rather than a string to split.
-	rows, err := db.Query(`SELECT value FROM mint_supersedes WHERE event_id = ? ORDER BY ord`, id)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer rows.Close()
-	var got []string
-	for rows.Next() {
-		var v string
-		if err := rows.Scan(&v); err != nil {
-			t.Fatal(err)
-		}
-		got = append(got, v)
-	}
-	if len(got) != 2 || got[0] != "G1" || got[1] != "G2" {
-		t.Errorf("supersedes = %v, want [G1 G2]", got)
 	}
 }
 
@@ -153,54 +132,6 @@ func TestAnAbsentFieldIsNull(t *testing.T) {
 // A constraint that is wrong for one subject is worse than none. It refuses correct work,
 // and it reads as a guarantee.
 
-// A RULE THAT SPANS TWO FIELDS IS ENFORCED BY THE DATABASE, not only by the tool.
-//
-// "repaired_with_regression requires a successor" cannot be NOT NULL — the column must stay nullable
-// for every other closure class — so it lived as an `if` in validate. That left the DATABASE
-// willing to store the exact state the tool refused, and for a record that is EVIDENCE the gap is
-// real: anything writing SQL directly could create it, and the row would look legitimate.
-func TestARegressionClosureMustNameItsSuccessor(t *testing.T) {
-	db := store(t)
-	// Every gap named below, INCLUDING the successor: `close.successor` references mint.gap_id now,
-	// so "lineage never drops" no longer means "the field is non-empty". A successor naming a gap
-	// that does not exist carried the remainder forward to an id no board ever had.
-	for i, id := range []string{"G1", "G2", "G3", "G4"} {
-		mintGap(t, db, int32(10+i), id)
-	}
-	mk := func(seq int32) *recordpb.Event {
-		return event(t, seq, recordpb.EventType_EVENT_TYPE_CLOSE, &recordpb.Close{
-			GapId:        proto.String("G1"),
-			ClosureClass: recordpb.Disposition_DISPOSITION_REPAIRED_WITH_REGRESSION.Enum(),
-			Prose:        proto.String("repaired, and the retry path broke"),
-		})
-	}
-	if _, err := Insert(db, mk(0)); err == nil {
-		t.Fatal("a regression closure with no successor was stored — the thread from the defect to " +
-			"the gap now carrying it is lost, and the repair_regression denominator counts a closure " +
-			"that resolved nothing")
-	}
-
-	ok := event(t, 1, recordpb.EventType_EVENT_TYPE_CLOSE, &recordpb.Close{
-		GapId:        proto.String("G2"),
-		ClosureClass: recordpb.Disposition_DISPOSITION_REPAIRED_WITH_REGRESSION.Enum(),
-		Successor:    proto.String("G4"),
-		Prose:        proto.String("repaired, and G4 carries the regression"),
-	})
-	if _, err := Insert(db, ok); err != nil {
-		t.Fatalf("a regression closure that NAMES its successor was refused: %v", err)
-	}
-
-	// And an ordinary closure still needs no successor, or the rule is a wall rather than a gate.
-	plain := event(t, 2, recordpb.EventType_EVENT_TYPE_CLOSE, &recordpb.Close{
-		GapId:        proto.String("G3"),
-		ClosureClass: recordpb.Disposition_DISPOSITION_REPAIRED.Enum(),
-		Prose:        proto.String("verified at the leaf"),
-	})
-	if _, err := Insert(db, plain); err != nil {
-		t.Fatalf("an ordinary closure was refused for having no successor: %v", err)
-	}
-}
-
 // THE ROUND TRIP MUST PRESERVE PRESENCE, not merely values.
 //
 // Every field is optional, so "the seat set this" and "the seat did not" are different states and
@@ -218,7 +149,6 @@ func TestAnEventSurvivesTheRoundTripWithItsAbsencesIntact(t *testing.T) {
 		CheckKind:       recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(),
 		Likelihood:      recordpb.Grade_GRADE_HIGH.Enum(),
 		Impact:          recordpb.Grade_GRADE_HIGH.Enum(),
-		Supersedes:      []string{"G1", "G2"},
 		// severity and complexity_cost are deliberately NOT set: the axes this gap was never
 		// graded on, which must come back ungraded.
 	}
@@ -364,20 +294,17 @@ func TestAnUnruledMotionIsAColumn(t *testing.T) {
 		t.Helper()
 		if _, err := Insert(db, event(t, seq, recordpb.EventType_EVENT_TYPE_MOTION, &recordpb.Motion{
 			MotionId: proto.String(id),
-			Filing:   &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String(gap)}},
+			Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String(gap)}}, Act: regradeAct(gap),
 		})); err != nil {
 			t.Fatal(err)
 		}
 	}
 	file(0, "M1", "G1")
 	file(1, "M2", "G2")
-	if _, err := Insert(db, event(t, 2, recordpb.EventType_EVENT_TYPE_MOTION_RULE, &recordpb.MotionRule{
-		MotionId: proto.String("M1"),
-		Ruling:   &recordpb.MotionRule_Grade{Grade: recordpb.GradeRuling_GRADE_RULING_ACCEPTED},
-		// REQUIRED SINCE THE DOCKET RULING PUT THE BENCH'S ARGUMENT ON THIS FIELD. `prose()` has
-		// always refused an empty `--reason` at the CLI, so every ruling a seat wrote carried one;
-		// this fixture wrote through the SQL path, which had no such rule until the annotation.
-		Opinion: proto.String("the proposed grade stands"),
+	// M1 IS ANSWERED BY ITS GAP'S RAISER taking it: its own regrade carrying accepts.
+	if _, err := Insert(db, event(t, 2, recordpb.EventType_EVENT_TYPE_REGRADE, &recordpb.Regrade{
+		GapId: proto.String("G1"), Severity: recordpb.Grade_GRADE_LOW.Enum(), Basis: proto.String("the proposal holds"),
+		Accepts: proto.String("M1"),
 	})); err != nil {
 		t.Fatal(err)
 	}
@@ -387,9 +314,8 @@ func TestAnUnruledMotionIsAColumn(t *testing.T) {
 	// refusal that actually names unruled motions goes through motion_answers, and the gap comes from
 	// the filing arm that carries one, so the test asks what the product asks.
 	var id, gap string
-	if err := db.QueryRow(`SELECT m."motion_id", COALESCE(g."gap_id", gd."gap_id")
+	if err := db.QueryRow(`SELECT m."motion_id", gd."gap_id"
 	  FROM "motion" m
-	  LEFT JOIN "motion_grade" g ON g."event_id" = m."event_id"
 	  LEFT JOIN "motion_docket" gd ON gd."event_id" = m."event_id"
 	  LEFT JOIN "motion_answers" a ON a."motion_id" = m."motion_id"
 	  WHERE a."ruled_by" IS NULL`).Scan(&id, &gap); err != nil {
@@ -403,7 +329,7 @@ func TestAnUnruledMotionIsAColumn(t *testing.T) {
 // THE DATABASE REFUSES A REMAND WITHOUT A DIRECTION ON ITS OWN, with no write path in front of it.
 // The write path refuses it first, in words a bench can act on; the DocketRuling CHECK is what
 // holds when anything else inserts — migrate's replay, a fixture, a future verb. A remand ruled
-// final, or with a blank or whitespace direction, would reach blue and the minting lens owing
+// final, or with a blank or whitespace direction, would reach blue and the assignee owing
 // nothing; one stating what would reopen it states a condition for a gap it never closed.
 func TestTheDatabaseRefusesARemandWithoutADirection(t *testing.T) {
 	for _, c := range []struct {
@@ -432,14 +358,16 @@ func TestTheDatabaseRefusesARemandWithoutADirection(t *testing.T) {
 			if _, err := Insert(db, event(t, 1, recordpb.EventType_EVENT_TYPE_MOTION, &recordpb.Motion{
 				MotionId: proto.String("M1"),
 				Basis:    proto.String("red cannot settle this one"),
-				Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}},
+				Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}}, Act: regradeAct("G1"),
 			})); err != nil {
 				t.Fatalf("the record refused a docket motion: %v", err)
 			}
-			_, err := Insert(db, event(t, 2, recordpb.EventType_EVENT_TYPE_MOTION_RULE, &recordpb.MotionRule{
+			docketProposal(t, db, 2, "K1", "G1", "M1")
+			_, err := Insert(db, event(t, 3, recordpb.EventType_EVENT_TYPE_MOTION_RULE, &recordpb.MotionRule{
 				MotionId: proto.String("M1"),
 				Opinion:  proto.String("stated"),
 				Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
+					DocketingId: proto.String("K1"),
 					Disposition: recordpb.Disposition_DISPOSITION_REMANDED.Enum(),
 					Principle:   proto.String("correctness over economy"),
 					Tension:     proto.String("the repair costs a round"),
@@ -459,6 +387,88 @@ func TestTheDatabaseRefusesARemandWithoutADirection(t *testing.T) {
 				t.Errorf("the database refused a remand stating its direction: %v", err)
 			}
 		})
+	}
+}
+
+// AN ANSWER IS EXACTLY ONE OF A SIDE, A GRADE ANSWER AND A REMAND, AND THE DATABASE SAYS SO ON ITS
+// OWN. The write path refuses the wrong one per docketing; the DocketRuling CHECKs hold when anything
+// else inserts. Each refused case is refused by one CHECK alone, so deleting any one of them turns its
+// case green: neither and both (the exactly-one check), a grade answer ruled final (a closing word's
+// own check), a closing word stating neither --reopens-on nor --final, and a side with a direction.
+func TestTheDatabaseRefusesAMixedDocketAnswer(t *testing.T) {
+	notADefect := recordpb.Disposition_DISPOSITION_NOT_A_DEFECT.Enum()
+	blue := recordpb.SidedWith_SIDED_WITH_AUTHOR.Enum()
+	kept := recordpb.MovedGrades_MOVED_GRADES_KEPT.Enum()
+	for _, c := range []struct {
+		name        string
+		side        *recordpb.SidedWith
+		moved       *recordpb.MovedGrades
+		disposition *recordpb.Disposition
+		reopensOn   *string
+		final       *bool
+		direction   *string
+		refused     bool
+	}{
+		{"neither a side, a grade answer nor a remand", nil, nil, nil, nil, nil, nil, true},
+		{"both a side and a grade answer", blue, kept, nil, nil, nil, nil, true},
+		{"a grade answer ruled final", nil, kept, nil, nil, proto.Bool(true), nil, true},
+		{"a closing word stating neither", blue, nil, notADefect, nil, nil, nil, true},
+		{"a side with a direction", blue, nil, nil, nil, nil, proto.String("research more"), true},
+		{"a side", blue, nil, nil, nil, nil, nil, false},
+		{"a grade answer", nil, kept, nil, nil, nil, nil, false},
+		{"a side with its closing word", blue, nil, notADefect, nil, proto.Bool(true), nil, false},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			db := store(t)
+			mintGap(t, db, 0, "G1")
+			if _, err := Insert(db, event(t, 1, recordpb.EventType_EVENT_TYPE_MOTION, &recordpb.Motion{
+				MotionId: proto.String("M1"),
+				Basis:    proto.String("the gap is moot"),
+				Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}}, Act: regradeAct("G1"),
+			})); err != nil {
+				t.Fatalf("the record refused a docket motion: %v", err)
+			}
+			docketProposal(t, db, 2, "K1", "G1", "M1")
+			_, err := Insert(db, event(t, 3, recordpb.EventType_EVENT_TYPE_MOTION_RULE, &recordpb.MotionRule{
+				MotionId: proto.String("M1"),
+				Opinion:  proto.String("stated"),
+				Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
+					DocketingId: proto.String("K1"),
+					SidedWith:   c.side, MovedGrades: c.moved, Disposition: c.disposition,
+					ReopensOn: c.reopensOn, Final: c.final, Direction: c.direction,
+				}},
+			}))
+			switch {
+			case c.refused && err == nil:
+				t.Fatal("the database stored the answer")
+			case c.refused && !strings.Contains(err.Error(), "CHECK constraint failed"):
+				t.Errorf("refused, but not by the table's CHECK: %v", err)
+			case !c.refused && err != nil:
+				t.Errorf("the database refused it: %v", err)
+			}
+		})
+	}
+}
+
+// A PROPOSED ACT IS A DOCKET MOTION'S. The CHECK on the motion refuses an act on a petition, so
+// a filing no assignee can answer carries no act.
+func TestOnlyADocketMotionProposesAnAct(t *testing.T) {
+	db := store(t)
+	mintGap(t, db, 0, "G1")
+	regrade := &recordpb.Motion_Regrade{Regrade: &recordpb.Regrade{GapId: proto.String("G1"),
+		Severity: recordpb.Grade_GRADE_LOW.Enum(), Basis: proto.String("overstated")}}
+	_, err := Insert(db, event(t, 1, recordpb.EventType_EVENT_TYPE_MOTION, &recordpb.Motion{
+		MotionId: proto.String("M1"), Basis: proto.String("b"),
+		Filing: &recordpb.Motion_Petition{Petition: &recordpb.PetitionMotion{}}, Act: regrade,
+	}))
+	if err == nil || !strings.Contains(err.Error(), "CHECK constraint failed") {
+		t.Errorf("a petition proposing an act = %v, want refused by the motion's CHECK", err)
+	}
+	if _, err := Insert(db, event(t, 2, recordpb.EventType_EVENT_TYPE_MOTION, &recordpb.Motion{
+		MotionId: proto.String("M2"), Basis: proto.String("b"),
+		Filing: &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}}, Act: regrade,
+	})); err != nil {
+		t.Errorf("a docket motion proposing a regrade was refused: %v", err)
 	}
 }
 
@@ -491,18 +501,19 @@ func TestABenchDispositionClosesTheGapOnlyIfTheVocabularySaysSo(t *testing.T) {
 			})); err != nil {
 				t.Fatal(err)
 			}
-			// TWO ROWS, BECAUSE THE GAP RIDES THE FILING. The `gap` view joins the ruling
-			// back to its docket motion to learn which gap was disposed of, so a fixture
-			// that inserts only the ruling leaves the join empty — and an empty join reports
-			// the gap still open, which is exactly the wrong answer this test exists to catch.
-			if _, err := Insert(db, event(t, 1, recordpb.EventType_EVENT_TYPE_MOTION, &recordpb.Motion{
-				MotionId: proto.String("M1"),
-				Basis:    proto.String("red cannot settle this one"),
-				Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}},
+			// TWO ROWS, BECAUSE THE GAP RIDES THE DOCKETING. The `gap` view joins the ruling
+			// back to its docketing to learn which gap was disposed of, so a fixture that inserts
+			// only the ruling leaves the join empty — and an empty join reports the gap still open,
+			// which is exactly the wrong answer this test exists to catch.
+			if _, err := Insert(db, event(t, 1, recordpb.EventType_EVENT_TYPE_DOCKETING, &recordpb.Docketing{
+				DocketingId: proto.String("K1"), GapId: proto.String("G1"),
+				Cause: recordpb.DocketingCause_DOCKETING_CAUSE_IMPASSE.Enum(), Basis: proto.String("red cannot settle this one"),
 			})); err != nil {
-				t.Fatalf("the record refused a docket motion: %v", err)
+				t.Fatalf("the record refused a docketing: %v", err)
 			}
 			dr := &recordpb.DocketRuling{
+				DocketingId: proto.String("K1"),
+				SidedWith:   recordpb.SidedWith_SIDED_WITH_AUTHOR.Enum(),
 				Disposition: c.as.Enum(),
 				Principle:   proto.String("correctness over economy"),
 				Tension:     proto.String("the repair costs a round"),
@@ -512,12 +523,11 @@ func TestABenchDispositionClosesTheGapOnlyIfTheVocabularySaysSo(t *testing.T) {
 			}
 			// A remand states the direction its exchange owes, never final.
 			if c.as == recordpb.Disposition_DISPOSITION_REMANDED {
-				dr.Final, dr.Direction = nil, proto.String("a reproduction on the shipped binary")
+				dr.Final, dr.SidedWith, dr.Direction = nil, nil, proto.String("a reproduction on the shipped binary")
 			}
 			if _, err := Insert(db, event(t, 2, recordpb.EventType_EVENT_TYPE_MOTION_RULE, &recordpb.MotionRule{
-				MotionId: proto.String("M1"),
-				Opinion:  proto.String("stated"),
-				Ruling:   &recordpb.MotionRule_Docket{Docket: dr},
+				Opinion: proto.String("stated"),
+				Ruling:  &recordpb.MotionRule_Docket{Docket: dr},
 			})); err != nil {
 				t.Fatalf("the record refused a disposition the bench is instructed to use: %v", err)
 			}
@@ -587,15 +597,13 @@ func TestTheVocabularySaysWhichWordsEndAGap(t *testing.T) {
 		got[word] = closes
 	}
 	want := map[string]bool{
-		"amends_prior":             true,
-		"remanded":                 false,
-		"repaired":                 true,
-		"repaired_with_regression": true,
-		"not_a_defect":             true,
-		"defect_accepted":          true,
-		"defect_owed_elsewhere":    true,
+		"remanded":              false,
+		"repaired":              true,
+		"not_a_defect":          true,
+		"defect_accepted":       true,
+		"defect_owed_elsewhere": true,
 		// MOOT ENDS THE GAP WITHOUT ANSWERING IT (#847). The predicate expired — the text the
-		// finding attached to is gone — so there is nothing left to repair and nothing to argue,
+		// gap attached to is gone — so there is nothing left to repair and nothing to argue,
 		// and the gap does not survive to the next round. Closing, and deliberately not folded
 		// into not_a_defect, which would assert an argument that never happened.
 		"moot": true,
@@ -660,11 +668,7 @@ func TestAnUnmintedGapCannotBeActedOn(t *testing.T) {
 		{"docketed to the bench", &recordpb.Motion{
 			MotionId: proto.String("M1"),
 			Basis:    proto.String("escalating a gap nobody minted"),
-			Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}},
-		}, recordpb.EventType_EVENT_TYPE_MOTION},
-		{"contested by a grade motion", &recordpb.Motion{
-			MotionId: proto.String("M1"),
-			Filing:   &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("G1")}},
+			Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}}, Act: regradeAct("G1"),
 		}, recordpb.EventType_EVENT_TYPE_MOTION},
 	} {
 		t.Run(c.what, func(t *testing.T) {
@@ -688,47 +692,13 @@ func TestAnUnmintedGapCannotBeActedOn(t *testing.T) {
 	}
 }
 
-// A SUCCESSOR MUST BE A GAP, NOT A STRING THAT LOOKS LIKE ONE.
-//
-// "Lineage never drops" was enforced as "the field is not empty" — a rule a typo satisfies. The
-// closure recorded a successor, the successor pointed at nothing, and the unresolved remainder was
-// carried forward to a gap id no board has ever had. The CHECK and the foreign key are both needed
-// and they say different things: one that a regression closure NAMES a successor, the other that
-// what it names EXISTS.
-func TestASuccessorMustBeAGapThatExists(t *testing.T) {
-	db := store(t)
-	mintGap(t, db, 0, "G1")
-
-	if _, err := Insert(db, event(t, 1, recordpb.EventType_EVENT_TYPE_CLOSE, &recordpb.Close{
-		GapId:        proto.String("G1"),
-		ClosureClass: recordpb.Disposition_DISPOSITION_REPAIRED_WITH_REGRESSION.Enum(),
-		Successor:    proto.String("G2"),
-		Prose:        proto.String("repaired, and G2 carries the regression"),
-	})); err == nil {
-		t.Fatal("a closure named G2 as carrying its regression forward and no such gap exists — the CHECK is satisfied, the lineage is broken, and the repair_regression denominator counts a closure that resolved nothing")
-	}
-
-	mintGap(t, db, 2, "G2")
-	if _, err := Insert(db, event(t, 3, recordpb.EventType_EVENT_TYPE_CLOSE, &recordpb.Close{
-		GapId:        proto.String("G1"),
-		ClosureClass: recordpb.Disposition_DISPOSITION_REPAIRED_WITH_REGRESSION.Enum(),
-		Successor:    proto.String("G2"),
-		Prose:        proto.String("repaired, and G2 carries the regression"),
-	})); err != nil {
-		t.Fatalf("a closure naming a REAL successor was refused: %v", err)
-	}
-}
-
 // AN ABSENT FLAG MUST NOT BE STORED AS THE EMPTY STRING.
 //
-// `merge close` set `successor` unconditionally — `proto.String(seat.Str(cmd, flags.SupersededBy))`
-// — so an ordinary closure recorded `successor = ”`. Once successor referenced `mint.gap_id` that
-// became a hard refusal (no gap is named ”), which is how it was found; BEFORE the reference
-// existed the same rows were written and read as a closure whose successor was the empty gap.
+// A reference column written as ” where the seat passed nothing names a row no table holds, and reads
+// back as a value the seat never stated.
 //
-// This is the storage half of that guarantee: an unset field lands as NULL and comes back unset,
-// so "the seat never said" and "the seat said nothing" stay different facts all the way down. The
-// CLI half is TestAnAbsentFlagIsNotWrittenAsEmpty in internal/cli.
+// An unset field lands as NULL and comes back unset, so "the seat never said" and "the seat said
+// nothing" stay different facts all the way down.
 func TestAnUnsetOptionalFieldIsNullNotEmpty(t *testing.T) {
 	db := store(t)
 	mintGap(t, db, 0, "G1")
@@ -742,13 +712,13 @@ func TestAnUnsetOptionalFieldIsNullNotEmpty(t *testing.T) {
 
 	// NULL, not ''. A '' here would satisfy the foreign key only because SQLite skips the check on
 	// NULL — so the column reading '' is precisely the state that made every close fail.
-	var successor *string
-	if err := db.QueryRow(`SELECT "successor" FROM "close" WHERE "gap_id" = 'G1'`).Scan(&successor); err != nil {
+	var carried *string
+	if err := db.QueryRow(`SELECT "carried_from" FROM "close" WHERE "gap_id" = 'G1'`).Scan(&carried); err != nil {
 		t.Fatal(err)
 	}
-	if successor != nil {
-		t.Errorf("an unpassed --superseded-by stored %q — an absent flag written as a value is a fact "+
-			"the seat never stated, and here it is a reference to a gap that cannot exist", *successor)
+	if carried != nil {
+		t.Errorf("an unpassed --carried-from stored %q — an absent flag written as a value is a fact "+
+			"the seat never stated", *carried)
 	}
 
 	// And it survives the round trip as ABSENT rather than as an empty string.
@@ -763,8 +733,8 @@ func TestAnUnsetOptionalFieldIsNullNotEmpty(t *testing.T) {
 			continue
 		}
 		closes++
-		if c.Successor != nil {
-			t.Errorf("the closure read back with successor set to %q, want unset", c.GetSuccessor())
+		if c.CarriedFrom != nil {
+			t.Errorf("the closure read back with carried_from set to %q, want unset", c.GetCarriedFrom())
 		}
 	}
 	if closes != 1 {
@@ -792,54 +762,6 @@ func TestTheSqliteDriverIsRegistered(t *testing.T) {
 	t.Fatalf("no \"sqlite\" driver is registered (have %v) — if this fails the import moved out of "+
 		"the package that opens the database, and the binary will fail at the first write while the "+
 		"suite stays green", sql.Drivers())
-}
-
-// A GAP'S LINEAGE IS COUNTED FROM ITS LIST TABLE, NOT DECLARED ON THE PARENT.
-//
-// A gap's lineage lives in a child table, so "does this gap supersede anything" is a join. The gap
-// view answers it once (supersedes_count, folded into gap_state at the mint), which is the point:
-// several readers were writing that join themselves.
-//
-// It does NOT recover the distinction that actually bit us — an explicitly-empty list from an
-// absent one. That is lost ABOVE SQL: protoreflect reports `Has=false` for both, and the two
-// marshal to identical bytes, so by the time a writer reaches the storage there is nothing left to
-// tell apart. No amount of SQL can recover a fact the value no longer carries.
-//
-// Where the fact is a CLAIM rather than a consequence — a seat saying "I checked nothing,
-// deliberately" — the schema already has the right shape, and it is a field the WRITER sets:
-// SpotCheck.none, a bool with real presence. Derived where derivable, declared where claimed.
-func TestAGapsLineageIsCountedByTheView(t *testing.T) {
-	db := store(t)
-	mintGap(t, db, 0, "G1")
-	if _, err := Insert(db, event(t, 1, recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{ClassMaterial: recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE.Enum(), Severity: recordpb.Grade_GRADE_MEDIUM.Enum(),
-		GapId:           proto.String("G2"),
-		Class:           recordpb.GapClass_GAP_CLASS_PARTIAL_CONTROL_COVERAGE.Enum(),
-		Problem:         proto.String("p"),
-		AcceptanceCheck: proto.String("a"),
-		CheckKind:       recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(),
-		Likelihood:      recordpb.Grade_GRADE_MEDIUM.Enum(),
-		Impact:          recordpb.Grade_GRADE_MEDIUM.Enum(),
-		Supersedes:      []string{"G1"},
-	})); err != nil {
-		t.Fatal(err)
-	}
-
-	var lineage int
-	if err := db.QueryRow(`SELECT "supersedes_count" FROM "gap" WHERE "gap_id" = 'G2'`).Scan(&lineage); err != nil {
-		t.Fatal(err)
-	}
-	if lineage != 1 {
-		t.Errorf("gap G2 supersedes_count = %d, want 1", lineage)
-	}
-
-	// And a gap with none reads ZERO rather than NULL — the count is over rows that are simply not
-	// there, which is the honest answer and the one a reader can act on.
-	if err := db.QueryRow(`SELECT "supersedes_count" FROM "gap" WHERE "gap_id" = 'G1'`).Scan(&lineage); err != nil {
-		t.Fatal(err)
-	}
-	if lineage != 0 {
-		t.Errorf("a gap with no lineage supersedes_count = %d, want 0", lineage)
-	}
 }
 
 // tmpRun is tmpRun(t) with the release its record handle needs.
@@ -878,5 +800,15 @@ func TestTheRecordRefusesAnUnclassifiedMintWithoutAReason(t *testing.T) {
 	}
 	if err := mint(1, "G2", proto.String("nearest is spec_underspecification; this term is defined twice")); err != nil {
 		t.Fatalf("an unclassified mint with a reason was refused: %v", err)
+	}
+}
+
+// docketProposal writes docketing id on gap, holding proposal motion: a ruling names it.
+func docketProposal(t *testing.T, db *sql.DB, seq int32, id, gap, motion string) {
+	t.Helper()
+	if _, err := Insert(db, event(t, seq, recordpb.EventType_EVENT_TYPE_DOCKETING, &recordpb.Docketing{
+		DocketingId: proto.String(id), GapId: proto.String(gap), Cause: recordpb.DocketingCause_DOCKETING_CAUSE_PROPOSAL.Enum(),
+		MotionId: proto.String(motion), Basis: proto.String("unaccepted in its window")})); err != nil {
+		t.Fatal(err)
 	}
 }

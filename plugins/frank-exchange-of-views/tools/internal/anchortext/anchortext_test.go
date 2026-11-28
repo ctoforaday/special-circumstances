@@ -12,14 +12,14 @@ import (
 	"testing"
 )
 
-// reFindingMarker mirrors the anchor kinds table's finding token: the downstream parser is position-
+// reGapMarker mirrors the anchor kinds table's gap token: the downstream parser is position-
 // agnostic, so a test that re-extracts an inserted id proves the round-trip regardless of
 // where in the sentence the marker landed.
-var reFindingMarker = regexp.MustCompile(`<!--fx:(` + anchor.IDPattern("finding") + `)-->`)
+var reGapMarker = regexp.MustCompile(`<!--gap:(` + anchor.IDPattern("gap") + `)-->`)
 
-// reAnyAnnotation strips the whole invisible layer (any fx marker + any footnote ref) so
+// reAnyAnnotation strips the whole invisible layer (any gap marker + any footnote ref) so
 // a test can compare the semantic prose before and after an insertion.
-var reAnyAnnotation = regexp.MustCompile(`<!--fx:[^>]*-->|\[\^[^\]]*\]`)
+var reAnyAnnotation = regexp.MustCompile(`<!--gap:[^>]*-->|\[\^[^\]]*\]`)
 
 func stripAnnotations(s string) string { return reAnyAnnotation.ReplaceAllString(s, "") }
 
@@ -40,7 +40,7 @@ func mustLocateInsert(t *testing.T, report, quote, marker string) (string, int) 
 
 func TestLocateSpanReturnsRawSpan(t *testing.T) {
 	// A marker sits AFTER "time" (trailing), a footnote after "grows".
-	report := "The cost is rising over time<!--fx:F-00000001--> now. Volume grows[^v] fast."
+	report := "The cost is rising over time<!--gap:G-00000001--> now. Volume grows[^v] fast."
 	start, end := LocateSpan(report, "rising over time")
 	if start < 0 {
 		t.Fatal("LocateSpan failed to match")
@@ -49,7 +49,7 @@ func TestLocateSpanReturnsRawSpan(t *testing.T) {
 		t.Errorf("span = %q, want the raw matched text", report[start:end])
 	}
 	// End stops before the trailing marker (a content boundary), so the marker is OUT of span.
-	if strings.Contains(report[start:end], "<!--fx:") {
+	if strings.Contains(report[start:end], "<!--gap:") {
 		t.Errorf("span wrongly includes a trailing marker: %q", report[start:end])
 	}
 	// A span that INTERNALLY crosses a footnote includes it (caller rejects such an edit).
@@ -82,8 +82,8 @@ func TestLocateEndExactAndFlexible(t *testing.T) {
 func TestInsertMarkerAtOffset(t *testing.T) {
 	report := []byte("The sky is blue.")
 	end := locateEnd(string(report), "sky is blue")
-	got := string(insertMarker(report, end, "<!--fx:F-00000abc-->"))
-	if got != "The sky is blue<!--fx:F-00000abc-->." {
+	got := string(insertMarker(report, end, "<!--gap:G-00000abc-->"))
+	if got != "The sky is blue<!--gap:G-00000abc-->." {
 		t.Errorf("insertMarker = %q", got)
 	}
 }
@@ -103,15 +103,15 @@ func TestInsideFenceGuardsCode(t *testing.T) {
 // §V.1 + §V.2 — the annotation-interleaving matrix, seeded from the REAL 2026-08-02
 // report.md sentences that surfaced #248. A verbatim-semantic quote (the prose, with the
 // invisible markers/footnotes removed) must anchor even though the raw bytes are
-// interrupted by "<!--fx:…-->" and "[^label]".
+// interrupted by "<!--gap:…-->" and "[^label]".
 func TestLocateEndSkipsAnnotations(t *testing.T) {
 	cases := []struct {
 		name, report, quote string
 	}{
-		// Real line 5: an fx marker between a word and its colon, and another at sentence end.
+		// Real line 5: a marker between a word and its colon, and another at sentence end.
 		{
-			"fx-between-word-and-colon (real)",
-			"Acceptability depends on context<!--fx:F-762c1674-->: approximate financial models tolerate floating-point; transaction settlement does not.<!--fx:F-2462cfb8-->",
+			"marker-between-word-and-colon (real)",
+			"Acceptability depends on context<!--gap:G-762c1674-->: approximate financial models tolerate floating-point; transaction settlement does not.<!--gap:G-2462cfb8-->",
 			"Acceptability depends on context: approximate financial models tolerate floating-point; transaction settlement does not.",
 		},
 		// Real line 16: a footnote ref before the terminal period; internal punctuation
@@ -121,15 +121,15 @@ func TestLocateEndSkipsAnnotations(t *testing.T) {
 			"Binary floating-point cannot exactly represent most decimal fractional values (e.g., 0.1, 0.2, 0.78) because decimal fractions require infinitely repeating binary expansions[^TechIncompat].",
 			"Binary floating-point cannot exactly represent most decimal fractional values (e.g., 0.1, 0.2, 0.78) because decimal fractions require infinitely repeating binary expansions",
 		},
-		// Real line 25: an em-dash aside plus a trailing footnote AND fx marker.
+		// Real line 25: an em-dash aside plus a trailing footnote AND marker.
 		{
-			"em-dash + trailing footnote + fx (real)",
-			"Every major production payment system surveyed—including Modern Treasury, Stripe, Square, PayPal—uses integer minor units (cents) or decimal types, never binary floating-point[^NoProductionFloats].<!--fx:F-96ae5702-->",
+			"em-dash + trailing footnote + marker (real)",
+			"Every major production payment system surveyed—including Modern Treasury, Stripe, Square, PayPal—uses integer minor units (cents) or decimal types, never binary floating-point[^NoProductionFloats].<!--gap:G-96ae5702-->",
 			"Every major production payment system surveyed—including Modern Treasury, Stripe, Square, PayPal—uses integer minor units (cents) or decimal types, never binary floating-point",
 		},
 		{
 			"marker between two words",
-			"The scheduler is<!--fx:F-00000011-->preemptive and fair.",
+			"The scheduler is<!--gap:G-00000011-->preemptive and fair.",
 			"The scheduler ispreemptive and fair",
 		},
 		{
@@ -139,12 +139,12 @@ func TestLocateEndSkipsAnnotations(t *testing.T) {
 		},
 		{
 			"several markers/footnotes in one sentence",
-			"Floats[^a] are<!--fx:F-00000001--> unsafe[^b] for money<!--fx:F-00000002--> here.",
+			"Floats[^a] are<!--gap:G-00000001--> unsafe[^b] for money<!--gap:G-00000002--> here.",
 			"Floats are unsafe for money here",
 		},
 		{
 			"marker mid-token (splices a word)",
-			"Reconcili<!--fx:F-00000009-->ation catches the drift.",
+			"Reconcili<!--gap:G-00000009-->ation catches the drift.",
 			"Reconciliation catches the drift",
 		},
 	}
@@ -158,7 +158,7 @@ func TestLocateEndSkipsAnnotations(t *testing.T) {
 			// BEFORE a trailing annotation (a legal boundary — a new marker inserts there),
 			// but must never split one. Inserting there and re-stripping must recover prose
 			// byte-identical to the report minus its annotation layer.
-			out := string(insertMarker([]byte(c.report), end, "<!--fx:f-probe0-->"))
+			out := string(insertMarker([]byte(c.report), end, "<!--gap:f-probe0-->"))
 			if stripAnnotations(out) != stripAnnotations(c.report) {
 				t.Errorf("insert at %d altered the semantic prose:\n got  %q\n want %q",
 					end, stripAnnotations(out), stripAnnotations(c.report))
@@ -231,13 +231,13 @@ func TestLocateEndGuardrails(t *testing.T) {
 // present, re-parses, and never lands inside an annotation or a fence; the semantic prose
 // is unchanged apart from the added marker.
 func TestLocateEndOffsetInsertRoundTrips(t *testing.T) {
-	report := "Floats[^a] are<!--fx:F-00000001--> unsafe for money here."
+	report := "Floats[^a] are<!--gap:G-00000001--> unsafe for money here."
 	quote := "Floats are unsafe for money here"
-	out, _ := mustLocateInsert(t, report, quote, "<!--fx:F-00abc123-->")
-	ids := reFindingMarker.FindAllStringSubmatch(out, -1)
+	out, _ := mustLocateInsert(t, report, quote, "<!--gap:G-00abc123-->")
+	ids := reGapMarker.FindAllStringSubmatch(out, -1)
 	found := false
 	for _, m := range ids {
-		if m[1] == "F-00abc123" {
+		if m[1] == "G-00abc123" {
 			found = true
 		}
 	}
@@ -297,7 +297,7 @@ func TestAttachPlacesTheTablesTokenAtTheQuotesEnd(t *testing.T) {
 	if want := "# H\n\nWater is wet. The sky is blue<!--cite:C-00001a2b-->.\n"; got != want {
 		t.Errorf("Attach = %q, want %q", got, want)
 	}
-	if _, err := Attach(doc, "F-00001a2b", "not in the report"); !errors.Is(err, ErrMisQuote) {
+	if _, err := Attach(doc, "G-00001a2b", "not in the report"); !errors.Is(err, ErrMisQuote) {
 		t.Errorf("a mis-quote = %v, want ErrMisQuote", err)
 	}
 	if _, err := Attach("```\ncode here\n```\n", "K-00001a2b", "code here"); !errors.Is(err, ErrInFence) {
@@ -321,11 +321,11 @@ func TestAttachRefusesAHeading(t *testing.T) {
 		{"The sieve runs once.", nil},
 		{"Is 91 prime?", nil},
 	} {
-		if _, err := Attach(doc, "F-00001a2b", c.quote); !errors.Is(err, c.err) {
+		if _, err := Attach(doc, "G-00001a2b", c.quote); !errors.Is(err, c.err) {
 			t.Errorf("Attach(%q) = %v, want %v", c.quote, err, c.err)
 		}
 	}
-	if _, err := InsertAnchor([]byte(doc), "Method", anchor.Token("F-00001a2b")); err != nil {
+	if _, err := InsertAnchor([]byte(doc), "Method", anchor.Token("G-00001a2b")); err != nil {
 		t.Errorf("replay refused an archived placement on a heading: %v", err)
 	}
 }
@@ -365,7 +365,7 @@ func TestLocateOnceRefusesInItsOrder(t *testing.T) {
 		{"Costs\n\nrose.", "Costs rose", StopAtParagraph, ErrCrossesParagraph, -1},
 		{"Costs\n\nrose.", "Costs rose", CrossParagraphs, nil, 11},
 		{"Costs rosed.", "Costs rose", StopAtParagraph, ErrSplitsWord, -1},
-		{"Costs rose<!--fx:F-00000001-->.", "Costs rose.", StopAtParagraph, nil, 10},
+		{"Costs rose<!--gap:G-00000001-->.", "Costs rose.", StopAtParagraph, nil, 10},
 	} {
 		if _, end, err := LocateOnce(c.doc, c.quote, c.scope); !errors.Is(err, c.want) || end != c.end {
 			t.Errorf("LocateOnce(%q, %q) = %d, %v; want %d, %v", c.doc, c.quote, end, err, c.end, c.want)
@@ -387,7 +387,7 @@ func TestALogLineNamesEveryAnchorKindByItsID(t *testing.T) {
 }
 
 // A TOKEN THAT SHOWS THE SHAPE, NOT AN ID, IS STILL A TOKEN. The `--anchor` refusal teaches "a
-// `<!--cite:C-…-->`, `<!--fx:F-…-->` … token", and the #1565 log stored each as an empty pair of
+// `<!--cite:C-…-->`, `<!--gap:G-…-->` … token", and the #1565 log stored each as an empty pair of
 // backticks: no id reader knew the placeholders, so the invisible layer took them whole.
 func TestALogLineKeepsWhatAPlaceholderTokenHolds(t *testing.T) {
 	var shown []string
@@ -395,7 +395,7 @@ func TestALogLineKeepsWhatAPlaceholderTokenHolds(t *testing.T) {
 		id := anchor.ID(k, [4]byte{})
 		shown = append(shown, id[:2]+"…")
 	}
-	msg := "an anchor is a `" + anchor.Token(shown[0]) + "` or `" + anchor.Token(shown[1]) + "` token, an elided <!--fx:…--> one, or `" + anchor.Token(shown[2]) + "`"
+	msg := "an anchor is a `" + anchor.Token(shown[0]) + "` or `" + anchor.Token(shown[1]) + "` token, an elided <!--gap:…--> one, or `" + anchor.Token(shown[2]) + "`"
 	want := "an anchor is a `" + shown[0] + "` or `" + shown[1] + "` token, an elided … one, or `" + shown[2] + "`"
 	if got := LogLine(msg); got != want {
 		t.Errorf("LogLine(%q):\n got %q\nwant %q", msg, got, want)
@@ -408,7 +408,7 @@ func TestALogLineKeepsWhatAPlaceholderTokenHolds(t *testing.T) {
 // Each id of a run of tokens, and the id of a token touching a word, reads as its own word: on
 // universe-m29 the log read "recorded scriptG-bde527ebF-01be5d5aF-16662ce7".
 func TestALogLineSeparatesAnIDFromTheWordOrIDBesideIt(t *testing.T) {
-	g, f, p := anchor.ID("gap", [4]byte{0xbd, 0xe5, 0x27, 0xeb}), anchor.ID("finding", [4]byte{0x01, 0xbe, 0x5d, 0x5a}), anchor.ID("computation", [4]byte{0x16, 0x66, 0x2c, 0xe7})
+	g, f, p := anchor.ID("gap", [4]byte{0xbd, 0xe5, 0x27, 0xeb}), anchor.ID("citation", [4]byte{0x01, 0xbe, 0x5d, 0x5a}), anchor.ID("computation", [4]byte{0x16, 0x66, 0x2c, 0xe7})
 	for _, c := range []struct{ msg, want string }{
 		{"a recorded script" + anchor.Token(g) + anchor.Token(f) + anchor.Token(p) + " EOF", "a recorded script " + g + " " + f + " " + p + " EOF"},
 		{"a recorded script" + anchor.Token(g) + anchor.Token(f) + ".", "a recorded script " + g + " " + f},

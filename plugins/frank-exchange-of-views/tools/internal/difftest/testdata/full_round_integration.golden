@@ -19,13 +19,6 @@ This verb's flags: --anchor, --as, --bridge, --confidence, --page, --quote, --re
 
 Run `feov-record verify --help` for what it takes, flag by flag.
 
-$ finding --run {RUN} --seat-id red-lens-evidence --key F1 --severity medium --likelihood medium --impact high --quote A claim sits under S2. --reason citation does not support
-exit 0
-stdout:
-finding recorded: FINDING001 (evidence) — the id a gap's found_by names
-1 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
-  · the whole report arrives on your work list this sitting, one item after each of your tool calls, and your envelope waits until all of it has been delivered to you. A lens is delivered the whole report at its first sitting and once more at its next — its full re-read — and at every other sitting the changes since its pin and its own gaps' passages; the PASS is refused while a lens that has sat still owes either whole delivery
-
 $ register --run {RUN} --seat-id red-lens-logic
 exit 0
 stdout:
@@ -39,10 +32,12 @@ TWO CONSEQUENCES:
 1 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
   · the whole report arrives on your work list this sitting, one item after each of your tool calls, and your envelope waits until all of it has been delivered to you. A lens is delivered the whole report at its first sitting and once more at its next — its full re-read — and at every other sitting the changes since its pin and its own gaps' passages; the PASS is refused while a lens that has sat still owes either whole delivery
 
-$ finding --run {RUN} --seat-id red-lens-logic --key F1 --severity high --likelihood high --impact high --quote A claim sits under S4. --reason a leap of faith
+$ mint --run {RUN} --seat-id red-lens-logic --class spec_underspecification --check-kind document --check trace the inference --severity high --likelihood high --impact high --quote A claim sits under S4. --problem a leap of faith
 exit 0
 stdout:
-finding recorded: FINDING002 (logic) — the id a gap's found_by names
+minted GAP001
+  acceptance check RECORDED as: trace the inference
+  (read it back — a shell may have rewritten it before this tool saw it; your amend restates it at your next sitting)
 1 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
   · the whole report arrives on your work list this sitting, one item after each of your tool calls, and your envelope waits until all of it has been delivered to you. A lens is delivered the whole report at its first sitting and once more at its next — its full re-read — and at every other sitting the changes since its pin and its own gaps' passages; the PASS is refused while a lens that has sat still owes either whole delivery
 
@@ -56,20 +51,21 @@ YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent 
 TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
-NOTHING HERE IS YOURS TO CLEAR (6 item(s) open to you).
-ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (5) — the board's state, not your debt; a PASS is not in view while any of it stands:
+NOTHING HERE IS YOURS TO CLEAR (7 item(s) open to you).
+ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (6) — the board's state, not your debt; a PASS is not in view while any of it stands:
+  · gap GAP001 is open and material — PASS is refused while it is; its assignee, red-lens-logic, closes it
   · lens red-lens-evidence is ready — PASS is refused while it is
   · lens red-lens-logic is ready — PASS is refused while it is
   · lens red-lens-evidence owes its first whole delivery of the report: the whole report arrives on its work list at its next sitting — PASS is refused until all of it has been delivered
   · lens red-lens-logic owes its first whole delivery of the report: the whole report arrives on its work list at its next sitting — PASS is refused until all of it has been delivered
   · the question this run was asked is split into no question part on the record, so nothing states which parts of it the report answers — PASS is refused until blue's `question split` splits it
 
-$ mint --run {RUN} --seat-id red-lens-evidence --class partial_control_coverage --check-kind document --check refetch and diff --severity high --likelihood high --impact high --complexity medium --quote A claim sits under S2. --found-by FINDING001,FINDING002 --problem the cited source does not say this
+$ mint --run {RUN} --seat-id red-lens-evidence --class partial_control_coverage --check-kind document --check refetch and diff --severity high --likelihood high --impact high --complexity medium --quote A claim sits under S2. --problem the cited source does not say this
 exit 0
 stdout:
-minted GAP001
+minted GAP002
   acceptance check RECORDED as: refetch and diff
-  (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
+  (read it back — a shell may have rewritten it before this tool saw it; your amend restates it at your next sitting)
 1 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
   · the whole report arrives on your work list this sitting, one item after each of your tool calls, and your envelope waits until all of it has been delivered to you. A lens is delivered the whole report at its first sitting and once more at its next — its full re-read — and at every other sitting the changes since its pin and its own gaps' passages; the PASS is refused while a lens that has sat still owes either whole delivery
 
@@ -78,8 +74,9 @@ exit 0
 stdout:
 position POSITION001 recorded
 NOTHING HERE IS YOURS TO CLEAR (9 item(s) open to you).
-ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (6) — the board's state, not your debt; a PASS is not in view while any of it stands:
-  · gap GAP001 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
+ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (7) — the board's state, not your debt; a PASS is not in view while any of it stands:
+  · gap GAP001 is open and material — PASS is refused while it is; its assignee, red-lens-logic, closes it
+  · gap GAP002 is open and material — PASS is refused while it is; its assignee, red-lens-evidence, closes it
   · lens red-lens-evidence is ready — PASS is refused while it is
   · lens red-lens-logic is ready — PASS is refused while it is
   · lens red-lens-evidence owes its first whole delivery of the report: the whole report arrives on its work list at its next sitting — PASS is refused until all of it has been delivered
@@ -92,21 +89,19 @@ ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (6) — the board's state, no
 {"key":"harness:setup:report","report_part":{"text":"## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n"},"seat_id":"harness","ts":2,"type":"EVENT_TYPE_REPORT_PART"}
 {"key":"red-lens-evidence:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-lens-evidence","ts":3,"type":"EVENT_TYPE_REGISTER"}
 {"key":"red-lens-evidence:log:#1","log":{"source":"LOG_SOURCE_TOOL","text":"refused `verify` with --title: unknown flag: --trust — not one of this verb's flags, and no verb on this surface takes it","type":"LOG_TYPE_REFUSAL"},"seat_id":"red-lens-evidence","ts":4,"type":"EVENT_TYPE_LOG"}
-{"finding":{"finding_key":"F1","id":"FINDING001","impact":"GRADE_HIGH","likelihood":"GRADE_MEDIUM","location":"A claim sits under S2.","severity":"GRADE_MEDIUM","text":"citation does not support"},"key":"red-lens-evidence:finding:FINDING001","seat_id":"red-lens-evidence","ts":5,"type":"EVENT_TYPE_FINDING"}
-{"anchor":{"id":"FINDING001","location":"A claim sits under S2."},"key":"red-lens-evidence:anchor:FINDING001","seat_id":"red-lens-evidence","ts":6,"type":"EVENT_TYPE_ANCHOR"}
-{"key":"red-lens-logic:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-lens-logic","ts":7,"type":"EVENT_TYPE_REGISTER"}
-{"finding":{"finding_key":"F1","id":"FINDING002","impact":"GRADE_HIGH","likelihood":"GRADE_HIGH","location":"A claim sits under S4.","severity":"GRADE_HIGH","text":"a leap of faith"},"key":"red-lens-logic:finding:FINDING002","seat_id":"red-lens-logic","ts":8,"type":"EVENT_TYPE_FINDING"}
-{"anchor":{"id":"FINDING002","location":"A claim sits under S4."},"key":"red-lens-logic:anchor:FINDING002","seat_id":"red-lens-logic","ts":9,"type":"EVENT_TYPE_ANCHOR"}
-{"key":"red-chair:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-chair","ts":10,"type":"EVENT_TYPE_REGISTER"}
-{"key":"red-lens-evidence:mint:GAP001","mint":{"acceptance_check":"refetch and diff","check_kind":"CHECK_KIND_DOCUMENT","class":"GAP_CLASS_PARTIAL_CONTROL_COVERAGE","class_material":"CLASS_MATERIAL_BY_GRADE","complexity_cost":"GRADE_MEDIUM","fix_basis":"proposed","found_by":["FINDING001","FINDING002"],"gap_id":"GAP001","impact":"GRADE_HIGH","likelihood":"GRADE_HIGH","location":"A claim sits under S2.","mint_key":"","problem":"the cited source does not say this","required_fix":"","severity":"GRADE_HIGH"},"seat_id":"red-lens-evidence","ts":11,"type":"EVENT_TYPE_MINT"}
-{"anchor":{"id":"GAP001","location":"A claim sits under S2."},"key":"red-lens-evidence:anchor:GAP001","seat_id":"red-lens-evidence","ts":12,"type":"EVENT_TYPE_ANCHOR"}
-{"key":"red-chair:position:#1","position":{"position_id":"POSITION001","text":"round one: the cited source does not say this"},"seat_id":"red-chair","ts":13,"type":"EVENT_TYPE_POSITION"}
+{"key":"red-lens-logic:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-lens-logic","ts":5,"type":"EVENT_TYPE_REGISTER"}
+{"key":"red-lens-logic:mint:GAP001","mint":{"acceptance_check":"trace the inference","check_kind":"CHECK_KIND_DOCUMENT","class":"GAP_CLASS_SPEC_UNDERSPECIFICATION","class_material":"CLASS_MATERIAL_BY_GRADE","fix_basis":"proposed","gap_id":"GAP001","impact":"GRADE_HIGH","likelihood":"GRADE_HIGH","location":"A claim sits under S4.","mint_key":"","problem":"a leap of faith","required_fix":"","severity":"GRADE_HIGH"},"seat_id":"red-lens-logic","ts":6,"type":"EVENT_TYPE_MINT"}
+{"anchor":{"id":"GAP001","location":"A claim sits under S4."},"key":"red-lens-logic:anchor:GAP001","seat_id":"red-lens-logic","ts":7,"type":"EVENT_TYPE_ANCHOR"}
+{"key":"red-chair:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-chair","ts":8,"type":"EVENT_TYPE_REGISTER"}
+{"key":"red-lens-evidence:mint:GAP002","mint":{"acceptance_check":"refetch and diff","check_kind":"CHECK_KIND_DOCUMENT","class":"GAP_CLASS_PARTIAL_CONTROL_COVERAGE","class_material":"CLASS_MATERIAL_BY_GRADE","complexity_cost":"GRADE_MEDIUM","fix_basis":"proposed","gap_id":"GAP002","impact":"GRADE_HIGH","likelihood":"GRADE_HIGH","location":"A claim sits under S2.","mint_key":"","problem":"the cited source does not say this","required_fix":"","severity":"GRADE_HIGH"},"seat_id":"red-lens-evidence","ts":9,"type":"EVENT_TYPE_MINT"}
+{"anchor":{"id":"GAP002","location":"A claim sits under S2."},"key":"red-lens-evidence:anchor:GAP002","seat_id":"red-lens-evidence","ts":10,"type":"EVENT_TYPE_ANCHOR"}
+{"key":"red-chair:position:#1","position":{"position_id":"POSITION001","text":"round one: the cited source does not say this"},"seat_id":"red-chair","ts":11,"type":"EVENT_TYPE_POSITION"}
 
 ═══ RENDERS ═══
 -- inquiries
 # Inquiries — RENDERED PROJECTION (source of truth: the record, records/record.db)
 
-_No inquiries recorded. On a run past epoch 0 that is itself a finding: the exploration
+_No inquiries recorded. On a run past epoch 0 that is itself a defect: the exploration
 either did not happen or was not written down, and a report with no roads-not-taken is
 indistinguishable from one that never looked._
 
@@ -132,6 +127,7 @@ A claim sits under S4.
 
 | Risk | Likelihood | Impact | Complexity to mitigate | Mitigation / disposition |
 |---|---|---|---|---|
+| a leap of faith | high | high | — | — |
 | the cited source does not say this | high | high | medium | — |
 
 The matrix is a scan surface: a cell is the field's first sentence, or its first 100 characters cut at a word boundary and marked `…`. Each row's full problem statement, required fix and acceptance check are in [the board](docket.md).

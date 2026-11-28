@@ -15,10 +15,10 @@ import (
 // ONLY THE WEAVE OPENS A FOOTNOTE IN WHAT ASSEMBLY COMPOSES.
 //
 // A footnote reference is two characters and a label — `[^K5]` — and a seat types those in prose
-// for its own reasons: a finding that names the report's footnote ("the one footnote [^K5] cites"),
+// for its own reasons: a gap that names the report's footnote ("the one footnote [^K5] cites"),
 // a log entry that quotes a regex (`grep -o '[^<>]{0,120}'`). Assembly printed that text as the
 // seat wrote it, into documents whose footnotes are the tool's, and markdown has one reading of
-// `[^x]`: in the board document the finding's words became a reference to a note the document does
+// `[^x]`: in the board document the gap's words became a reference to a note the document does
 // not define, and report.html made them a citation link to nowhere. The capture audit that reads
 // each document for references with no definition reported both, correctly.
 //

@@ -305,7 +305,6 @@ func RenderHTML(m Model) string {
 	tile(openGaps, "open gaps")
 	tile(latestTile(m, func(t *recordpb.TelemetryLine) string { return gradeOrDash(t.MaxSeverity) }), "max severity")
 	tile(countOrNotMeasured(m.BlueClaims), "blue claims")
-	tile(intUnavail(m.Shards.Findings), "lens findings")
 	tile(intUnavail(m.Shards.Citations), "citations checked")
 	// THE TILE IS THE RUN'S VERDICT, AND A RECORDED PASS IS ONE: the record derives VERIFIED from it
 	// (record.TerminalVerdict), so before that the tile says the run has none.
@@ -364,20 +363,19 @@ func RenderHTML(m Model) string {
 		w(fmt.Sprintf(`<tr><td>open gaps on the board</td><td>%d%s</td></tr>`+"\n", m.Shards.OpenRows, sevStr))
 		w(fmt.Sprintf(`<tr><td>closed gaps (closure index)</td><td>%d</td></tr>`+"\n", m.Shards.ClosureIndexRows))
 		w(fmt.Sprintf(`<tr><td>archived closure records</td><td>%d</td></tr>`+"\n", m.Shards.ArchiveRecords))
-		w(`<tr><td>lens findings recorded</td><td>` + intUnavail(m.Shards.Findings) + ` <span class="muted">(raw leaf audit, before the chair coalesces into gaps)</span></td></tr>` + "\n")
 		w(`</table><p class="muted">counts come from the board view (feov-record &lt;role&gt; show board) — the record, read once by the tool, not a markdown parse</p>`)
 	} else {
 		w(`<p class="muted">board unavailable — the record does not exist yet</p>`)
 	}
 
 	// Judiciary.
-	w("\n<h2>Judiciary (rulings, grade motions, and how long arguments actually run)</h2>\n")
-	// Gated on any judiciary figure the record holds: grade motions and argument chains exist
-	// before the bench first sits. An unread record is not a bench that never sat.
+	w("\n<h2>Judiciary (rulings, and how long arguments actually run)</h2>\n")
+	// Gated on any judiciary figure the record holds: gaps live before the bench first
+	// sits. An unread record is not a bench that never sat.
 	switch {
 	case !m.Judiciary.Measured:
 		w(`<p class="muted">not measured — the record could not be read</p>`)
-	case m.Judiciary.JudgeSittings != 0 || m.Judiciary.Disputes.Raised != 0 || m.Judiciary.Chains != 0:
+	case m.Judiciary.JudgeSittings != 0 || m.Judiciary.Lives != 0:
 		rulingsStr := "—"
 		if len(m.Judiciary.Rulings) > 0 {
 			keys := sortedKeys(m.Judiciary.Rulings)
@@ -387,26 +385,24 @@ func RenderHTML(m Model) string {
 			}
 			rulingsStr = strings.Join(parts, " · ")
 		}
-		spanKeys := make([]int, 0, len(m.Judiciary.ChainSpans))
-		for k := range m.Judiciary.ChainSpans {
+		spanKeys := make([]int, 0, len(m.Judiciary.LifeSpans))
+		for k := range m.Judiciary.LifeSpans {
 			spanKeys = append(spanKeys, k)
 		}
 		sort.Ints(spanKeys)
 		spanParts := make([]string, 0, len(spanKeys))
 		for _, k := range spanKeys {
-			spanParts = append(spanParts, esc(itoa(m.Judiciary.ChainSpans[k]))+"×"+esc(itoa(k)))
+			spanParts = append(spanParts, esc(itoa(m.Judiciary.LifeSpans[k]))+"×"+esc(itoa(k)))
 		}
 		sittingsStr := itoa(m.Judiciary.JudgeSittings)
-		motionsStr := fmt.Sprintf("raised %d · accepted %d · rejected %d", m.Judiciary.Disputes.Raised, m.Judiciary.Disputes.Accepted, m.Judiciary.Disputes.Rejected)
 		w("<table>\n")
 		w(`<tr><td>judge sittings</td><td>` + sittingsStr + `</td></tr>` + "\n")
 		w(`<tr><td>rulings by type</td><td>` + rulingsStr + ` <span class="muted">(a remand-dominated bench is routing, not deciding — the closing-arguments ordering predicts this diversifies)</span></td></tr>` + "\n")
-		w(`<tr><td>grade motions</td><td>` + motionsStr + `</td></tr>` + "\n")
-		w(fmt.Sprintf(`<tr><td>argument chains (supersedes-aware)</td><td>%d chains · by epochs alive: %s <span class="muted">(epochs from mint to close, or to now while open)</span></td></tr>`+"\n", m.Judiciary.Chains, strings.Join(spanParts, " · ")))
-		w(fmt.Sprintf(`<tr><td>grade migration on multi-epoch chains</td><td>down %d · up %d · flat %d <span class="muted">(first-vs-last mass along the chain — the downgrade process)</span></td></tr>`+"\n", m.Judiciary.MigDown, m.Judiciary.MigUp, m.Judiciary.MigFlat))
+		w(fmt.Sprintf(`<tr><td>gap lives</td><td>%d gaps · by epochs alive: %s <span class="muted">(epochs from mint to close, or to now while open)</span></td></tr>`+"\n", m.Judiciary.Lives, strings.Join(spanParts, " · ")))
+		w(fmt.Sprintf(`<tr><td>grade migration on multi-epoch gaps</td><td>down %d · up %d · flat %d <span class="muted">(mint-vs-current mass of each gap — the downgrade process)</span></td></tr>`+"\n", m.Judiciary.MigDown, m.Judiciary.MigUp, m.Judiciary.MigFlat))
 		w("</table>")
 	default:
-		w(`<p class="muted">no judge sittings, grade motions or gaps on the record yet</p>`)
+		w(`<p class="muted">no judge sittings or gaps on the record yet</p>`)
 	}
 
 	// The log, off the record: every entry of every type.

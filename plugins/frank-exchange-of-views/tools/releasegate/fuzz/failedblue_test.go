@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"google.golang.org/protobuf/proto"
+
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
@@ -132,14 +134,23 @@ func chairPlan(t *testing.T, r *runner) record.Plan {
 	return plan
 }
 
-// blueFailsForcedErr is the run's error where blueFailsSeed's run did not end on blue's failed-sitting
+// blueFails is whether every blue-respond sitting of the run ends without its envelope: blueFailsSeed's
+// run, and unverifiedSeed's, whose UNVERIFIED exit is this stop. One predicate drives both, so the two
+// runs cannot drift onto different failure shapes.
+func (r *runner) blueFails() bool { return r.forceBlueFails || r.forceUnverified }
+
+// blueFailsForcedErr is the run's error where a blueFails run did not end on blue's failed-sitting
 // bound: every blue sitting in it ends without its envelope, so the engine stops the debate UNVERIFIED
 // at the third, naming blue (debate.js seatStop), and nothing else may end the run first. result is the
 // settled debate's return. runOne asks it holding r.mu, as it asks the other forced runs' errors, so
 // it reads the runner's counts without taking the lock.
 func (r *runner) blueFailsForcedErr(result map[string]any) string {
-	if !r.forceBlueFails {
+	if !r.blueFails() {
 		return ""
+	}
+	seed := int64(blueFailsSeed)
+	if r.forceUnverified {
+		seed = unverifiedSeed
 	}
 	sat := r.blueSittings
 	term, _ := result["termination"].(map[string]any)
@@ -147,7 +158,7 @@ func (r *runner) blueFailsForcedErr(result map[string]any) string {
 	failures, _ := stop["failures"].(int64)
 	if verdict, _ := result["verdict"].(string); verdict != "UNVERIFIED" || stop["seat"] != "blue-respond" || failures != noProgressEpochs {
 		return fmt.Sprintf("forced blue failures: seed %d's run ended %v with termination %v after %d blue sitting(s), want UNVERIFIED on blue-respond's %d failed sittings in a row",
-			blueFailsSeed, result["verdict"], term, sat, noProgressEpochs)
+			seed, result["verdict"], term, sat, noProgressEpochs)
 	}
 	return ""
 }
@@ -175,6 +186,9 @@ func TestBlueFailsForcedErrReadsTheSeatStop(t *testing.T) {
 	}
 	if (&runner{}).blueFailsForcedErr(map[string]any{}) != "" {
 		t.Error("an unforced run is held to blue's stop")
+	}
+	if (&runner{forceUnverified: true}).blueFailsForcedErr(stopped("red-chair", noProgressEpochs, "UNVERIFIED")) == "" {
+		t.Error("the forced-UNVERIFIED run is not held to blue's stop")
 	}
 }
 
@@ -235,21 +249,33 @@ func TestTheLensTurnOracleReadsANoTurnLensSittingAsTheRecordDoes(t *testing.T) {
 // blockers name it and the terminal sitting rules it, so the assembly leaves it alone.
 func TestTheAssemblyRulesOnlyTheDocketsFiledAfterTheLastPlan(t *testing.T) {
 	r, gap := blueEngagedRun(t)
+	// A PROPOSAL WAITS FOR THE GAP'S FIRST EXCHANGE: blue answers the gap with an edit, its lens audits
+	// the answer, and the chair plans again. An exchange that moves the gap leaves it short of impasse,
+	// so no motion of the dispatch's stands on it.
 	r.dispatchSits("blue", "blue-respond")
-	out, ok := r.do("motion docket file", "blue-respond").set("--id", gap).set("--reason", "fuzz: blue escalates "+gap).bare("--json").admit()
+	if _, ok := r.admit("edit", "--seat-id", "blue-respond", "--quote", "fuzz sentence", "--new", "fuzz statement",
+		"--answers", gap, "--reason", "fuzz: blue answers "+gap); !ok {
+		t.Fatalf("blue's edit answering %s: %s", gap, r.actErr)
+	}
+	r.dispatchReturns("blue-respond", r.envelopeEnds("blue-respond"))
+	chairPlan(t, r)
+	r.dispatchSits("lens", "red-lens-logic")
+	r.dispatchReturns("red-lens-logic", r.envelopeEnds("red-lens-logic"))
+	chairPlan(t, r)
+	if !r.exchanged(gap) {
+		t.Fatalf("%s has had no counted exchange after blue's edit and its lens's sitting: %s", gap, r.actErr)
+	}
+	r.dispatchSits("blue", "blue-respond")
+	out, ok := r.admit(withJSON(proposeCloseArgs("blue-respond", gap, "not_a_defect", "fuzz: blue escalates "+gap))...)
 	if !ok {
 		t.Fatalf("blue's docket filing: %s", r.actErr)
 	}
-	var filed struct {
-		Result struct {
-			MotionID string `json:"motion_id"`
-		} `json:"result"`
+	motionID := motionIDOf(out)
+	if motionID == "" {
+		t.Fatalf("the filing names no motion: %s", out)
 	}
-	if err := json.Unmarshal([]byte(out), &filed); err != nil || filed.Result.MotionID == "" {
-		t.Fatalf("the filing names no motion (%v): %s", err, out)
-	}
-	if got := r.docketsSinceTheLastPlan(); !slices.Equal(got, []string{filed.Result.MotionID}) {
-		t.Fatalf("after blue's filing the assembly would rule %v, want [%s]", got, filed.Result.MotionID)
+	if got := r.docketsSinceTheLastPlan(); !slices.Equal(got, []string{motionID}) {
+		t.Fatalf("after blue's filing the assembly would rule %v, want [%s]", got, motionID)
 	}
 	r.dispatchReturns("blue-respond", true)
 	chairPlan(t, r)
@@ -326,4 +352,66 @@ func mintedGapOf(t *testing.T, out string) string {
 		t.Fatalf("the mint names no gap (%v): %s", err, out)
 	}
 	return env.Result.GapID
+}
+
+// T-B25 (the engine stop): A PROPOSAL AN ENGINE STOP ENDS IS DOCKETED AT THE ASSEMBLY (L29). Blue files
+// a proposal of a close on its gap after one counted exchange, in a sitting the plan dispatched; the
+// stop lands before any plan follows it, so no window or docketing is had. The bench's assemble
+// register writes Docketing{PROPOSAL} for it; the bench answers it for the filer's side, and the
+// outcome lands. The ruling is appended through the record's write: `motion docket rule`'s side flags
+// are S3's.
+func TestTheAssemblyDocketsAStandingProposal(t *testing.T) {
+	r, gap := blueEngagedRun(t)
+	r.dispatchSits("blue", "blue-respond")
+	if _, ok := r.admit("edit", "--seat-id", "blue-respond", "--quote", "fuzz sentence", "--new", "fuzz statement",
+		"--answers", gap, "--reason", "fuzz: blue answers "+gap); !ok {
+		t.Fatalf("blue's edit answering %s: %s", gap, r.actErr)
+	}
+	r.dispatchReturns("blue-respond", r.envelopeEnds("blue-respond"))
+	chairPlan(t, r)
+	r.dispatchSits("lens", "red-lens-logic")
+	r.dispatchReturns("red-lens-logic", r.envelopeEnds("red-lens-logic"))
+	chairPlan(t, r)
+	if !r.exchanged(gap) {
+		t.Fatalf("%s has had no counted exchange after blue's edit and its lens's sitting: %s", gap, r.actErr)
+	}
+	r.dispatchSits("blue", "blue-respond")
+	out, ok := r.admit(withJSON(proposeCloseArgs("blue-respond", gap, "not_a_defect", "fuzz: blue proposes closing "+gap))...)
+	if !ok {
+		t.Fatalf("blue's proposal: %s", r.actErr)
+	}
+	motionID := motionIDOf(out)
+	if motionID == "" {
+		t.Fatalf("the filing names no motion: %s", out)
+	}
+	r.dispatchReturns("blue-respond", true)
+
+	// THE ENGINE STOPS: no plan follows the filing, and the assembly sits.
+	r.dispatchSits("bench", "judge", "assemble")
+	evs, _, err := record.EventsOf(r.run(), recordpb.EventType_EVENT_TYPE_DOCKETING)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var d *recordpb.Docketing
+	for _, e := range evs {
+		if k, ok := recordpb.BodyAs[*recordpb.Docketing](e); ok && k.GetGapId() == gap {
+			d = k
+		}
+	}
+	if d == nil || d.GetCause() != recordpb.DocketingCause_DOCKETING_CAUSE_PROPOSAL || d.GetMotionId() != motionID {
+		t.Fatalf("the assemble register wrote %+v on %s, want Docketing{PROPOSAL} holding %s (L29)", d, gap, motionID)
+	}
+	rule := &recordpb.MotionRule{MotionId: proto.String(motionID), Opinion: proto.String("fuzz: the filer's position stands"),
+		Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{DocketingId: proto.String(d.GetDocketingId()),
+			SidedWith: recordpb.SidedWith_SIDED_WITH_AUTHOR.Enum(), Disposition: recordpb.Disposition_DISPOSITION_NOT_A_DEFECT.Enum(), Final: proto.Bool(true),
+			Principle: proto.String("p"), Tension: proto.String("t"), ReviewFlag: proto.String("none"), Settled: proto.String("s")}}}
+	if _, err := record.Append(record.Identity{Run: r.run(), SeatID: "judge"}, rule); err != nil {
+		t.Fatalf("the bench's ruling of %s for the filer's side: %v", d.GetDocketingId(), err)
+	}
+	if _, ok := r.admit("outcome", "--seat-id", "judge", "--as", "UNVERIFIED", "--reason", "fuzz: the engine stopped and the bench ruled what stood"); !ok {
+		t.Fatalf("bench outcome after the assembly's ruling: %s", r.actErr)
+	}
+	t.Run("red's side at the assembly", func(t *testing.T) {
+		t.Skip("S3: red's side is refused naming the missing red closing text — needs red's closing text and the for-raiser comparison")
+	})
 }

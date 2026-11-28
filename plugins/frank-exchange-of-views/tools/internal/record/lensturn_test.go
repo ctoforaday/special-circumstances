@@ -93,8 +93,8 @@ func TestAGapBlueNeverAnswersReachesTheBenchWithoutTheLens(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, lens := partyOf(plan, evLens); lens || !slices.Equal(gapsOf(plan, "blue-respond"), []string{"G1"}) || len(plan.ToFile) != 0 {
-		t.Fatalf("one null turn: blue alone is ready again, nothing docketed: parties %+v, to file %v, why %q", plan.Parties, plan.ToFile, plan.Why)
+	if _, lens := partyOf(plan, evLens); lens || !slices.Equal(gapsOf(plan, "blue-respond"), []string{"G1"}) || len(docketGaps(plan)) != 0 {
+		t.Fatalf("one null turn: blue alone is ready again, nothing docketed: parties %+v, to file %v, why %q", plan.Parties, docketGaps(plan), plan.Why)
 	}
 	if x, _ := Exchanges(once, DefaultParams); x["G1"].Exchanges != 1 || x["G1"].Stalled != 1 {
 		t.Errorf("one null turn is one stalled exchange: %+v", x["G1"])
@@ -105,8 +105,8 @@ func TestAGapBlueNeverAnswersReachesTheBenchWithoutTheLens(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !slices.Equal(docketed.ToFile, []string{"G1"}) || slices.Contains(gapsOf(docketed, evLens), "G1") || slices.Contains(gapsOf(docketed, "blue-respond"), "G1") {
-		t.Errorf("two null turns stall G1 to impasse, and it is docketed rather than debated: to file %v, parties %+v, why %q", docketed.ToFile, docketed.Parties, docketed.Why)
+	if !slices.Equal(docketGaps(docketed), []string{"G1"}) || slices.Contains(gapsOf(docketed, evLens), "G1") || slices.Contains(gapsOf(docketed, "blue-respond"), "G1") {
+		t.Errorf("two null turns stall G1 to impasse, and it is docketed rather than debated: to file %v, parties %+v, why %q", docketGaps(docketed), docketed.Parties, docketed.Why)
 	}
 }
 
@@ -115,15 +115,15 @@ func TestAGapBlueNeverAnswersReachesTheBenchWithoutTheLens(t *testing.T) {
 // are the dispatch's own (lensTurnActsOf): an edit that changed the gap's sentence is the lens's turn.
 func lensReadiedBeforeBlue(evs []*Event, win WindowIndex, remands map[string][]remandRow, plan Plan) []string {
 	ids := win.IDs(evs)
-	minted := mintedBy(evs)
-	acts, mintedAt := lensTurnActsOf(evs, ids, gapActsOf(evs, ids, win), gapSittingsOf(evs, ids, win, AfterTheRun, minted), minted), mintPlaces(evs, ids)
+	minted := assigneeOf(evs)
+	acts, mintedAt := lensTurnActsOf(evs, ids, win, gapActsOf(evs, ids), gapSittingsOf(evs, ids, win, AfterTheRun, minted), minted), mintPlaces(evs, ids)
 	var out []string
 	for _, p := range plan.Parties {
 		if seatclass.RoleOfSeat(p.SeatID) != "lens" {
 			continue
 		}
 		for _, g := range p.GapIDs {
-			if !lensTurnOn(acts[g], p.SeatID, mintedAt[g], latestBefore(remandPlaces(remands[g]), ids[len(ids)-1]), ids[len(ids)-1]) {
+			if !lensTurnOn(acts[g], p.SeatID, authorsOn(evs)(g), mintedAt[g], latestBefore(remandPlaces(remands[g]), ids[len(ids)-1]), ids[len(ids)-1]) {
 				out = append(out, p.SeatID+":"+g)
 			}
 		}
@@ -141,12 +141,12 @@ func lensReadiedBeforeBlue(evs []*Event, win WindowIndex, remands map[string][]r
 // on since the lens's last act.
 //
 // REPORT_VOICE IS ALWAYS MATERIAL (gblock, 2026-11-05), so m36's low voice gaps hold the board now:
-// blue is ready on them too, and at event 423 the voice lens is engaged on G-380a3523, whose sentence
+// blue is ready on them too, and at event 355 the voice lens is engaged on G-380a3523, whose sentence
 // an edit changed — the lens's turn.
 //
-// EVERY LENS OWES ITS FULL RE-READ at 191, the whole report once more, which readies it at an unmoved
+// EVERY LENS OWES ITS FULL RE-READ at 148, the whole report once more, which readies it at an unmoved
 // head (plan constitution-gaps §III.3); a sitting with a verify is productive ("Productive sitting
-// (retirement)"), so the evidence lens, whose sitting holds its verify at 372, is not retired from 455
+// (retirement)"), so the evidence lens, whose sitting holds its verify, is not retired from 387
 // as the run retired it. The count below is held plan by plan, so no move offsets another.
 //
 // M36'S INQUIRIES WERE SETTLED AND NEVER CHECKED, so the replay also readies the logic lens, on no gap,
@@ -159,16 +159,16 @@ func TestM36LensesWaitForBlue(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	blueAlone := map[int]bool{191: true, 312: true, 423: true}
+	blueAlone := map[int]bool{148: true, 258: true, 355: true}
 	// stored minus replayed lens sittings, per plan; a plan not named moves none.
 	wantFewer := map[int]int{
-		191: -3, // three lenses engaged on gaps; the replay readies all six for the full re-read
-		312: 2,  // two no-op sittings
-		423: 1,  // two no-op sittings, less voice's turn on G-380a3523
-		454: -1, // the evidence lens, unretired
-		515: -1,
-		516: -1,
-		518: -1,
+		148: -3, // three lenses engaged on gaps; the replay readies all six for the full re-read
+		258: 2,  // two no-op sittings
+		355: 1,  // two no-op sittings, less voice's turn on G-380a3523
+		386: -1, // the evidence lens, unretired
+		438: -1,
+		439: -1,
+		441: -1,
 	}
 	hit := map[int]bool{}
 	for _, sp := range stored {

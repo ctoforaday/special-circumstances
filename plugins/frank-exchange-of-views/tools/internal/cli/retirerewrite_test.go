@@ -10,8 +10,8 @@ import (
 )
 
 // A REWRITE CARRIES ITS ANCHORS, AND A RETIRE TAKES ONE BY NAME. Smoke m26: blue rewrote three anchored
-// sentences into one new sentence carrying both finding markers (ev188), then split the markers onto
-// bare lines (ev192), and seven finding markers stood bare in the final report. A rewrite carries
+// sentences into one new sentence carrying both markers (ev188), then split the markers onto
+// bare lines (ev192), and seven markers stood bare in the final report. A rewrite carries
 // every anchor onto prose; a retire takes one of them off the sentence, which stays word for word; and
 // an edit that would leave the carried markers on no words is refused, so none stands bare.
 
@@ -22,24 +22,17 @@ const (
 	rwNew   = "Whether more holds is not settled here."
 )
 
-// rewriteAway files a finding on each of two sentences, then rewrites the paragraph's three
+// rewriteAway mints a gap on each of two sentences, then rewrites the paragraph's three
 // sentences into one new sentence the two markers are carried onto. It returns the run and the
-// two finding ids.
+// two gap ids.
 func rewriteAway(t *testing.T) (runDir, f1, f2 string) {
 	t.Helper()
 	runDir = newRun(t)
 	writeReport(t, runDir, "# Findings\n\n"+rwAlpha+". "+rwBeta+". "+rwLimit+".\n\nPlain prose here.\n")
 	registerBlue(t, runDir)
 	registerLensOnce(t, runDir)
-	find := func(key, quote string) string {
-		t.Helper()
-		if _, err := run(t, "finding", "--run", runDir, "--seat-id", lensSeat, "--key", key, "--quote", quote,
-			"--reason", "unsupported", "--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
-			t.Fatalf("finding %s: %v", key, err)
-		}
-		return lastBody(t, runDir, &recordpb.Finding{}).GetId()
-	}
-	f1, f2 = find("F1", rwAlpha+"."), find("F2", rwBeta+".")
+	f1 = markClaim(t, runDir, "G1", rwAlpha+".", "spec_underspecification")
+	f2 = markClaim(t, runDir, "G2", rwBeta+".", "spec_underspecification")
 	rep := readReport(t, runDir)
 	span := rep[strings.Index(rep, rwAlpha):strings.Index(rep, "\n\nPlain prose")]
 	if _, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
@@ -49,8 +42,13 @@ func rewriteAway(t *testing.T) (runDir, f1, f2 string) {
 	return runDir, f1, f2
 }
 
+// A closed gap's marker may be retired (F14 refuses an open one's), so its lens closes it first.
 func TestARetireAfterARewriteTakesTheMarkerItNames(t *testing.T) {
 	runDir, f1, f2 := rewriteAway(t)
+	lensRereads(t, runDir) // its next sitting is handed the rewrite, so its close stands on the text now there
+	if err := lensClose(t, runDir, lensSeat, f1, "not_a_defect"); err != nil {
+		t.Fatalf("closing %s: %v", f1, err)
+	}
 	out, err := run(t, "retire", "--run", runDir, "--seat-id", blueSeat, "--reason", "gone", "--anchor", f1)
 	if err != nil {
 		t.Fatalf("retire --anchor after a rewrite: %v", err)
@@ -58,7 +56,7 @@ func TestARetireAfterARewriteTakesTheMarkerItNames(t *testing.T) {
 	if got := lastBody(t, runDir, &recordpb.Retire{}).GetAnchors(); !slices.Equal(got, []string{f1}) {
 		t.Errorf("retire took %v, want [%s]", got, f1)
 	}
-	if !strings.Contains(out, "retired finding "+f1) {
+	if !strings.Contains(out, "retired ") || !strings.Contains(out, f1) {
 		t.Errorf("the result does not name the marker that left:\n%s", out)
 	}
 	rep := readReport(t, runDir)

@@ -32,9 +32,8 @@ import (
 //
 // Hand-written scenarios cannot cover this: they exercise the orderings the
 // author already thought about. A generator reaches the interleavings nobody
-// enumerated — a close before its mint, a regrade of a closed gap, a mint whose
-// --found-by names a finding that never existed, a bench ruling on a motion
-// nobody filed.
+// enumerated — a close before its mint, a regrade of a closed gap, a close of a
+// gap that never existed, a bench ruling on a motion nobody filed.
 //
 // Sequences are valid-ISH by construction rather than valid: a refusal is as
 // interesting as an acceptance, because the error text is part of the contract a
@@ -236,9 +235,15 @@ func replay(t *testing.T, bin, writer string, cmds []cmd, cast []string) replayR
 	// must be released before cleanup removes the directory — or Windows cannot remove it.
 	runDir := recordtest.TmpRun(t)
 	m := newMapper()
+	// A CAST, because the prologue asks `dispatch next` for the exchange a proposal waits on and for
+	// the bench's sitting, and a plan is folded only on a record holding one: the tour's (tourCast),
+	// else the random sequences'.
+	if cast == nil {
+		cast = castOf("evidence", "logic", "dark-side")
+	}
 	prepareRun(t, bin, runDir, m, nil, cast)
 	// A BOARD BEFORE THE FUZZ STARTS, as every sitting after the first has: GAP001 open, GAP002
-	// before the bench as MOTION001 — the placeholders the prologue's own output is given below,
+	// before the bench as MOTION001, docketed as DOCKETING001 — the placeholders the prologue's own output is given below,
 	// which is how a generated command names an id it cannot predict. Without it, every gap verb — close, regrade, carry, both
 	// motions — lands only when a random mint happened to precede it on the right seat with the
 	// right id, and a docket ruling only when a random filing did too. Over the fixed seed set
@@ -248,12 +253,33 @@ func replay(t *testing.T, bin, writer string, cmds []cmd, cast []string) replayR
 			"--check-kind", "document", "--check", "re-read the section", "--severity", "medium",
 			"--likelihood", "medium", "--impact", "medium", "--problem", problem, "--about-kind", "section", "--about", "Findings"}
 	}
+	// MOTION001 IS A PROPOSAL, AND THE BENCH SITS ON ITS DOCKETING: a proposal waits for its gap's one
+	// exchange, which the chair's dispatch engages blue for and blue's null turn gives; blue proposes
+	// GAP002's close in the sitting that turn left open; both parties file their closings; the lens's
+	// two sittings end its window, and the next dispatch dockets MOTION001 as DOCKETING001 and readies
+	// the bench, whose docket sitting holds it. Every step is the CLI's.
+	seat := func(verb string, seatID string, rest ...string) cmd {
+		parts := strings.Fields(verb)
+		return cmd{verb: parts[0], args: append(append(parts[1:], "--run", "{RUN}", "--seat-id", seatID), rest...)}
+	}
 	prologue := []cmd{
-		{verb: "register", args: []string{"--run", "{RUN}", "--seat-id", "red-lens-evidence"}},
+		seat("register", "red-chair"),
+		seat("register", "red-lens-evidence"),
 		{verb: "mint", args: mintArgs("the open gap the fuzz starts from")},
 		{verb: "mint", args: mintArgs("a contested claim awaiting a bench ruling")},
-		{verb: "motion", args: []string{"docket", "file", "--run", "{RUN}", "--seat-id", "red-chair", "--id", "GAP002",
-			"--reason", "contested, and not red's to close"}},
+		{verb: "mint", args: mintArgs("a gap blue disputes the grade of")},
+		seat("dispatch next", "red-chair"),
+		seat("register", "blue-respond"),
+		seat("register", "blue-respond"),
+		seat("motion docket file close", "blue-respond", "--id", "GAP002", "--as", "not_a_defect", "--verified-by", "blue-respond",
+			"--verified-with", "the report read", "--verified-against", "report.md#S2", "--reason", "the gap is not a defect, and the bench should say so"),
+		seat("closing", "blue-respond", "--id", "GAP002", "--reason", "blue's closing on the docketed gap"),
+		seat("closing", "red-lens-evidence", "--id", "GAP002", "--reason", "the lens's closing on the docketed gap"),
+		seat("register", "red-lens-evidence"),
+		seat("register", "red-lens-evidence"),
+		seat("register", "red-chair"),
+		seat("dispatch next", "red-chair"),
+		seat("register", "judge", "--occasion", "docket"),
 	}
 	// A RECORDED COMPUTATION, for a sequence with a reproduce in it — and only for one, so the sequences
 	// that name none start from the board they always did. Its anchor is read off the record.
@@ -334,17 +360,18 @@ var (
 	fuzzGrades = []string{"low", "low_medium", "medium", "medium_high", "high", "certain", "realized", "trivial",
 		"low", "medium", "high", "medium", "low-medium", "bogus"} // the last two are refused
 	fuzzClasses = []string{"spec_underspecification", "policy_without_mechanism", "spec_underspecification", "policy_without_mechanism", "propagation-incomplete"} // the last is not a GapClass word
-	// GAP001 and GAP002 are on the board from the prologue, and MOTION001 before the bench; the
+	// GAP001, GAP002 and GAP003 are on the board from the prologue, and MOTION001 before the bench; the
 	// others name an id only once the sequence's own output has printed one, and until then reach
 	// the tool as the id of their kind that names nothing, refused for not existing.
-	fuzzGapIDs  = []string{"GAP001", "GAP001", "GAP001", "GAP002", "GAP003"}
-	fuzzMotions = []string{"MOTION001", "MOTION001", "MOTION002", "MOTION003"}
+	fuzzGapIDs = []string{"GAP001", "GAP001", "GAP001", "GAP002", "GAP003", "GAP009"}
+	// THE PROPOSALS GO TO GAP003, the gap the prologue mints for them, or meet GAP002's standing
+	// MOTION001 (one proposal at a time) and a gap nothing minted: a proposal holds its gap while it
+	// stands, and one on GAP001 would leave the lens no closure for the chair's carry to restate.
+	fuzzProposalGapIDs = []string{"GAP003", "GAP003", "GAP002", "GAP009"}
+	// The bench answers a docketing: the prologue's, a later one, and one nothing wrote.
+	fuzzDocketings = []string{"DOCKETING001", "DOCKETING001", "DOCKETING002", "DOCKETING009"}
 	// Report text the seeded round-0 report carries, plus one line it does not (a mis-quote).
 	fuzzQuotes = []string{"A claim sits under S2.", "A claim sits under S4.", "a sentence the report never says"}
-	// Finding ids, which a mint's --found-by is checked against at the write, by the placeholder of
-	// the sequence's first, second and third finding — so some name a recorded finding and some
-	// name nothing.
-	fuzzFoundBy = []string{"FINDING001", "FINDING002", "FINDING003", "L1,L5"}
 
 	// The evidence lens twice: it originated GAP001, and only the originator may close or regrade a
 	// gap — the other two lenses are where the wrong-originator refusal comes from.
@@ -362,12 +389,16 @@ type fuzzArm struct {
 	name   string
 	weight int
 	seats  []string
-	verb   []string // the verb path, first word first: {"motion", "grade", "file"}
+	verb   []string // the verb path, first word first: {"motion", "docket", "file"}
 	flags  func(rng *rand.Rand) []string
 	// steps, when set, builds SEVERAL commands for the arm's seat — a tour arm's prerequisites,
 	// its act and the repeat of it. Only the step labelled with the arm's own name is what "every
 	// arm lands" measures.
 	steps func(rng *rand.Rand, seat string) []cmd
+	// again files the drawn command a second time at once. A gap that moved under the seat's
+	// sitting refuses the first filing and moves the seat's read point past what it showed, so the
+	// same filing then lands — the one answer a stale refusal asks for.
+	again bool
 }
 
 // fuzzArms is weighted toward the lens, since that is where validation, lineage, and id minting
@@ -377,36 +408,22 @@ var fuzzArms = []fuzzArm{
 		flags: func(*rand.Rand) []string { return nil }},
 	{name: "lens register", weight: 1, seats: lensSeats, verb: []string{"register"},
 		flags: func(*rand.Rand) []string { return nil }},
-	{name: "lens finding", weight: 3, seats: lensSeats, verb: []string{"finding"},
-		flags: func(rng *rand.Rand) []string {
-			// --key from a small space so the SAME seat sometimes repeats it — that exercises
-			// the crash-retry idempotency (a repeated key returns the existing tool-assigned
-			// id, no duplicate).
-			f := []string{"--key", fmt.Sprintf("F%d", 1+rng.Intn(3)),
-				"--severity", pick(rng, fuzzGrades), "--likelihood", pick(rng, fuzzGrades),
-				"--impact", pick(rng, fuzzGrades), "--reason", "a finding"}
-			if rng.Intn(4) > 0 {
-				f = append(f, "--quote", pick(rng, fuzzQuotes))
-			}
-			return f
-		}},
 	{name: "lens mint", weight: 4, seats: lensSeats, verb: []string{"mint"},
 		flags: func(rng *rand.Rand) []string {
 			f := []string{"--class", pick(rng, fuzzClasses), "--check-kind", "document", "--check", "acceptance check",
 				"--severity", pick(rng, fuzzGrades), "--likelihood", pick(rng, fuzzGrades),
-				"--impact", pick(rng, fuzzGrades), "--problem", fmt.Sprintf("problem %d", rng.Intn(1000)),
-				"--about-kind", "section", "--about", "Findings"}
+				"--impact", pick(rng, fuzzGrades), "--problem", fmt.Sprintf("problem %d", rng.Intn(1000))}
+			// A quoted gap anchors into the report, and a mis-quote is refused; the rest name a section.
+			if rng.Intn(4) == 0 {
+				f = append(f, "--quote", pick(rng, fuzzQuotes))
+			} else {
+				f = append(f, "--about-kind", "section", "--about", "Findings")
+			}
 			if rng.Intn(3) == 0 {
 				f = append(f, "--complexity", pick(rng, fuzzGrades))
 			}
-			if rng.Intn(3) == 0 {
-				f = append(f, "--supersedes", pick(rng, fuzzGapIDs))
-			}
 			if rng.Intn(4) == 0 {
 				f = append(f, "--key", fmt.Sprintf("K%d", rng.Intn(3)))
-			}
-			if rng.Intn(5) == 0 {
-				f = append(f, "--found-by", pick(rng, fuzzFoundBy))
 			}
 			return f
 		}},
@@ -418,7 +435,7 @@ var fuzzArms = []fuzzArm{
 				f = append(f, "--reason", "re-read the repaired sentence")
 			}
 			if rng.Intn(4) == 0 {
-				f = append(f, "--as", "repaired_with_regression") // no successor: the validation path
+				f = append(f, "--as", "not_a_defect")
 			} else {
 				f = append(f, "--as", "repaired")
 			}
@@ -437,10 +454,10 @@ var fuzzArms = []fuzzArm{
 	{name: "chair carry", weight: 2, seats: []string{"red-chair"}, verb: []string{"carry"},
 		flags: func(rng *rand.Rand) []string {
 			// The epoch is the closure's own, and the record refuses any other: the generator draws
-			// the epochs a closure in these sequences can hold.
-			f := []string{"--id", pick(rng, fuzzGapIDs), "--carried-from", pick(rng, []string{"0", "1"})}
+			// the epochs a closure in these sequences can hold — the prologue's chair sits twice.
+			f := []string{"--id", pick(rng, fuzzGapIDs), "--carried-from", pick(rng, []string{"2", "3"})}
 			if rng.Intn(4) == 0 {
-				f = append(f, "--as", "repaired_with_regression")
+				f = append(f, "--as", "not_a_defect")
 			} else {
 				f = append(f, "--as", "repaired")
 			}
@@ -453,20 +470,23 @@ var fuzzArms = []fuzzArm{
 			}
 			return []string{"--ids", "GAP001,GAP002", "--reason", "re-read both closures"}
 		}},
-	{name: "chair motion docket file", weight: 2, seats: []string{"red-chair"}, verb: []string{"motion", "docket", "file"},
+	// The gap's author proposes its close; one proposal stands on a gap at a time, so GAP002's
+	// MOTION001 refuses a second there and GAP001 takes the first that lands.
+	{name: "blue motion docket file close", weight: 2, again: true, seats: []string{"blue-respond"}, verb: []string{"motion", "docket", "file", "close"},
 		flags: func(rng *rand.Rand) []string {
-			return []string{"--id", pick(rng, fuzzGapIDs), "--reason", "contested, and not red's to close"}
+			return []string{"--id", pick(rng, fuzzProposalGapIDs), "--as", "not_a_defect", "--verified-by", "blue-respond",
+				"--verified-with", "the report read", "--verified-against", "report.md#S2", "--reason", "contested, and not red's to close"}
 		}},
-	// Was `blue dispute`, a verb the motion collapse retired: a grade dispute is a grade motion.
-	{name: "blue motion grade file", weight: 1, seats: blueSeats, verb: []string{"motion", "grade", "file"},
+	// A blue seat disputes a gap's grade by proposing the regrade it holds right.
+	// The gaps are minted medium, which a proposal must move: the pool leaves medium out.
+	{name: "blue motion docket file regrade", weight: 2, again: true, seats: blueSeats, verb: []string{"motion", "docket", "file", "regrade"},
 		flags: func(rng *rand.Rand) []string {
-			return []string{"--id", pick(rng, fuzzGapIDs), "--dimension", "likelihood",
-				"--proposed", pick(rng, fuzzGrades), "--reason", "why"}
+			return []string{"--id", pick(rng, fuzzProposalGapIDs), "--severity", pick(rng, []string{"low", "high", "low", "high", "bogus"}), "--reason", "the gap is graded wrong"}
 		}},
-	// Was `bench reason`: the bench's disposition of a gap is its ruling on a docket motion.
+	// The bench's disposition of a gap is its ruling on the gap's docketing.
 	{name: "bench motion docket rule", weight: 2, seats: []string{"judge"}, verb: []string{"motion", "docket", "rule"},
 		flags: func(rng *rand.Rand) []string {
-			f := []string{"--id", pick(rng, fuzzMotions), "--as", "remanded", "--principle", "p", "--tension", "t",
+			f := []string{"--id", pick(rng, fuzzDocketings), "--remand", "--principle", "p", "--tension", "t",
 				"--reason", "the ruling", "--review-flag", "r", "--settled", "the proposition this ruling bars"}
 			if rng.Intn(4) > 0 {
 				// omitted: no --direction, the validation path. A remand states its direction.
@@ -479,7 +499,7 @@ var fuzzArms = []fuzzArm{
 // tourArms are the recording verbs the random sequences rarely land, each with the prerequisites
 // it needs: one per verb, on a seat whose tree has it — the lens's close, regrade and reproduce, and
 // the logic lens's inquiry check;
-// the chair's position; the parties' closing on the docketed GAP002 — its minting lens's and
+// the chair's position; the parties' closing on the docketed GAP002 — its assignee's and
 // blue-respond's; the bench's declare, certify, halt and outcome.
 // Every arm files its act and then files it AGAIN: where a sitting holds one of the act the repeat
 // is refused, and the refusal names the act that answers the first.
@@ -501,8 +521,15 @@ var tourArms = []fuzzArm{
 	tourArm("chair position", []string{"red-chair"}, []string{"position"}, reasonOnly, nil),
 	// A CLOSING IS A PARTY'S, ON A DOCKETING: GAP002 is before the bench from the prologue, minted
 	// by the evidence lens.
-	tourArm("blue closing", []string{"blue-respond"}, []string{"closing"}, func(t string) []string { return []string{"--id", "GAP002", "--reason", t} }, nil),
-	tourArm("lens closing", []string{"red-lens-evidence"}, []string{"closing"}, func(t string) []string { return []string{"--id", "GAP002", "--reason", t} }, nil),
+	// Each in a sitting of its own: the prologue's closings fill the prologue's sittings.
+	tourArm("blue closing", []string{"blue-respond"}, []string{"closing"}, func(t string) []string { return []string{"--id", "GAP002", "--reason", t} },
+		func(name string) []cmd {
+			return []cmd{fuzzStep(name+" · setup", []string{"register"}, "blue-respond")}
+		}),
+	tourArm("lens closing", []string{"red-lens-evidence"}, []string{"closing"}, func(t string) []string { return []string{"--id", "GAP002", "--reason", t} },
+		func(name string) []cmd {
+			return []cmd{fuzzStep(name+" · setup", []string{"register"}, "red-lens-evidence")}
+		}),
 	tourArm("log", []string{"red-lens-evidence", "red-chair", "blue-respond", "judge"}, []string{"log"},
 		func(t string) []string { return []string{"--type", "defect", "--reason", t} }, nil),
 	// A SPOT-CHECK STANDS ON A STALE AREA'S DELIVERED CHANGES: the drive retires the voice lens behind
@@ -512,15 +539,13 @@ var tourArms = []fuzzArm{
 		func(string) []cmd { return []cmd{chairOwesAStaleArea(tourStaleLens)} }),
 	tourArm("lens regrade", []string{"red-lens-evidence"}, []string{"regrade"},
 		func(t string) []string { return []string{"--id", "GAP001", "--severity", "high", "--reason", t} }, nil),
-	tourArm("chair motion grade rule", []string{"red-chair"}, []string{"motion", "grade", "rule"},
-		func(t string) []string { return []string{"--id", "{MOTION}", "--as", "rejected", "--reason", t} },
-		func(name string) []cmd { return []cmd{fileGradeMotion(name)} }),
-	// THE BENCH RULES WHAT A DISPATCH CONVENES IT TO RULE, on the passages delivered to that sitting: both
-	// parties filed their closings on GAP002 above and sit again, the chair's next sitting dispatches the
-	// bench, and the bench registers for the docket and reads the passage of the gap MOTION001 is about.
+
+	// THE BENCH RULES WHAT A DISPATCH CONVENES IT TO RULE, on the parties' statements: both parties filed
+	// their closings on GAP002 above and sit again, the chair's next sitting dispatches the bench, and
+	// the bench registers for the docket.
 	tourArm("bench motion docket rule", []string{"judge"}, []string{"motion", "docket", "rule"},
 		func(t string) []string {
-			return []string{"--id", "MOTION001", "--as", "remanded", "--principle", "p", "--tension", "t", "--review-flag", "r",
+			return []string{"--id", "DOCKETING001", "--remand", "--principle", "p", "--tension", "t", "--review-flag", "r",
 				"--settled", "the proposition this ruling bars", "--direction", "a reproduction on the shipped binary", "--reason", t}
 		},
 		func(name string) []cmd {
@@ -531,7 +556,6 @@ var tourArms = []fuzzArm{
 				fuzzStep(name+" · setup", []string{"register"}, "red-chair"),
 				fuzzStep(name+" · setup", []string{"dispatch", "next"}, "red-chair"),
 				fuzzStep(name+" · setup", []string{"register"}, "judge", "--occasion", "docket"),
-				readStep("judge"),
 			}
 		}),
 	tourArm("blue inquiry propose", blueSeats, []string{"inquiry", "propose"},
@@ -557,6 +581,14 @@ var tourArms = []fuzzArm{
 			return []string{"--id", "GAP001", "--as", "repaired", "--verified-by", "L1", "--verified-with", "Read", "--verified-against", "report.md#S1", "--reason", t}
 		},
 		func(string) []cmd { return []cmd{readStep("red-lens-evidence")} }),
+	// THE CHAIR'S CARRY RESTATES THE CLOSE JUST RECORDED, at its next sitting: the lens closed GAP001 in
+	// the chair's seventh sitting, the tour's drives opening the ones before it (measured). A random
+	// sequence rarely holds a closure before a carry, since a proposal on a gap holds it while it stands.
+	tourArm("chair carry", []string{"red-chair"}, []string{"carry"},
+		func(t string) []string {
+			return []string{"--id", "GAP001", "--carried-from", "7", "--as", "repaired", "--reason", t}
+		},
+		func(name string) []cmd { return []cmd{fuzzStep(name+" · setup", []string{"register"}, "red-chair")} }),
 	tourArm("bench halt", []string{"judge"}, []string{"halt"}, reasonOnly, nil),
 	// The outcome is the assembly sitting's: the bench registers for it first.
 	tourArm("bench outcome", []string{"judge"}, []string{"outcome"},
@@ -567,10 +599,9 @@ var tourArms = []fuzzArm{
 }
 
 // tourCast is the act tour's cast: the tour runs on a cast run, as a real one stands, because the
-// chair's spot-check and the bench's docket ruling stand only on report text delivered to their
-// sittings, and both deliveries are owed only through the plan — the chair's for a stale area, which
-// is a cast lens's retired behind a head move, and the bench's for the motions a dispatch convenes
-// it to rule. The computation lens is cast because the tour's computation makes it a party the plan
+// chair's spot-check stands only on report text delivered to its sitting, owed only through the plan
+// for a stale area, which is a cast lens's retired behind a head move, and the bench's docket ruling
+// only in the sitting a dispatch convenes it for. The computation lens is cast because the tour's computation makes it a party the plan
 // dispatches. The voice lens is the one the tour retires; the random sequences keep the cast-less board
 // they were measured on.
 var tourCast = castOf("evidence", "logic", "computation", "voice")
@@ -579,11 +610,6 @@ var tourCast = castOf("evidence", "logic", "computation", "voice")
 const tourStaleLens = "red-lens-voice"
 
 func reasonOnly(t string) []string { return []string{"--reason", t} }
-
-func fileGradeMotion(name string) cmd {
-	return fuzzStep(name+" · setup", []string{"motion", "grade", "file"}, "blue-respond",
-		"--id", "GAP001", "--dimension", "severity", "--proposed", "low", "--reason", "the consequence is bounded", "--json")
-}
 
 // fuzzStep is one command, spelled as its seat types it.
 func fuzzStep(arm string, verb []string, seat string, flags ...string) cmd {
@@ -681,7 +707,11 @@ func generate(rng *rand.Rand, maxLen int) []cmd {
 			r -= a.weight
 		}
 		args := append(append([]string{}, a.verb[1:]...), "--run", "{RUN}", "--seat-id", pick(rng, a.seats))
-		out = append(out, cmd{verb: a.verb[0], args: append(args, a.flags(rng)...), arm: a.name})
+		c := cmd{verb: a.verb[0], args: append(args, a.flags(rng)...), arm: a.name}
+		out = append(out, c)
+		if a.again {
+			out = append(out, c)
+		}
 	}
 	return out
 }

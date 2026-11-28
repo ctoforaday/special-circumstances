@@ -11,7 +11,7 @@ import (
 
 // NARRATION OF THE RUN IS ALWAYS MATERIAL (gblock, 2026-11-05). The report is subject prose only (#880,
 // m30), so a sentence addressed to the run holds the PASS whatever it is graded. On universe-m39 the
-// voice lens graded "Every number the run computed" low (finding ev386) and minted nothing, because its
+// voice lens graded "Every number the run computed" low (ev386) and minted nothing, because its
 // class went by grade.
 func TestAReportVoiceGapIsMaterialAtAnyGrade(t *testing.T) {
 	if got := recordpb.MaterialDefault(recordpb.GapClass_GAP_CLASS_REPORT_VOICE); got != recordpb.ClassMaterial_CLASS_MATERIAL_ALWAYS {

@@ -29,10 +29,12 @@ import (
 // last head written before it stands at: the expectation is the latest earlier source head that is
 // not lost. A key is the write's, numbered from the seat's own count of its word (record.deriveKey),
 // and no field names one: an act that wrote no event leaves each later act of its seat and word one
-// lower, and the expectation is the source key less the seat's lost acts of that word before it. m26
-// is the one archive where either moves (its source edits 219 and 222, lost under the 11-27 lead
-// call): 10 pins name 222 and land on source 207's edit, and the 14 pins on its later edits 321 and
-// 411 name their keys two lower — the stated residue.
+// lower, and the expectation is the source key less the seat's lost acts of that word before it. A
+// SETTLED EDIT is written as no event too (res.SettledEdits) and passes over the same way, so a head
+// is gone when it is either. m26 is the one archive where either moves (its source edits 219 and 222,
+// each written as no event): 10 pins name 222 and land on source 207's edit, and the 14 pins on its
+// later edits 321 and 411 name their keys two lower — the stated residue, the same whether an edit
+// is gone as lost or as settled.
 func TestAMigratedDispatchPinsTheEventItsSourcePinned(t *testing.T) {
 	checked, renumbered := 0, 0
 	onLostHead, rekeyed := map[string]int{}, map[string]int{}
@@ -46,16 +48,18 @@ func TestAMigratedDispatchPinsTheEventItsSourcePinned(t *testing.T) {
 			// listed in the manifest; the rest pair with the migrated dispatches in order.
 			res, dir := MigratedArchive(t, name)
 			lost := LostIDs(res)
+			gone := func(id int64) bool { return lost[id] || slices.Contains(res.SettledEdits, id) }
 			byID := map[int64]OldEvent{}
 			var heads []OldEvent           // the source's report heads so far, in stream order
 			lostBefore := map[string]int{} // seat and word -> that seat's lost acts of the word so far
 			keyOf := map[int64]string{}    // source id -> its key as the migrated record numbers it
 			var want []OldEvent            // the event each surviving source dispatch pins, in dispatch order
 			var wantKey []string
+			var wantDispatch []int64 // each source dispatch's own id, in the same order
 			for _, old := range evs {
 				byID[old.ID] = old
 				keyOf[old.ID] = renumberedKey(old.Key, lostBefore[old.SeatID+"\x00"+old.Word])
-				if lost[old.ID] {
+				if gone(old.ID) {
 					lostBefore[old.SeatID+"\x00"+old.Word]++
 				}
 				if isHead(old.Word) {
@@ -69,9 +73,9 @@ func TestAMigratedDispatchPinsTheEventItsSourcePinned(t *testing.T) {
 				if !ok {
 					t.Fatalf("source dispatch %d pins %d, which is no earlier event of the source", old.ID, pin)
 				}
-				if lost[head.ID] {
+				if gone(head.ID) {
 					i := slices.IndexFunc(heads, func(h OldEvent) bool { return h.ID == head.ID })
-					for i >= 0 && lost[heads[i].ID] {
+					for i >= 0 && gone(heads[i].ID) {
 						i--
 					}
 					if i < 0 {
@@ -83,7 +87,7 @@ func TestAMigratedDispatchPinsTheEventItsSourcePinned(t *testing.T) {
 				if keyOf[head.ID] != head.Key {
 					rekeyed[name]++
 				}
-				want, wantKey = append(want, head), append(wantKey, keyOf[head.ID])
+				want, wantKey, wantDispatch = append(want, head), append(wantKey, keyOf[head.ID]), append(wantDispatch, old.ID)
 			}
 			if len(want) == 0 {
 				return
@@ -97,11 +101,20 @@ func TestAMigratedDispatchPinsTheEventItsSourcePinned(t *testing.T) {
 			for i, e := range m.Events {
 				at[ids[i]] = e
 			}
-			n := 0
+			// AN ENGAGEMENT THAT OWES NONE IS WRITTEN AS NO EVENT (UnowedEngagements), so its place
+			// in the source's order is passed over.
+			n, dropped := 0, 0
 			for _, e := range m.Events {
 				d, ok := recordpb.BodyAs[*recordpb.Dispatch](e)
 				if !ok {
 					continue
+				}
+				if n >= len(want) {
+					t.Fatalf("the migrated record holds more dispatches than the source's %d", len(want))
+				}
+				for n < len(want) && slices.Contains(res.UnowedEngagements, wantDispatch[n]) {
+					n++
+					dropped++
 				}
 				if n >= len(want) {
 					t.Fatalf("the migrated record holds more dispatches than the source's %d", len(want))
@@ -129,8 +142,15 @@ func TestAMigratedDispatchPinsTheEventItsSourcePinned(t *testing.T) {
 				n++
 				checked++
 			}
+			for n < len(want) && slices.Contains(res.UnowedEngagements, wantDispatch[n]) {
+				n++
+				dropped++
+			}
 			if n != len(want) {
-				t.Errorf("the migrated record holds %d dispatches, the source %d", n, len(want))
+				t.Errorf("the migrated record holds %d dispatches, the source %d", n-dropped, len(want))
+			}
+			if dropped != len(res.UnowedEngagements) {
+				t.Errorf("%d source dispatches were passed over as unowed engagements, the manifest states %d", dropped, len(res.UnowedEngagements))
 			}
 		})
 	}

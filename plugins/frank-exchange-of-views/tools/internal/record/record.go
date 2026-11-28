@@ -118,8 +118,8 @@ type Event = recordpb.Event
 //
 // ROLE IS DELIBERATELY NOT A FIELD HERE. The PARTY that wrote an event is the role of its seat
 // (PartyOf), and seat.Context.Role answers a different question — which command group the verb is
-// mounted under. They disagree: `motion grade file` run by
-// `blue-respond` is party `blue` and command-group `grade`. Passing the wrong one would
+// mounted under. They disagree: `motion docket file` run by
+// `blue-respond` is party `blue` and command-group `docket`. Passing the wrong one would
 // silently re-label who wrote every motion event.
 type Identity struct {
 	// Run, not a path. RunDir was a string, and the empty string reached Append as a legitimate
@@ -287,7 +287,7 @@ func RegisterSeat(id Identity, runVia, occasion string) (dispatch int, where str
 	}
 	sitting := held.sitting
 	if !found {
-		if err := writeIn(tx, ev, seatID, recordpb.EventType_EVENT_TYPE_REGISTER, ev.GetRegister(), nil, stamp); err != nil {
+		if _, err := writeIn(tx, ev, seatID, recordpb.EventType_EVENT_TYPE_REGISTER, ev.GetRegister(), nil, stamp); err != nil {
 			return 0, "", err
 		}
 		// The row just written is the newest: the transaction holds the write lock.
@@ -303,6 +303,13 @@ func RegisterSeat(id Identity, runVia, occasion string) (dispatch int, where str
 	}
 	if found {
 		return 0, "", repeatRegister(seatID, dispatch, held, occ)
+	}
+	// AT THE EXIT NO PLAN FOLLOWS, SO THE BENCH'S REGISTER DOCKETS EVERY PROPOSAL NO DOCKETING HOLDS
+	// (L29), in its own transaction: every exit ruling then names a docketing.
+	if occ != nil && (*occ == recordpb.Occasion_OCCASION_TERMINAL || *occ == recordpb.Occasion_OCCASION_ASSEMBLE) {
+		if err := docketStandingProposals(tx, filesOf(id.Run), seatID); err != nil {
+			return 0, "", err
+		}
 	}
 	if err := tx.Commit(); err != nil {
 		return 0, "", err
@@ -430,26 +437,30 @@ var singleton = map[recordpb.EventType]bool{
 }
 
 // defines is the label-keyed verbs whose label IS the identity the event brings into being — a
-// gap id, a finding id, a citation id, an anchor. Those are run-unique by construction (the
+// gap id, a citation id, an anchor. Those are run-unique by construction (the
 // tool mints them: NewID), so their key stays
 // `seat:verb:label` and a second event with the same label is the SAME act whichever sitting
 // records it. Every other label-keyed verb REFERENCES something that already exists — a verify
 // names a source, a regrade names a gap — and there the label alone would make
 // the act possible once per run; see deriveKey.
 var defines = map[recordpb.EventType]bool{
-	recordpb.EventType_EVENT_TYPE_MINT:    true,
-	recordpb.EventType_EVENT_TYPE_FINDING: true,
-	recordpb.EventType_EVENT_TYPE_CITE:    true,
-	recordpb.EventType_EVENT_TYPE_ANCHOR:  true,
+	recordpb.EventType_EVENT_TYPE_MINT:   true,
+	recordpb.EventType_EVENT_TYPE_CITE:   true,
+	recordpb.EventType_EVENT_TYPE_ANCHOR: true,
 }
 
 // numbered is the types whose every write is a new act even where the body carries a label, so they
 // key on the per-seat ordinal. A stale refusal names its gap, and a seat refused twice on one gap in
 // one sitting — a change landed after the first refusal — is shown two different sets of changes:
 // keyed on the gap, the second would be refused as a retry of the first and the read point would
-// stop at the first.
+// stop at the first. A tombstone names its gap too, and a place, an end and a place again on one gap
+// in one sitting are three acts. A docketing names its gap as well, and is the tool's row as the plan
+// is: two docketings on one gap written in one sitting — one ruled, and the gap docketed again — are
+// two rows, so it keys on the writer's ordinal as the plan does.
 var numbered = map[recordpb.EventType]bool{
-	recordpb.EventType_EVENT_TYPE_STALE: true,
+	recordpb.EventType_EVENT_TYPE_STALE:     true,
+	recordpb.EventType_EVENT_TYPE_TOMBSTONE: true,
+	recordpb.EventType_EVENT_TYPE_DOCKETING: true,
 }
 
 // keyFields IS THE IDEMPOTENCY CONTRACT, in priority order, and it goes stale silently: a field
@@ -469,35 +480,6 @@ var numbered = map[recordpb.EventType]bool{
 // requireNotARetriedReading holds it to one reading per (url, sentence) per sitting and names the
 // stored reading when it refuses.
 var keyFields = []protoreflect.Name{"gap_id", "label", "id", "anchor"}
-
-// requireGradeMotionAsksForAChange refuses a grade motion proposing the grade already on the board.
-func requireGradeMotionAsksForAChange(q recordsql.Querier, g *recordpb.GradeMotion) error {
-	proposed := g.GetProposed()
-	if proposed == recordpb.Grade_GRADE_UNSPECIFIED {
-		return nil // an absent proposal is the required-field sweep's refusal, not this one's
-	}
-	col := gradeAtColumn(g.GetDimension())
-	if col == "" {
-		return fmt.Errorf("%q is not an axis this binary can read a grade at, so it cannot tell whether your motion asks for a change — add it to gradeAtColumn",
-			recordpb.Word(g.GetDimension()))
-	}
-	// The CURRENT grade is the gap view's, the result stored on the gap's latest regrade, else the
-	// mint's — asked of the record (queries.go).
-	current, found, err := gradeAt(q, g.GetGapId(), col)
-	if err != nil {
-		return fmt.Errorf("the record could not be read to tell whether this motion asks for a change, so nothing is filed — retry the call: %w", err)
-	}
-	if !found {
-		return nil // requireGap answered this already
-	}
-	if current != recordpb.Word(proposed) {
-		return nil
-	}
-	return fmt.Errorf("%s is already %s at %s, so this motion asks for no change — "+
-		"a motion is a request to MOVE a grade, and a ruling on one that moves nothing reads exactly like a ruling on the merits. "+
-		"Propose the grade you think it should be, or if you mean to argue the current grade is right, that belongs in your closing rather than on the docket",
-		g.GetGapId(), recordpb.Word(proposed), recordpb.Word(g.GetDimension()))
-}
 
 // deriveKey builds the idempotency key, and its ordinal arm COUNTS INSIDE THE WRITING
 // TRANSACTION.
@@ -636,26 +618,55 @@ func Append(id Identity, body proto.Message, guards ...Guard) (*Event, error) {
 // replay cannot place: every render of the report fails from that write on (#1252). The placement
 // guard a verb passes reads the report this Anchor lands on.
 func AppendPlaced(id Identity, act proto.Message, anchorID, loc string, guards ...Guard) (*Event, error) {
-	bodies := []proto.Message{act}
-	if anchorID != "" && strings.TrimSpace(loc) != "" {
-		bodies = append(bodies, &recordpb.Anchor{Id: proto.String(anchorID), Location: proto.String(loc)})
-	}
-	return appendOwn(id, bodies, guards)
-}
-
-// appendOwn writes bodies, in order, in one transaction of its own, the guards asked with the first:
-// each body is one appendAct over the same transaction. It returns the first body's event.
-func appendOwn(id Identity, bodies []proto.Message, guards []Guard) (*Event, error) {
-	evs, err := appendBodies(id, bodies, guards)
+	evs, err := appendBodies(id, PlacedActs(act, anchorID, loc, guards...))
 	if len(evs) == 0 {
 		return nil, err
 	}
 	return evs[0], err
 }
 
-// appendBodies is appendOwn returning every event it wrote, in order; on a refusal, the events
-// written before it (rolled back) and the refused body's.
-func appendBodies(id Identity, bodies []proto.Message, guards []Guard) ([]*Event, error) {
+// PlacedActs is AppendPlaced's write as acts: act with its guards, then the Anchor placing
+// anchorID's marker at loc where both are given.
+func PlacedActs(act proto.Message, anchorID, loc string, guards ...Guard) []Act {
+	acts := []Act{{Body: act, Guards: guards}}
+	if anchorID != "" && strings.TrimSpace(loc) != "" {
+		acts = append(acts, Act{Body: &recordpb.Anchor{Id: proto.String(anchorID), Location: proto.String(loc)}})
+	}
+	return acts
+}
+
+// appendOwn writes bodies, in order, in one transaction of its own, the guards asked with the first:
+// each body is one appendAct over the same transaction. It returns the first body's event.
+func appendOwn(id Identity, bodies []proto.Message, guards []Guard) (*Event, error) {
+	acts := make([]Act, len(bodies))
+	for i, b := range bodies {
+		acts[i] = Act{Body: b}
+	}
+	if len(acts) > 0 {
+		acts[0].Guards = guards
+	}
+	evs, err := appendBodies(id, acts)
+	if len(evs) == 0 {
+		return nil, err
+	}
+	return evs[0], err
+}
+
+// Act is one body of a multi-act write and the guards asked with it, against the record that body
+// lands on.
+type Act struct {
+	Body   proto.Message
+	Guards []Guard
+}
+
+// AppendActs writes acts, in order, in ONE transaction of its own, each with its own guards: an
+// answer to a proposed act and the act it applies are one write, so a refusal of either leaves the
+// motion standing and nothing written. It returns every event written.
+func AppendActs(id Identity, acts ...Act) ([]*Event, error) { return appendBodies(id, acts) }
+
+// appendBodies is AppendActs; on a refusal it returns the events written before it (rolled back)
+// and the refused body's.
+func appendBodies(id Identity, acts []Act) ([]*Event, error) {
 	var tx *recordsql.Tx
 	defer func() {
 		if tx != nil {
@@ -675,15 +686,20 @@ func appendBodies(id Identity, bodies []proto.Message, guards []Guard) ([]*Event
 		return tx, err
 	}
 	var out []*Event
-	for i, body := range bodies {
-		g := guards
-		if i > 0 {
-			g = nil
-		}
-		ev, err := appendAct(id, body, begin, g, liveWrite)
+	for _, a := range acts {
+		ev, _, err := appendAct(id, a.Body, begin, a.Guards, liveWrite)
 		out = append(out, ev)
 		if err != nil {
 			return out, err
+		}
+	}
+	// WHAT THE ACTS LEAVE, asked of the record with every act of the transaction on it — a mint with
+	// the anchor that places it, an edit with the report it leaves: each verb's landed guards
+	// (CheckLanded), the freeze's road arm among them. A refusal rolls the whole transaction back.
+	w := writeView{q: tx, files: filesOf(id.Run)}
+	for i, a := range acts {
+		if err := landedAt(w, a.Guards); err != nil {
+			return out[:i+1], err
 		}
 	}
 	return out, tx.Commit()
@@ -700,7 +716,7 @@ type writeMode struct {
 // liveWrite is every writer's mode but the replay's: stamped from Now, and the act judged.
 var liveWrite = writeMode{stamp: stamp, judge: true}
 
-// appendAct is one act's write, whoever holds the transaction: the checks every act passes, then
+// appendAct is one act's write, whoever holds the transaction, and the id the act took (writeIn): the checks every act passes, then
 // the write itself inside the transaction begin hands it — the verb's guards (Guard) first, against
 // that transaction, then validation, the act judgements where mode judges, the key and the insert.
 // Append's begin opens the record and a transaction of its own; a Replay's hands over the replay's
@@ -709,58 +725,62 @@ var liveWrite = writeMode{stamp: stamp, judge: true}
 //
 // begin is called only once the checks before it have passed, so a refused act opens nothing, and
 // a write that names no run is refused by name before any handle is asked for.
-func appendAct(id Identity, body proto.Message, begin func() (*recordsql.Tx, error), guards []Guard, mode writeMode) (*Event, error) {
+func appendAct(id Identity, body proto.Message, begin func() (*recordsql.Tx, error), guards []Guard, mode writeMode) (*Event, int64, error) {
 	run, seatID := id.Run, id.SeatID
 	// THE GUARD RegisterSeat HAS AND Append DID NOT. A write into an unresolved run is the one
 	// failure this package is least able to report afterwards: it succeeds, and the events are
 	// somewhere nobody reads.
 	if !run.Valid() {
-		return nil, feov.Errorf(feov.MissingField,
+		return nil, 0, feov.Errorf(feov.MissingField,
 			"this write names no run — pass --run <runDir>, or run inside a dispatch that injects it. "+
 				"A write with no run has no board to land on, and it is the one failure this tool cannot report after the fact")
 	}
 	// A CAPTURED RUN TAKES NOTHING (captured.go), asked before anything is opened.
 	if err := requireRunNotCaptured(run); err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	ev := &Event{}
 	typ, err := recordpb.SetBody(ev, body)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	tx, err := begin()
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	files := filesOf(run)
 	// THE RECORD'S OWN REFUSAL OF A SEAT ACT COMES BEFORE THE VERB'S GUARDS (outcomeclosed.go): an
 	// act after the outcome is told the run ended, not what a guard finds wrong with it. writeIn asks
 	// it again, which costs one query and keeps it first for the writers that hold no guards.
 	if err := requireSeatMayWriteAt(tx, seatID, typ, body); err != nil {
-		return ev, err
+		return ev, 0, err
 	}
 	if err := guardsAt(writeView{q: tx, files: files}, guards, false); err != nil {
-		return ev, err
+		return ev, 0, err
 	}
 	// THE CHECKS, THE KEY AND THE INSERT ARE ONE TRANSACTION. The shard version read the file,
 	// counted the lines and appended — two steps with a gap, held together only by one seat owning
 	// one file. Validation asks the same transaction (writeView), so what it admits is the record the
 	// event lands on.
-	if err := writeIn(tx.Tx, ev, seatID, typ, body, func(*sql.Tx) error {
+	actID, err := writeIn(tx.Tx, ev, seatID, typ, body, func(*sql.Tx) error {
 		w := writeView{q: tx, files: files}
 		if err := validate(w, seatID, typ, body); err != nil {
 			return err
 		}
 		if mode.judge {
+			if err := requireClosingsOnlySitting(w, seatID, typ); err != nil {
+				return err
+			}
 			if err := judgeAct(w, seatID, body); err != nil {
 				return err
 			}
 		}
 		return guardsAt(w, guards, true)
-	}, mode.stamp); err != nil {
-		return ev, err
+	}, mode.stamp)
+	if err != nil {
+		return ev, 0, err
 	}
-	return ev, nil
+	return ev, actID, nil
 }
 
 // WriteBegins runs as a write is about to open its transaction, holding nothing. It does nothing;
@@ -790,22 +810,22 @@ var WriteBegins = func() {}
 //
 // check, when set, is the write's validation, run first inside the transaction: a refusal it
 // returns rolls the transaction back with nothing written.
-func writeIn(tx *sql.Tx, ev *Event, seatID string, typ recordpb.EventType, body proto.Message, check func(*sql.Tx) error, at func() string) error {
+func writeIn(tx *sql.Tx, ev *Event, seatID string, typ recordpb.EventType, body proto.Message, check func(*sql.Tx) error, at func() string) (int64, error) {
 	// A RUN WITH AN OUTCOME IS CLOSED TO SEAT ACTS, AND ITS OUTCOME IS THE ASSEMBLY SITTING'S
 	// (outcomeclosed.go), asked FIRST: an act after the outcome is told the run ended, not what else
 	// is wrong with it. appendAct asks it before its guards as well; this covers every other writer
 	// (RegisterSeat, DispatchNext, a migration's Replay).
 	if err := requireSeatMayWriteAt(tx, seatID, typ, body); err != nil {
-		return err
+		return 0, err
 	}
 	if check != nil {
 		if err := check(tx); err != nil {
-			return err
+			return 0, err
 		}
 	}
 	key, err := deriveKey(tx, seatID, typ, body)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	// THE ONCE-PER-SITTING DUTY IS ASKED HERE, NOT LEFT TO THE KEY. The key carries the seat's
 	// stored sitting count, so a repair's act shares the ordinal of the sitting it repairs and
@@ -813,15 +833,16 @@ func writeIn(tx *sql.Tx, ev *Event, seatID string, typ recordpb.EventType, body 
 	// (oncepersitting.go). It runs before the insert and inside the same transaction, which holds
 	// the write lock from its BEGIN.
 	if err := requireOncePerSitting(tx, seatID, typ, body); err != nil {
-		return err
+		return 0, err
 	}
 	// A MOTION IS ANSWERED ONCE, asked here for the same reason: under the lock, so two rulings
 	// racing each other resolve to one answer and one refusal (motion.go).
-	if err := requireUnanswered(tx, body); err != nil {
-		return err
+	if err := requireUnanswered(tx, seatID, body); err != nil {
+		return 0, err
 	}
 	envelope(ev, at(), seatID, key)
-	if _, err := recordsql.InsertTx(tx, ev); err != nil {
+	actID, err := recordsql.InsertTx(tx, ev)
+	if err != nil {
 		// A KEY COLLISION IS A SEAT REPEATING A LABELLED ACT, and the raw constraint text teaches
 		// nothing about that. The shard record met this by DEDUPING — two events with one key, one
 		// of them silently discarded on read — so a seat that filed the same row twice never
@@ -829,11 +850,6 @@ func writeIn(tx *sql.Tx, ev *Event, seatID string, typ recordpb.EventType, body 
 		// refused. A SINGLETON NEVER ARRIVES HERE: equal keys mean one stored-sitting count, so
 		// both acts are attributed to one sitting and the duty above has already refused the
 		// second.
-		//
-		// regradesAfforded (available.go) holds back a regrade this branch would refuse (the seat's
-		// current sitting already holds one on that gap); a change to the label key's sitting scope
-		// (deriveKey) changes what it must hold back, and the current-sitting row of
-		// TestARegradeOnTheListIsOneTheWritePathAdmits is the one that notices.
 		if isDuplicateKey(err) {
 			// THE TAIL NAMES THE ACT THAT ANSWERS THE FIRST, read from the one table that holds it
 			// (supersede.go). A generic "say so in the act that supersedes it" names an act that, for
@@ -841,17 +857,22 @@ func writeIn(tx *sql.Tx, ev *Event, seatID string, typ recordpb.EventType, body 
 			// what moved clean text into a log. Where the table holds no row — a key the tool
 			// minted, which only a retried write lands on twice — the refusal ends without one.
 			tail := ""
-			if a := SupersedingAnswer(typ, body); a != "" {
+			if a := SupersedingAnswer(seatID, typ, body); a != "" {
 				tail = " " + a
 			}
-			return feov.Errorf(feov.Validation,
+			return 0, feov.Errorf(feov.Validation,
 				"%s has already recorded a %s on %q this sitting — the record keeps your first one "+
 					"rather than quietly replacing it (a retried write lands on the same key on purpose).%s",
 				seatID, recordpb.Word(typ), keyLabel(body), tail)
 		}
-		return err
+		return 0, err
 	}
-	return nil
+	// THE TOMBSTONES THE ACT OWES, written in its transaction, under its identity and stamp, right
+	// after it (tombstone.go): every writer shares this line, the replay's included.
+	if err := writeTombstones(tx, ev, seatID, body, at); err != nil {
+		return 0, err
+	}
+	return actID, nil
 }
 
 // validate mirrors the oracle's append-time checks: anchors, lineage existence, the gap class's
@@ -907,29 +928,31 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 	}
 	// ORDER IS THE MESSAGE. A ruling's motion is established FIRST — that it exists and was filed
 	// under the subject this act names — because every later refusal is phrased in terms of it: a
-	// bench typing `motion docket rule` at a grade motion should be told it named the wrong subject,
+	// bench typing `motion docket rule` at a petition should be told it named the wrong subject,
 	// not that a docket ruling needs --settled, which is true, irrelevant, and sends it to the wrong
 	// fix. With no id there is no motion to establish, and the required-field walk below names the
 	// missing --id in the annotation's words.
 	switch b := body.(type) {
 	case *recordpb.MotionRule:
-		if b.GetMotionId() != "" {
+		// A BENCH RULING OF A DOCKETING WITH NO PROPOSAL NAMES NO MOTION: it answers the docketing
+		// (requireDocketAnswer). Every other ruling names the motion it answers.
+		if b.GetMotionId() != "" || b.GetDocket().GetDocketingId() == "" {
 			if err := requireSubjectMatches(q, b.Subject(), b.GetMotionId()); err != nil {
 				return err
 			}
-			// A RULING ON A MOTION ABOUT GAPS STANDS ON THEIR PASSAGES DELIVERED TO THE BENCH. A
-			// position names no passage, and its ruling needs none. A motion already ruled is told so
-			// first: no delivery would let a second ruling stand (requireUnanswered asks it again under
-			// the write lock).
-			if err := requireUnanswered(q, b); err != nil {
-				return err
-			}
-			if err := DeliveredTextRefusal(q, seatID, b); err != nil {
-				return err
-			}
+		}
+		// A docketing or motion already ruled is told so before any other refusal: no field would let
+		// a second ruling stand (requireUnanswered asks it again under the write lock). A ruling
+		// stands on the parties' statements on the record, not on report text delivered to the
+		// bench, so the delivered-text rule asks nothing of it.
+		if err := requireUnanswered(q, seatID, b); err != nil {
+			return err
 		}
 	}
 	if err := recordpb.CheckRequired(body); err != nil {
+		return err
+	}
+	if err := requireAuthorAccept(q, seatID, body); err != nil {
 		return err
 	}
 	switch b := body.(type) {
@@ -940,7 +963,7 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		// An id no anchor kind claims spells no token a reader recognises, so its gap would read `gone`
 		// beside a stray comment in the report: the empty id and every such id are refused here.
 		if anchor.Kind(b.GetId()) == "" {
-			return fmt.Errorf("anchor requires id — the id of the finding, citation, computation or gap whose marker this places; %q is none of them", b.GetId())
+			return fmt.Errorf("anchor requires id — the id of the citation, computation or gap whose marker this places; %q is none of them", b.GetId())
 		}
 		if (b.GetLocation() == "") == (b.GetSentenceOf() == "") {
 			return fmt.Errorf("anchor requires location or sentence_of, not both (the quote the marker sits at the end of, or the anchor whose sentence it ends)")
@@ -950,75 +973,13 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		// retired, or cut with its sentence — judge
 		// what a seat may mint next, and run on the live write alone (judgeAct); the minting seat's
 		// place on the roster is asked of every writer.
-		if err := requireUnclassifiedReason(b); err != nil {
-			return err
-		}
-		if err := requireMintSubject(b); err != nil {
+		if err := mintShape(q, b); err != nil {
 			return err
 		}
 		if err := requireMinterOnRoster(seatID); err != nil {
 			return err
 		}
-		if err := requireAboutAnchor(q, b.GetAboutKind(), b.GetAboutRef()); err != nil {
-			return err
-		}
-		// REQUIRED, not optional, and that is the whole remedy (#277).
-		//
-		// The 2026-08-05 smoke produced ZERO computations across a full run. Not because blue
-		// ignored the invitation — because NOTHING ASKED: all ten of red's acceptance checks
-		// were document probes. An optional field would be answered the same way the
-		// inquiry propose --hypothesis was before it was required, which is to say not at all. Making
-		// red state what would settle each check is the behaviour change; `document` stays a
-		// legitimate answer, but it now has to be chosen.
-		//
-		// UNSPECIFIED IS THE SCHEMA'S SPELLING OF ABSENT, and it is what the old
-		// `!p.Has || == ""` pair asked in one question: a seat that passed no --check-kind and
-		// a seat that passed an empty one were both refused, and both land here.
-		if b.GetCheckKind() == recordpb.CheckKind_CHECK_KIND_UNSPECIFIED {
-			return fmt.Errorf("requires --check-kind (document | computation | source) — what would SETTLE your acceptance check. A run where every check is a document probe can never ask for a computation")
-		}
-		// LIKELIHOOD AND IMPACT ARE REQUIRED; severity and cx are not. The rule is not
-		// "grade everything" — it is that a field whose ABSENCE IS INDISTINGUISHABLE FROM
-		// A LEGITIMATE VALUE cannot be optional.
-		//
-		// GapMass is MASS[likelihood] * MASS[impact], and an absent grade contributes
-		// ZERO by design. So an ungraded gap has mass 0 and reads exactly like a harmless
-		// one: it sinks to the bottom of every telemetry line that ranks by mass, and
-		// nothing anywhere says a number is missing rather than small. That is the same
-		// silent-zero confusion that has produced several defects in this codebase.
-		//
-		// Severity and complexity_cost are reported, not multiplied. When they are absent
-		// the projection shows them absent, which a reader can see and act on, so the
-		// prompt can go on carrying them.
-		//
-		// Cost of requiring, measured: the 2026-07-18 run minted 18 gaps and ALL 18
-		// carried all four grades unprompted. No seat is inconvenienced today. This is
-		// insurance against the cheaper tier, where grading is exactly the step a seat
-		// under pressure would drop — and it drops silently, into a zero.
-		for _, g := range []struct {
-			flag  string
-			grade recordpb.Grade
-		}{{"likelihood", b.GetLikelihood()}, {"impact", b.GetImpact()}} {
-			if g.grade == recordpb.Grade_GRADE_UNSPECIFIED {
-				return fmt.Errorf("requires --%s — it multiplies into the gap's mass, so an absent grade is scored as ZERO and the gap reads as harmless rather than ungraded", g.flag)
-			}
-		}
-		ids, err := allGapIDs(q)
-		if err != nil {
-			return err
-		}
-		if err := requireFindings(q, b.GetFoundBy(), "--found-by"); err != nil {
-			return err
-		}
-		for _, anc := range b.GetSupersedes() {
-			if !ids[anc] {
-				return fmt.Errorf("--supersedes names %s, which no mint event has created — dangling lineage refused", anc)
-			}
-		}
-		if err := requireSupersedable(q, seatID, b); err != nil {
-			return err
-		}
-		if err := requireSuccessorKeepsBenchGrades(w, b); err != nil {
+		if err := requireAboutGap(q, seatID, b); err != nil {
 			return err
 		}
 	case *recordpb.Computation:
@@ -1034,7 +995,7 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		// and a dangling reference is refused HERE rather than accepted and dropped at
 		// replay. It is optional — a computation can back a claim nobody challenged — but a
 		// `computation` gap can be closed ONLY by one that names it (see `lens close`).
-		if err := requireGap(q, b.GetAnswers(), "--answers"); err != nil {
+		if err := requireAnswersAuthor(q, seatID, b.GetAnswers()); err != nil {
 			return err
 		}
 		// That the citation is still live is the act's to answer (judgeAct): an archived computation
@@ -1049,17 +1010,13 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		if err := requireNotARepeatFailedCheck(q, seatID, b.GetComputationId(), b.GetSoundness() == recordpb.Soundness_SOUNDNESS_UNSOUND); err != nil {
 			return err
 		}
-	case *recordpb.Finding:
-		if err := requireAboutAnchor(q, b.GetAboutKind(), b.GetAboutRef()); err != nil {
-			return err
-		}
 	case *recordpb.BlueEdit:
 		// PROVENANCE IS A KEY, NOT A CONVENTION.
 		//
 		// --answers names the gap this edit responds to, and it is checked against the board
 		// like every other reference in this file (refs.go: twelve of twelve were once
 		// unchecked, and a dangling reference is ACCEPTED here and DROPPED at replay).
-		if err := requireGap(q, b.GetAnswers(), "--answers"); err != nil {
+		if err := requireAnswersAuthor(q, seatID, b.GetAnswers()); err != nil {
 			return err
 		}
 		// And the convention it replaces is REFUSED, not merely deprecated. Measured on the
@@ -1133,13 +1090,6 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		// The run used it zero times out of nine closures, so this costs nothing today.
 		// It is here for the cheaper tier, where an anchor is exactly the work a seat
 		// under pressure would rather skip.
-		// A carry restates a closure, and a gap its successor's mint closed has none to restate: the
-		// refusal names the successor, which holds its purpose now.
-		if b.CarriedFrom != nil {
-			if err := requireNotSuperseded(q, b.GetGapId(), "--id"); err != nil {
-				return err
-			}
-		}
 		if !anchored && b.CarriedFrom != nil {
 			prior, err := priorClosureEpochs(q, b.GetGapId())
 			if err != nil {
@@ -1156,42 +1106,17 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 					b.GetCarriedFrom(), b.GetGapId(), joinInts(prior))
 			}
 		}
-		if err := requireGap(q, b.GetSuccessor(), "--superseded-by"); err != nil {
-			return err
-		}
-		// The residue has to go somewhere STILL LIVE. A successor that is itself closed
-		// is a dead end wearing a forwarding address.
-		if err := requireOpenGap(q, b.GetSuccessor(), "--superseded-by",
-			"the unresolved remainder cannot move into a gap that is already finished"); err != nil {
-			return err
-		}
-		// A FRESH close of a closed gap double-counts closure history and corrupts the
-		// repair_regression denominator (see replay.go on ClosedByBench). A --carried-from
-		// close is exempt: restating an earlier closure is exactly what it means, and it
-		// is separately checked against a real prior closure below.
+		// A FRESH close of a closed gap double-counts closure history (see replay.go on
+		// ClosedByBench). A --carried-from close is exempt: restating an earlier closure is
+		// exactly what it means, and it is separately checked against a real prior closure below.
 		if b.CarriedFrom == nil {
 			if err := requireOpenGap(q, b.GetGapId(), "--id",
-				"closing it twice double-counts closure history and corrupts the repair_regression denominator; the chair's `carry --carried-from <epoch>` RESTATES an earlier closure"); err != nil {
+				"closing it twice double-counts closure history; the chair's `carry --carried-from <epoch>` RESTATES an earlier closure"); err != nil {
 				return err
 			}
 		}
-		// --superseded-by NAMES THE REGRESSION, and nothing else. A gap whose purpose moves to a
-		// successor is closed by that successor's mint (supersession.go), so the one remainder a close
-		// carries forward is the regression a repair caused, in a gap that does not supersede this one.
-		if b.GetClosureClass() == recordpb.Disposition_DISPOSITION_REPAIRED_WITH_REGRESSION && b.Successor == nil {
-			return fmt.Errorf("repaired_with_regression requires --superseded-by (lineage never drops)")
-		}
-		if b.GetClosureClass() != recordpb.Disposition_DISPOSITION_REPAIRED_WITH_REGRESSION && b.Successor != nil {
-			return feov.Errorf(feov.Validation,
-				"--superseded-by names the gap carrying a regression, and is given only with --as repaired_with_regression. "+
-					"A gap whose purpose passes to a successor is closed by minting that successor with --supersedes %s, which closes it in the same act", b.GetGapId())
-		}
-		// THE NEAR-MISS CHECK IS GONE BECAUSE THE OPEN SET IS GONE, not because it stopped
-		// mattering. It refused `closed-with-regression` and `Closed_With_Regression`: spellings
-		// that landed in the open part of a string-valued closure_class and skipped the successor
-		// check above, which is the opposite of "lineage never drops". `ClosureClass` is a closed
-		// enum now, so no near-miss can be REPRESENTED here — the refusal moves to wherever a
-		// seat's word is resolved to a value (recordpb.BySpelling, and the enum refusal's near-miss
+		// NO NEAR-MISS CAN BE REPRESENTED HERE: `ClosureClass` is a closed enum, so the refusal of
+		// one moves to wherever a seat's word is resolved to a value (recordpb.BySpelling, and the enum refusal's near-miss
 		// sentence through recordpb.SameWord), and that resolution is the CLI's parse, not this
 		// write path.
 		// A closure is a claim, and the claim's substance is its argument: what was verified and
@@ -1215,7 +1140,7 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		if err := requireGap(q, b.GetGapId(), "--id"); err != nil {
 			return err
 		}
-		if err := ClosingRefusal(q, b.GetGapId(), seatID); err != nil {
+		if err := ClosingRefusal(q, seatID, b); err != nil {
 			return err
 		}
 	// A DUTY DISCHARGED BY NOTHING IS THE DUTY'S OWN DEFEAT.
@@ -1271,12 +1196,8 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 			return err
 		}
 	case *recordpb.Regrade:
-		// regradesAfforded (available.go) lists a regrade only where these three admit it and
-		// writeIn's key does not collide; TestARegradeOnTheListIsOneTheWritePathAdmits holds
-		// the two together through Append, and a precondition added here needs a row there.
-		//
-		// THE ORIGINATOR REGRADES, AND SO DOES THE BENCH WHILE IT HEARS THE GAP (benchgrade.go): the
-		// bench's regrade sets the grade its ruling rules on.
+		// THE ASSIGNEE REGRADES; THE BENCH'S REGRADE IS THE TOOL'S (benchgrade.go): the statement a
+		// ruling applies, written in that ruling's transaction.
 		if seatclass.RoleOfSeat(seatID) != "bench" {
 			if err := requireOriginator(q, b.GetGapId(), seatID, "regrade"); err != nil {
 				return err
@@ -1292,7 +1213,41 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		if err := requireRegradeWithinBenchLock(w, seatID, b); err != nil {
 			return err
 		}
+		if err := requireGapAnswers(q, seatID, b.GetGapId(), b.GetAnswers()); err != nil {
+			return err
+		}
 		if err := requireNoRegradeResult(b); err != nil {
+			return err
+		}
+	case *recordpb.Amend:
+		// A GAP'S WORDING IS ITS MINTER'S TO RESTATE, on its open gap (plans/findings-fold.md §III.B7):
+		// an amend is a change to the demand, which only the party that raised it may make. The bench's
+		// application of a for-raiser ruling on a gap about this gap is written in that ruling's
+		// transaction.
+		if seatclass.RoleOfSeat(seatID) != "bench" {
+			if err := requireOriginator(q, b.GetGapId(), seatID, "amend"); err != nil {
+				return err
+			}
+		}
+		// AN AMEND CHANGES SOMETHING: the schema's CHECK holds it for every writer; refused here first,
+		// in the verb's words.
+		if b.Problem == nil && b.RequiredFix == nil && b.AcceptanceCheck == nil && b.FixNew == nil {
+			return feov.Errorf(feov.Validation, "an amend restates at least one of the gap's wording: --problem, --required-fix, --acceptance-check or --fix-new; each one you omit keeps the current one, so an amend naming none restates nothing. Nothing was recorded")
+		}
+		if err := requireGap(q, b.GetGapId(), "--id"); err != nil {
+			return err
+		}
+		if err := requireOpenGap(q, b.GetGapId(), "--id",
+			"a gap's wording is what the next act on it answers, so restating it on a finished gap changes a demand nobody owes"); err != nil {
+			return err
+		}
+		if err := requireGapAnswers(q, seatID, b.GetGapId(), b.GetAnswers()); err != nil {
+			return err
+		}
+		if err := requireNoAmendResult(b); err != nil {
+			return err
+		}
+		if err := refuseMintReportVoice(&recordpb.Mint{Problem: b.Problem, RequiredFix: b.RequiredFix, FixNew: b.FixNew}); err != nil {
 			return err
 		}
 	case *recordpb.Motion:
@@ -1304,34 +1259,7 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		if err := requireFilerHoldsNoGavel(seatID, b.Subject()); err != nil {
 			return err
 		}
-		// A GRADE MOTION IS ABOUT A GAP. A motion against a gap that does not exist is dropped
-		// at replay; one against a gap already disposed of asks for a different disposition than
-		// the one that has been made.
-		if b.Subject() == recordpb.MotionSubject_MOTION_SUBJECT_GRADE {
-			if err := requireGap(q, b.GetGrade().GetGapId(), "--id"); err != nil {
-				return err
-			}
-			if err := requireOpenGap(q, b.GetGrade().GetGapId(), "--id",
-				"a grade motion asks for a DIFFERENT disposition, and the disposition has already been made"); err != nil {
-				return err
-			}
-			// AND IT MUST ASK FOR A CHANGE. Proposing the grade already on the board contests
-			// nothing, and the ruling it produces is unreadable: `rejected` on a no-op and
-			// `rejected` on the merits are the same word, in the one exchange built to make that
-			// distinction legible. Measured 2026-08-22 — with severity already `high`,
-			// `--dimension severity --proposed high` filed cleanly.
-			//
-			// Read from the BOARD, not from the filer's claim about it, and a dimension this
-			// binary cannot resolve is an ERROR rather than a skipped check: GradeAt's zero would
-			// differ from every real proposal and quietly accept everything on a new axis.
-			if err := requireGradeMotionAsksForAChange(q, b.GetGrade()); err != nil {
-				return err
-			}
-			if err := requireGradeMotionOffBenchLock(w, b.GetGrade()); err != nil {
-				return err
-			}
-		}
-		// A DOCKET MOTION IS ABOUT A GAP TOO, and this check came across with the verb.
+		// A DOCKET MOTION IS ABOUT A GAP, and this check came across with the verb.
 		//
 		// `bench opinion` carried `requireGap(run, b.GetGapId(), "opinion", "--id")` because the
 		// 2026-07-18 damage was exactly this: eight judicial acts naming gaps nothing had minted,
@@ -1351,12 +1279,13 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 			if err := requireGap(q, b.GetDocket().GetGapId(), "--id"); err != nil {
 				return err
 			}
-			// A SUPERSEDED GAP IS NOT DOCKETED: the successor holds its purpose, and a ruling on the
-			// ancestor would rule on nothing the debate still owes.
-			if err := requireNotSuperseded(q, b.GetDocket().GetGapId(), "--id"); err != nil {
+			if err := requireFiledByAuthor(q, seatID, b.GetDocket().GetGapId()); err != nil {
 				return err
 			}
 			if err := requireNoClosingThisSitting(q, seatID, b.GetDocket().GetGapId()); err != nil {
+				return err
+			}
+			if err := requireProposedAct(q, b); err != nil {
 				return err
 			}
 		}
@@ -1380,8 +1309,8 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		// have no reopening to answer for, so the check is on the arm rather than the event.
 		//
 		// A REMAND ANSWERS WITH --direction, ALWAYS, AND WITH NOTHING ELSE. The remand's one more
-		// exchange owes the research the ruling states, and the dispatch hands blue and the minting
-		// lens its direction; --reopens-on and --final say what would reopen a gap the remand never
+		// exchange owes the research the ruling states, and the dispatch hands blue and the assignee
+		// its direction; --reopens-on and --final say what would reopen a gap the remand never
 		// closed. Asked first, so a remand is told what a remand owes rather than offered --final. A
 		// blank direction is no direction. A ruling that closes the gap states no direction: it sends
 		// no exchange.
@@ -1394,24 +1323,36 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 			return err
 		}
 		if d, ok := b.GetRuling().(*recordpb.MotionRule_Docket); ok {
+			// WHO ANSWERS, AND WHICH ANSWERS FIT: the bench on a docketing, or the gap's assignee
+			// accepting the act a proposal on its gap proposes (docketing.go).
+			if err := requireDocketAnswer(q, seatID, b); err != nil {
+				return err
+			}
+			if err := requireBenchOpinion(seatID, d.Docket); err != nil {
+				return err
+			}
+			closes := d.Docket.Disposition != nil && d.Docket.GetDisposition() != recordpb.Disposition_DISPOSITION_REMANDED
 			if d.Docket.GetDisposition() == recordpb.Disposition_DISPOSITION_REMANDED {
 				if strings.TrimSpace(d.Docket.GetDirection()) == "" || d.Docket.ReopensOn != nil || d.Docket.Final != nil {
-					return fmt.Errorf("--as remanded requires --direction, and never --reopens-on or --final: --direction is the research the remand's one more exchange owes blue and the minting lens, and --reopens-on and --final say what would reopen a closed gap — a remand closes nothing")
+					return fmt.Errorf("a remand requires --direction, and never --reopens-on or --final: --direction is the research the remand's one more exchange owes blue and the assignee, and --reopens-on and --final say what would reopen a closed gap — a remand closes nothing")
 				}
-				// A REMAND OF A CLOSED GAP IS REFUSED (gblock, 2026-10-24): its one more exchange is owed
-				// on a gap no lens or blue can act on, so nobody could discharge it, and the record does
-				// not reopen a gap. A REMAND PAST THE LIMIT IS REFUSED (gblock, 2026-10-25): a second
-				// remand at impasse has no exchange to grant (requireRemandWithinLimit).
-				if err := requireRemandOfOpenGap(q, b.GetMotionId()); err != nil {
+				// A REMAND PAST THE LIMIT IS REFUSED (gblock, 2026-10-25): a second remand at impasse
+				// has no exchange to grant (requireRemandWithinLimit), asked of the gap of the docketing
+				// the remand answers. That gap is open: the dispatch dockets an open gap, a proposal on a
+				// closed one is refused at its filing (requireDocketFiling), and a close ends the docketing.
+				gap, err := docketRulingGapAt(q, b)
+				if err != nil {
 					return err
 				}
-				if err := requireRemandWithinLimit(w, seatID, b.GetMotionId()); err != nil {
+				if err := requireRemandWithinLimit(w, seatID, gap, remandSubject(b)); err != nil {
 					return err
 				}
 			} else if d.Docket.Direction != nil {
-				return fmt.Errorf("--direction is the research a remand's one more exchange owes, and --as %s closes the gap and sends no exchange; what would reopen it is --reopens-on, or --final for nothing", recordpb.Word(d.Docket.GetDisposition()))
-			} else if d.Docket.ReopensOn == nil && d.Docket.Final == nil {
-				return fmt.Errorf("requires --reopens-on (what would change this outcome) or --final (nothing would). A ruling that says neither leaves the losing party unable to tell a settled question from an unanswered one, which is the difference between a new motion on new grounds and a wasted sitting")
+				return fmt.Errorf("--direction is the research a remand's one more exchange owes, and a ruling that is no remand sends no exchange; what would reopen a gap it closes is --reopens-on, or --final for nothing")
+			} else if !closes && (d.Docket.ReopensOn != nil || d.Docket.Final != nil) {
+				return fmt.Errorf("--reopens-on and --final say what would reopen a gap the ruling closes, and this ruling closes nothing by its own word")
+			} else if closes && d.Docket.ReopensOn == nil && d.Docket.Final == nil {
+				return fmt.Errorf("requires --reopens-on (what would change this outcome) or --final (nothing would). A ruling that says neither leaves the losing party unable to tell a settled question from an unanswered one")
 			}
 			if d.Docket.ReopensOn != nil && d.Docket.Final != nil {
 				return fmt.Errorf("--final says nothing would reopen this and --reopens-on names what would. They are opposite answers to one question; pass exactly one")
@@ -1422,10 +1363,13 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		// requireUnanswered, after the key is derived, in the same writing transaction as this.
 		//
 		// THE VERDICT SET IS KEYED ON (SUBJECT, RULING), which EnumFields cannot express: it is
-		// keyed by event TYPE, and one `motion-rule` carries granted|denied for a petition and
-		// accepted|rejected for a grade. So the check lives here, and the CLI's help is generated
-		// from the SAME table (MotionVerdictEnum) — one source, two readers, which is the rule
-		// enums.go exists to keep.
+		// keyed by event TYPE, and one `motion-rule` carries granted|denied for a petition and a
+		// disposition, or an accept or a reject, for a docket. So the check lives here, and the
+		// CLI's help is generated from the SAME table (MotionVerdictEnum) — one source, two
+		// readers, which is the rule enums.go exists to keep.
+		//
+		// A DOCKET RULING STATES ITS ANSWER: requireDocketAnswer refused every docket ruling without
+		// exactly one of a side, a grade answer and a remand, above.
 		//
 		// THE VERDICT SET IS KEYED ON (SUBJECT, RULING), and the schema now says so in its own
 		// syntax: one `ruling` oneof, one case per subject, each with its own closed enum. So a
@@ -1447,7 +1391,7 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		//
 		// --answers is the key blue_edit carries too, checked against the board the same way: a retire
 		// changes the report's anchors where an edit changes its text, and either may answer a gap.
-		if err := requireGap(q, b.GetAnswers(), "--answers"); err != nil {
+		if err := requireAnswersAuthor(q, seatID, b.GetAnswers()); err != nil {
 			return err
 		}
 	case *recordpb.Cast:
@@ -1493,7 +1437,7 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		if err := requireBenchDocket(b); err != nil {
 			return err
 		}
-		// A ROW BLUE WRITES IS ITS `engage`: the successors its responding seat's sitting owes, and
+		// A ROW BLUE WRITES IS ITS `engage`: the gaps its responding seat's sitting owes, and
 		// nothing else — a lane, the frontier and the synthesizer are dispatched by no row.
 		if r := seatclass.RoleOfSeat(seatID); r == "blue" || r == seatclass.Lane.Role {
 			if err := requireEngage(q, seatID, b); err != nil {
@@ -1502,6 +1446,14 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		}
 	case *recordpb.Plan:
 		if err := requirePrintedPlan(b.GetPrinted()); err != nil {
+			return err
+		}
+	case *recordpb.Tombstone:
+		if err := requireTombstoneShape(q, b); err != nil {
+			return err
+		}
+	case *recordpb.Docketing:
+		if err := requireDocketingShape(q, b); err != nil {
 			return err
 		}
 	case *recordpb.ReportRead:
@@ -1541,7 +1493,7 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 			return err
 		}
 	case *recordpb.Inquiry:
-		// EVERY INQUIRY HAS AN ID, exactly as every gap, finding and citation does. A
+		// EVERY INQUIRY HAS AN ID, exactly as every gap and citation does. A
 		// record without one does not replay: a compatibility path for one subsystem is an
 		// asymmetry every reader then has to learn.
 		// A RECORDED FATE names an inquiry that exists. A proposal ASSIGNS the id, so only a
@@ -1589,6 +1541,9 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 			}
 			return fmt.Errorf("a %s inquiry requires --reason (why it was not run, or what stopped it — the part a future run actually needs; a bare list of roads not taken is decoration)", recordpb.Word(st))
 		}
+		if err := requireInquiryAnswers(q, seatID, b); err != nil {
+			return err
+		}
 	// AN INQUIRY'S CHECK JUDGES IT AS IT STANDS, by its owner, with a reason (inquirycheck.go).
 	case *recordpb.InquiryCheck:
 		if err := requireInquiryCheck(w, seatID, b); err != nil {
@@ -1600,6 +1555,9 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 		if err := requireQuestionPart(q, b); err != nil {
 			return err
 		}
+		if err := requireQuestionPartAnswers(q, seatID, b); err != nil {
+			return err
+		}
 	case *recordpb.QuestionPartCheck:
 		if err := requireQuestionPartCheck(w, seatID, b); err != nil {
 			return err
@@ -1609,7 +1567,7 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 	case *recordpb.Cite:
 		// THE GAP A CITATION ANSWERS RESOLVES, as a computation's does: a dangling --answers is refused
 		// here rather than accepted and dropped at replay.
-		if err := requireGap(q, b.GetAnswers(), "--answers"); err != nil {
+		if err := requireAnswersAuthor(q, seatID, b.GetAnswers()); err != nil {
 			return err
 		}
 		// WHERE THE CITED TEXT CAME FROM IS THE TOOL'S TO STAMP, and an unstamped cite is a tool
@@ -1762,10 +1720,11 @@ func copyProvenance(act string, kind recordpb.CopySubstitution, copyURL *string)
 // subject — so there is no single field to read, and it reads whichever arm is set. An unset arm
 // and an arm holding its enum's zero both read "", which is what Motion.Ruled() tests; the write
 // refuses both, and refuses an arm that is not the ruling's own subject's.
+// RulingWord is rulingWord, for a verb that prints the word it wrote.
+func RulingWord(r *recordpb.MotionRule) string { return rulingWord(r) }
+
 func rulingWord(r *recordpb.MotionRule) string {
 	switch v := r.GetRuling().(type) {
-	case *recordpb.MotionRule_Grade:
-		return recordpb.Word(v.Grade)
 	case *recordpb.MotionRule_Petition:
 		return recordpb.Word(v.Petition)
 	case *recordpb.MotionRule_Docket:
@@ -1776,7 +1735,18 @@ func rulingWord(r *recordpb.MotionRule) string {
 		// view reports the whole docket as filed-and-unanswered, and Compute's
 		// gaps_with_disposition is 0. Not an error anywhere — the honest "nobody ruled" and the
 		// broken read are the same number.
-		return recordpb.Word(v.Docket.GetDisposition())
+		//
+		// ITS CLOSING WORD WHERE ONE IS SET, else the side it sided with or what it did with the moved
+		// grades — recordsql's docketWordSQL spells the same.
+		switch {
+		case v.Docket.Disposition != nil:
+			return recordpb.Word(v.Docket.GetDisposition())
+		case v.Docket.SidedWith != nil:
+			return "for " + recordpb.Word(v.Docket.GetSidedWith())
+		case v.Docket.MovedGrades != nil:
+			return "grades " + recordpb.Word(v.Docket.GetMovedGrades())
+		}
+		return ""
 	case *recordpb.MotionRule_Position:
 		// A message arm too, for the work an upheld ruling names: the word is on the message.
 		return recordpb.Word(v.Position.GetRuling())
@@ -1796,9 +1766,9 @@ func isDuplicateKey(err error) bool {
 	return err != nil && strings.Contains(err.Error(), "UNIQUE constraint failed: events.key")
 }
 
-// requireOriginator is "the originator closes" (plans/roundless.md §III.B.3): a gap belongs to the
-// lens that minted it for its whole life, so its regrade and its close are that lens's acts and
-// nobody else's — the chair dispatches the lens when the gap needs acting on, and the bench
+// requireOriginator is "the assignee closes" (plans/roundless.md §III.B.3): a gap is its assignee's —
+// the lens that minted its chain's first gap, whoever wrote the gap itself — for its whole life, so
+// its regrade and its close are that lens's acts and nobody else's — the chair dispatches the lens when the gap needs acting on, and the bench
 // disposes of a docketed gap through its ruling, not through a close. A carry is exempt at the
 // call site: it restates a closure the archive already holds and is the chair's account.
 //
@@ -1808,30 +1778,28 @@ func requireOriginator(q recordsql.Querier, gapID, seatID, act string) error {
 	if gapID == "" {
 		return nil // the missing-id refusal is the verb's own
 	}
-	var mintedBy string
-	found, err := queryRowAt(q, []any{&mintedBy}, `SELECT COALESCE("minted_by", '') FROM "gap" WHERE "gap_id" = ?`, gapID)
-	if err != nil || !found || mintedBy == "" || mintedBy == seatID {
+	var assignee string
+	found, err := queryRowAt(q, []any{&assignee}, `SELECT COALESCE("minted_by", '') FROM "gap" WHERE "gap_id" = ?`, gapID)
+	if err != nil || !found || assignee == "" || assignee == seatID {
 		return err // an unknown gap is requireGap's refusal, not this one's
 	}
 	return feov.Errorf(feov.Validation,
-		"%s was minted by %s, and the originator %ss its own gap; %s cannot. "+
-			"If the gap needs acting on, the chair's `dispatch next` engages its lens; if it needs the bench, it is docketed at impasse",
-		gapID, mintedBy, act, seatID)
+		"%s is assigned to %s — the lens that minted its chain's first gap — and only its assignee %ss it; %s cannot. "+
+			"If the gap needs acting on, the chair's `dispatch next` engages its assignee; if it needs the bench, it is docketed at impasse",
+		gapID, assignee, act, seatID)
 }
 
-// requireNoStandingDocket refuses the close of a gap a docket motion stands unruled on (ruled by
-// gblock 2026-10-31). The lens's preference comes before the docket: once the gap is before the bench,
-// the bench disposes of it, and the lens's one act there is its closing. On universe-m37 five dockets
-// closed within minutes of being filed, and the bench sat to rule three times on gaps that were over.
-func requireNoStandingDocket(q recordsql.Querier, gapID string) error {
-	var motion string
-	found, err := queryRowAt(q, []any{&motion}, `SELECT COALESCE("unruled_docket_motion", '') FROM "gap" WHERE "gap_id" = ?`, gapID)
-	if err != nil || !found || motion == "" {
+// requireNoDocketingOnFiling refuses a proposal on a gap a docketing stands on (L38): the docketed gap
+// is the bench's, and each party's position at it is its closing. A docketing holds a proposal exactly
+// when its cause is PROPOSAL, and that one was filed before it.
+func requireNoDocketingOnFiling(q recordsql.Querier, gapID string) error {
+	docketing, _, err := standingOnGap(q, gapID)
+	if err != nil || docketing == "" {
 		return err
 	}
 	return feov.Errorf(feov.Conflict,
-		"gap %s is docketed for the bench: motion %s stands unruled on it, and a docketed gap is the bench's to dispose of until it rules. Nothing was recorded; what you found goes in your closing argument on %s, which the bench reads before it rules",
-		gapID, motion, gapID)
+		"gap %s is docketed for the bench: docketing %s stands on it, and no proposal is filed on a docketed gap — your position goes in your closing on %s, which the bench reads before it rules for a side. Nothing was recorded",
+		gapID, docketing, gapID)
 }
 
 // closingThisSittingSQL is the seat's closing on a gap attributed to its current sitting, or no row
@@ -1841,14 +1809,19 @@ const closingThisSittingSQL = `SELECT e."id" FROM "events" e JOIN "closing" c ON
        AND e."sitting_id" IS ?3
      ORDER BY e."id" LIMIT 1`
 
-// requireNoClosingThisSitting refuses a docket motion on a gap whose closing its filer has already
-// filed in the sitting it is in (gblock, 2026-10-24: the tool refuses the act that would create an
-// obligation nobody can discharge). The motion docketing the gap again owes each party a closing on
-// it, and that sitting holds one closing per gap, so the filer's sitting could not end
-// (EnvelopeRefusal). It is filed in a later sitting.
+// requireNoClosingThisSitting refuses a proposal on a gap whose closing its filer has already filed in
+// the sitting it is in (gblock, 2026-10-24: the tool refuses the act that would create an obligation
+// nobody can discharge). A proposal is filed on an undocketed gap only (L38), and its docketing's span
+// opens at the filing, so it owes each party a closing after it; that sitting holds one closing per
+// gap, so the filer's sitting could not end (EnvelopeRefusal). It is filed in a later sitting. On a
+// docketed gap the docketing's closings are owed already and the proposal is refused for the docketing
+// itself (L38, the act judgement's, naming it), so this check asks nothing there.
 func requireNoClosingThisSitting(q recordsql.Querier, seatID, gapID string) error {
 	if gapID == "" {
 		return nil
+	}
+	if docketing, _, err := standingOnGap(q, gapID); err != nil || docketing != "" {
+		return err
 	}
 	sitting, _, err := latestSittingAt(q, seatID)
 	if err != nil {
@@ -1860,35 +1833,49 @@ func requireNoClosingThisSitting(q recordsql.Querier, seatID, gapID string) erro
 		return err
 	}
 	return feov.Errorf(feov.Conflict,
-		"%s already filed its closing on %s in this sitting (event %d), and a docket motion now would owe it a second closing on %s that this sitting cannot file — it holds one closing per gap, so your sitting could not end. "+
-			"Nothing was recorded; file the docket motion in a later sitting",
+		"%s already filed its closing on %s in this sitting (event %d), and a proposal now would owe it a second closing on %s that this sitting cannot file — it holds one closing per gap, so your sitting could not end. "+
+			"Nothing was recorded; file the proposal in a later sitting",
 		seatID, gapID, closing, gapID)
 }
 
-// ClosingRefusal is who may file a closing, and when (closingowed.go): a party to the gap's
-// dispute — its minting lens, or blue-respond — while a docket motion on it stands unruled. A
-// closing is an argument the bench reads when it rules a docketing, so one with nothing before the
-// bench answers no docketing, and one from a seat that is no party argues a dispute it is not in.
-// The write path refuses on it, and migrate writes no event for an archived closing it refuses.
-func ClosingRefusal(q recordsql.Querier, gapID, seatID string) error {
-	if gapID == "" {
-		return nil
+// ClosingRefusal is who may file a closing, when, and what it states: a party to the gap's dispute —
+// its assignee, or blue-respond — while a docketing or a proposal stands on it (closingowed.go),
+// stating its side's position (requireClosingStatement). A closing is an argument the bench reads when
+// it rules a docketing, so one with nothing before the bench answers no docketing, one from a seat that
+// is no party argues a dispute it is not in, and one that states no position the bench can side with
+// argues nothing. The write path refuses on it, and migrate writes no event for an archived closing it
+// refuses.
+func ClosingRefusal(q recordsql.Querier, seatID string, c *recordpb.Closing) error {
+	if c.GetGapId() == "" {
+		return nil // an absent gap is validate's refusal, not this one's
 	}
-	var mintedBy string
+	if err := closingPartyRefusal(q, c.GetGapId(), seatID); err != nil {
+		return err
+	}
+	return requireClosingStatement(q, seatID, c)
+}
+
+// closingPartyRefusal is ClosingRefusal's who and when.
+func closingPartyRefusal(q recordsql.Querier, gapID, seatID string) error {
+	var assignee string
 	var docketed int64
-	found, err := queryRowAt(q, []any{&mintedBy, &docketed}, `SELECT COALESCE("minted_by", ''), COALESCE("unruled_docket_filed", 0) FROM "gap" WHERE "gap_id" = ?`, gapID)
+	found, err := queryRowAt(q, []any{&assignee, &docketed}, `SELECT COALESCE("minted_by", ''), COALESCE("standing_docketing_at", "unruled_docket_filed", 0) FROM "gap" WHERE "gap_id" = ?`, gapID)
 	if err != nil || !found {
 		return err // an unknown gap is requireGap's refusal, not this one's
 	}
-	if !IsClosingParty(seatID, mintedBy) {
+	author, _, err := authorOfGap(q, gapID)
+	if err != nil {
+		return err
+	}
+	if !IsClosingParty(seatID, assignee, author) {
 		return feov.Errorf(feov.RoleViolation,
-			"a closing is the argument of a party to the gap's dispute — %s, which minted %s, and %s — and %s is party to none; nothing was recorded. "+
+			"a closing is the argument of a party to the gap's dispute — %s, which minted %s, and %s, its subject's author — and %s is party to none; nothing was recorded. "+
 				"An argument about no one gap is the chair's position",
-			mintedBy, gapID, blueRespondSeat, seatID)
+			assignee, gapID, author, seatID)
 	}
 	if docketed == 0 {
 		return feov.Errorf(feov.Validation,
-			"%s is not before the bench: no docket motion on it stands unruled, so a closing on it answers no docketing and nothing was recorded. "+
+			"%s is not before the bench: no docketing and no proposal stands on it, so a closing on it answers none and nothing was recorded. "+
 				"A closing is owed once the gap is docketed — your work list names each one you owe — and while the dispute runs, your argument is in your acts on the gap",
 			gapID)
 	}
@@ -1914,7 +1901,7 @@ func requireMintSubject(m *recordpb.Mint) error {
 	case loc != "" && strings.TrimSpace(loc) == "":
 		return fmt.Errorf("--quote is blank: a gap's quote is the ONE sentence of the report the defect lives at, quoted exactly — pass that sentence, or name a subject that is not report text with --about-kind/--about and no --quote")
 	case loc == "" && m.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_UNSPECIFIED:
-		return fmt.Errorf("a gap needs a subject: --quote for the one sentence of the report the defect lives at, or --about-kind/--about for what it is about when that is not report text — a section for what is missing from it, an inquiry, a question part, or a gap already on the board")
+		return feov.Errorf(feov.MissingField, "a gap needs a subject: --quote for the one sentence of the report the defect lives at, or --about-kind/--about for what it is about when that is not report text — a section for what is missing from it, an inquiry, the question or one of its question parts, or a citation or computation whose check failed")
 	// OUT OF SCOPE IS AN INQUIRY'S DEFECT, always material, and blue answers it with the inquiry's
 	// fate; on report text it would hold the PASS with no fate to answer it.
 	case m.GetClass() == recordpb.GapClass_GAP_CLASS_OUT_OF_SCOPE && m.GetAboutKind() != recordpb.AboutKind_ABOUT_KIND_INQUIRY:
@@ -1950,4 +1937,62 @@ func joinInts(ns []int) string {
 		parts[i] = strconv.Itoa(n)
 	}
 	return strings.Join(parts, ", ")
+}
+
+// mintShape is what a gap's statement must hold whoever writes it, and whether it is written now or
+// stored as a proposed supersede for its assignee or the bench to accept: its reason where it is
+// unclassified, one subject, an --about that resolves, a check kind, and the two grades its mass
+// multiplies. The seat-keyed checks (roster, supersession, the act judgements) are the write's.
+func mintShape(q recordsql.Querier, b *recordpb.Mint) error {
+	if err := requireUnclassifiedReason(b); err != nil {
+		return err
+	}
+	if err := requireMintSubject(b); err != nil {
+		return err
+	}
+	if err := requireAboutAnchor(q, b.GetAboutKind(), b.GetAboutRef()); err != nil {
+		return err
+	}
+	// REQUIRED, not optional, and that is the whole remedy (#277).
+	//
+	// The 2026-08-05 smoke produced ZERO computations across a full run. Not because blue
+	// ignored the invitation — because NOTHING ASKED: all ten of red's acceptance checks
+	// were document probes. An optional field would be answered the same way the
+	// inquiry propose --hypothesis was before it was required, which is to say not at all. Making
+	// red state what would settle each check is the behaviour change; `document` stays a
+	// legitimate answer, but it now has to be chosen.
+	//
+	// UNSPECIFIED IS THE SCHEMA'S SPELLING OF ABSENT, and it is what the old
+	// `!p.Has || == ""` pair asked in one question: a seat that passed no --check-kind and
+	// a seat that passed an empty one were both refused, and both land here.
+	if b.GetCheckKind() == recordpb.CheckKind_CHECK_KIND_UNSPECIFIED {
+		return fmt.Errorf("requires --check-kind (document | computation | source) — what would SETTLE your acceptance check. A run where every check is a document probe can never ask for a computation")
+	}
+	// LIKELIHOOD AND IMPACT ARE REQUIRED; severity and cx are not. The rule is not
+	// "grade everything" — it is that a field whose ABSENCE IS INDISTINGUISHABLE FROM
+	// A LEGITIMATE VALUE cannot be optional.
+	//
+	// GapMass is MASS[likelihood] * MASS[impact], and an absent grade contributes
+	// ZERO by design. So an ungraded gap has mass 0 and reads exactly like a harmless
+	// one: it sinks to the bottom of every telemetry line that ranks by mass, and
+	// nothing anywhere says a number is missing rather than small. That is the same
+	// silent-zero confusion that has produced several defects in this codebase.
+	//
+	// Severity and complexity_cost are reported, not multiplied. When they are absent
+	// the projection shows them absent, which a reader can see and act on, so the
+	// prompt can go on carrying them.
+	//
+	// Cost of requiring, measured: the 2026-07-18 run minted 18 gaps and ALL 18
+	// carried all four grades unprompted. No seat is inconvenienced today. This is
+	// insurance against the cheaper tier, where grading is exactly the step a seat
+	// under pressure would drop — and it drops silently, into a zero.
+	for _, g := range []struct {
+		flag  string
+		grade recordpb.Grade
+	}{{"likelihood", b.GetLikelihood()}, {"impact", b.GetImpact()}} {
+		if g.grade == recordpb.Grade_GRADE_UNSPECIFIED {
+			return fmt.Errorf("requires --%s — it multiplies into the gap's mass, so an absent grade is scored as ZERO and the gap reads as harmless rather than ungraded", g.flag)
+		}
+	}
+	return nil
 }

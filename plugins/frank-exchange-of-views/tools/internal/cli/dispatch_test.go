@@ -64,7 +64,7 @@ func TestDispatchNextRecordsThePartiesItNames(t *testing.T) {
 	}
 }
 
-// At impasse the verb dockets the gap and names its two parties, readied for their closings on it
+// At impasse the verb writes the gap's docketing and names its two parties, readied for their closings on it
 // with no gap engaged; the bench is convened once neither closing is awaited.
 func TestDispatchNextDocketsAGapAtImpasse(t *testing.T) {
 	runDir := newRun(t)
@@ -97,21 +97,25 @@ func TestDispatchNextDocketsAGapAtImpasse(t *testing.T) {
 		plan.Parties[0].SeatID != "red-lens-evidence" || plan.Parties[1].SeatID != "blue-respond" || len(plan.Parties[0].GapIDs)+len(plan.Parties[1].GapIDs) != 0 {
 		t.Fatalf("plan = %+v, want G1 docketed and its parties readied for their closings, engaged on no gap", plan)
 	}
-	motions, _, _ := record.EventsOf(runtest.Open(t, runDir), recordpb.EventType_EVENT_TYPE_MOTION)
-	if len(motions) != 1 {
-		t.Fatalf("motions on the record = %d, want the docket motion the verb filed", len(motions))
+	db := runtest.Open(t, runDir)
+	if motions, _, _ := record.EventsOf(db, recordpb.EventType_EVENT_TYPE_MOTION); len(motions) != 0 {
+		t.Fatalf("motions on the record = %d, want none — the dispatch writes a docketing, never a motion", len(motions))
 	}
-	m, _ := recordpb.BodyAs[*recordpb.Motion](motions[0])
-	if m.Subject() != recordpb.MotionSubject_MOTION_SUBJECT_DOCKET || m.GetDocket().GetGapId() != "G1" || !strings.Contains(m.GetBasis(), "impasse") {
-		t.Errorf("the docket motion = %+v, want a docket filing on G1 stating impasse", m)
+	docketings, _, _ := record.EventsOf(db, recordpb.EventType_EVENT_TYPE_DOCKETING)
+	if len(docketings) != 1 {
+		t.Fatalf("docketings on the record = %d, want the one the verb wrote", len(docketings))
 	}
-	// THE BLOCKERS PRINTED ARE THE GATE'S LIST WITH THE DOCKET FILED. The verb files the motion after
-	// it folds the plan; the motion is an unruled one whose gavel is the bench's, and the workflow
-	// and capture both read the relayed list as the record at the end of the sitting. A chair
-	// relaying this answer has asked once, and the record has not moved since.
-	filed := record.PlanBlocker{Kind: record.BlockerUnruledMotion, Subject: m.GetMotionId(), Owner: "judge"}
+	d, _ := recordpb.BodyAs[*recordpb.Docketing](docketings[0])
+	if d.GetGapId() != "G1" || d.GetCause() != recordpb.DocketingCause_DOCKETING_CAUSE_IMPASSE || d.MotionId != nil || !strings.Contains(d.GetBasis(), "impasse") || docketings[0].GetSeatId() != "red-chair" {
+		t.Errorf("the docketing = %+v by %s, want G1 at impasse, holding no proposal, written under the chair's verb", d, docketings[0].GetSeatId())
+	}
+	// THE BLOCKERS PRINTED ARE THE GATE'S LIST WITH THE DOCKETING WRITTEN. The verb writes the row
+	// after it folds the plan; the docketing stands until the bench rules it, and the workflow and
+	// capture both read the relayed list as the record at the end of the sitting. A chair relaying
+	// this answer has asked once, and the record has not moved since.
+	filed := record.PlanBlocker{Kind: record.BlockerDocketed, Subject: "G1", Owner: "judge"}
 	if !slices.Contains(plan.Blockers, filed) {
-		t.Errorf("blockers = %+v, want the docket motion the verb filed among them: %+v", plan.Blockers, filed)
+		t.Errorf("blockers = %+v, want the docketing the verb wrote among them: %+v", plan.Blockers, filed)
 	}
 	// NO PARTY IS ENGAGED ON THE DOCKETED GAP: its parties sit for their closings, which are not
 	// exchanges on it, and the bench is not convened yet — so the plan counts no exchange for it.
@@ -119,7 +123,7 @@ func TestDispatchNextDocketsAGapAtImpasse(t *testing.T) {
 		t.Errorf("exchanges = %+v, want none — no party of this plan is engaged on a gap", plan.Exchanges)
 	}
 	// Asked again with nothing changed: the plan still says this sitting docketed G1 — the chair
-	// relays the plan it asks for last — its parties are the same two, no second motion is filed,
+	// relays the plan it asks for last — its parties are the same two, no second docketing is written,
 	// and no second dispatch row is written.
 	rows, _, _ := record.EventsOf(runtest.Open(t, runDir), recordpb.EventType_EVENT_TYPE_DISPATCH)
 	out2, err := run(t, "dispatch", "next", "--run", runDir, "--seat-id", "red-chair", "--json")
@@ -127,10 +131,10 @@ func TestDispatchNextDocketsAGapAtImpasse(t *testing.T) {
 		t.Fatal(err)
 	}
 	plan2 := planOf(t, out2)
-	motions, _, _ = record.EventsOf(runtest.Open(t, runDir), recordpb.EventType_EVENT_TYPE_MOTION)
+	docketings, _, _ = record.EventsOf(runtest.Open(t, runDir), recordpb.EventType_EVENT_TYPE_DOCKETING)
 	rows2, _, _ := record.EventsOf(runtest.Open(t, runDir), recordpb.EventType_EVENT_TYPE_DISPATCH)
-	if !slices.Equal(plan2.Docket, []string{"G1"}) || len(motions) != 1 || len(plan2.Parties) != 2 || len(rows2) != len(rows) {
-		t.Errorf("a second ask re-docketed, re-engaged or re-recorded: plan=%+v motions=%d rows %d -> %d", plan2, len(motions), len(rows), len(rows2))
+	if !slices.Equal(plan2.Docket, []string{"G1"}) || len(docketings) != 1 || len(plan2.Parties) != 2 || len(rows2) != len(rows) {
+		t.Errorf("a second ask re-docketed, re-engaged or re-recorded: plan=%+v docketings=%d rows %d -> %d", plan2, len(docketings), len(rows), len(rows2))
 	}
 	if !slices.Equal(plan2.Blockers, plan.Blockers) || !slices.Equal(plan2.Exchanges, plan.Exchanges) {
 		t.Errorf("asked again with nothing changed, the blockers or the exchanges moved: %+v / %+v, then %+v / %+v", plan.Blockers, plan.Exchanges, plan2.Blockers, plan2.Exchanges)

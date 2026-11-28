@@ -16,7 +16,7 @@ import (
 func stopSeat(t *testing.T, runDir, agent string) string {
 	t.Helper()
 	ev := map[string]any{"agentId": agent, "message": map[string]any{"content": []any{
-		map[string]any{"type": "tool_result", "content": "Available Commands:\n  finding     a lens finding\n  verify      adjudicate ONE citation\n\n"},
+		map[string]any{"type": "tool_result", "content": "Available Commands:\n  mint        a lens gap\n  verify      adjudicate ONE citation\n\n"},
 	}}}
 	b, err := json.Marshal(ev)
 	if err != nil {

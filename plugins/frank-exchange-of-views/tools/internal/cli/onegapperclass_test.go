@@ -15,7 +15,7 @@ import (
 
 // ONE GAP PER CLASS AND SUBJECT (ruled by gblock 2026-10-28). A mint is refused where an open gap of
 // the same class stands on the same sentence or the same inquiry; the refusal names that gap, its
-// minter and its problem, and points the lens at a finding about it.
+// minter and its problem, and points the lens at the road its own gap takes: regrade it.
 
 const (
 	oneGapSentence = "Costs rose sharply across the first quarter."
@@ -43,13 +43,14 @@ func mintOn(t *testing.T, runDir, class, problem string, subject ...string) (str
 	return gapID(out), out, err
 }
 
-// refusedNaming fails the test unless err is the one-gap refusal naming held, its minter and problem.
+// refusedNaming fails the test unless err is the one-gap refusal naming held as the refused lens's own,
+// with its problem.
 func refusedNaming(t *testing.T, err error, out, held, problem string) {
 	t.Helper()
 	if err == nil {
 		t.Fatalf("a second gap of one class on one subject was admitted: %s", out)
 	}
-	for _, want := range []string{held, lensSeat, problem, "--about-kind gap --about " + held, "one gap"} {
+	for _, want := range []string{held, "is yours", problem, "regrade --id " + held, "one gap"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("the refusal does not name %q:\n%v", want, err)
 		}
@@ -70,8 +71,6 @@ func TestASecondGapOfOneClassOnOneSentenceIsRefusedNamingTheFirst(t *testing.T) 
 	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_MINT); n != 1 {
 		t.Errorf("the record holds %d mints, want the first alone", n)
 	}
-	// The act the refusal points to is admitted.
-	lensFinding(t, runDir, lensSeat, "about-first", "--about-kind", "gap", "--about", first)
 }
 
 func TestAnotherClassOnTheSameSentenceIsAdmitted(t *testing.T) {
@@ -149,17 +148,6 @@ func TestAClosedGapDoesNotBlock(t *testing.T) {
 	}
 }
 
-func TestASuccessorOfTheOpenGapIsAdmitted(t *testing.T) {
-	runDir := oneGapRun(t)
-	first, out, err := mintOn(t, runDir, "spec_underspecification", "the first problem", "--quote", oneGapSentence)
-	if err != nil {
-		t.Fatalf("first mint: %v\n%s", err, out)
-	}
-	if _, out, err := mintOn(t, runDir, "spec_underspecification", "the problem restated", "--quote", oneGapSentence, "--supersedes", first); err != nil {
-		t.Fatalf("a successor naming the open gap in --supersedes was refused: %v\n%s", err, out)
-	}
-}
-
 // TWO CONCURRENT MINTS ARE ONE GAP AND ONE REFUSAL. Another lens's mint of the same class on the same
 // sentence commits on its own connection at the instant this lens's write opens its transaction
 // (runtest.Overtaken); the check runs under the write lock, so it reads the other gap.
@@ -170,7 +158,7 @@ func TestTwoConcurrentMintsAreOneGapAndOneRefusal(t *testing.T) {
 		Location: proto.String(oneGapSentence), Problem: proto.String("the concurrent problem"), RequiredFix: proto.String("f"),
 		AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
 		Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
-		Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Supersedes: []string{}}
+		Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}
 	acts := []*recordpb.Event{
 		recordtest.At(t, other, other+":mint:1", mint),
 		recordtest.At(t, other, other+":anchor:"+otherID, &recordpb.Anchor{Id: proto.String(otherID), Location: proto.String(oneGapSentence)}),
@@ -200,7 +188,7 @@ func TestTwoConcurrentMintsAreOneGapAndOneRefusal(t *testing.T) {
 
 // THE GAP A FAILED CHECK OBLIGES IS NOT A SECOND GAP. A lens whose reading of a citation read nothing
 // owes a gap about it; another lens's open gap of the same class on the cited
-// sentence does not refuse it, since the gap is about the anchor, and the finding the refusal would
+// sentence does not refuse it, since the gap is about the anchor, and the road the refusal would
 // point to does not answer the check. A quote gap of that class on that sentence is refused as ever.
 func TestTheGapAFailedCheckObligesIsNotRefusedAsASecondGap(t *testing.T) {
 	runDir, label := citedClause(t)

@@ -47,7 +47,7 @@ func TestEveryMotionSubjectOnASurfaceHasAVerb(t *testing.T) {
 			}
 		}
 	})
-	if seen < 100 || motionGroups < 12 {
+	if seen < 100 || motionGroups < 9 {
 		t.Fatalf("the walk visited %d commands and %d motion subjects; it has stopped seeing the surface", seen, motionGroups)
 	}
 }

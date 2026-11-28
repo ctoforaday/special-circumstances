@@ -16,7 +16,7 @@ import (
 )
 
 // THE WRITER PRINTS THE RECORD'S REFUSAL OF THE AGENT'S ENVELOPE AND LOGS IT under the agent's seat:
-// a bench docket sitting with twin docket motions standing on its gap. An agent bound to no seat gets
+// a bench docket sitting convened on two gaps, a docketing standing on each. An agent bound to no seat gets
 // nothing printed and nothing logged, and a run with no record is an error the hook refuses on.
 func TestTheWriterPrintsAndLogsAnEnvelopeRefusal(t *testing.T) {
 	runDir := newRun(t)
@@ -26,29 +26,35 @@ func TestTheWriterPrintsAndLogsAnEnvelopeRefusal(t *testing.T) {
 		return recordtest.At(t, seat, fmt.Sprintf("%s:%d", seat, n), body)
 	}
 	sev := recordpb.Grade_GRADE_LOW
-	docket := func(id string) *recordpb.Motion {
-		return &recordpb.Motion{MotionId: proto.String(id), Basis: proto.String("b"),
-			Filing: &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}}}
+	mint := func(gap string) *recordpb.Mint {
+		return &recordpb.Mint{GapId: proto.String(gap), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
+			Problem: proto.String("p"), AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
+			Severity: &sev, Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}
+	}
+	// The dispatch's docketing of gap: the gap before the bench at impasse.
+	docketing := func(id, gap string) *recordpb.Docketing {
+		return &recordpb.Docketing{DocketingId: proto.String(id), GapId: proto.String(gap),
+			Cause: recordpb.DocketingCause_DOCKETING_CAUSE_IMPASSE.Enum(), Basis: proto.String("at impasse")}
 	}
 	recordtest.Seed(t, runDir,
 		at(record.HarnessSeat, &recordpb.Cast{SeatIds: []string{"red-lens-evidence", "red-chair", "blue-respond", "judge"}}),
 		at(record.HarnessSeat, &recordpb.ReportPart{Text: proto.String("# report")}),
 		at("red-chair", &recordpb.Register{}),
 		at("red-lens-evidence", &recordpb.Register{AgentId: proto.String("agent-lens")}),
-		at("red-lens-evidence", &recordpb.Mint{GapId: proto.String("G1"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
-			Problem: proto.String("p"), AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
-			Severity: &sev, Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}),
-		at("blue-respond", docket("M1")),
-		at("blue-respond", docket("M2")),
-		at("red-chair", &recordpb.Dispatch{Pin: proto.Int64(2), SeatId: proto.String("judge"), GapIds: []string{"G1"}}),
+		at("red-lens-evidence", mint("G1")),
+		at("red-lens-evidence", mint("G2")),
+		at("red-chair", docketing("D1", "G1")),
+		at("red-chair", docketing("D2", "G2")),
+		at("red-chair", &recordpb.Dispatch{Pin: proto.Int64(2), SeatId: proto.String("judge"), GapIds: []string{"G1", "G2"}}),
 		at("judge", &recordpb.Register{AgentId: proto.String("agent-bench"), Occasion: recordpb.Occasion_OCCASION_DOCKET.Enum()}),
 	)
 	var out bytes.Buffer
 	if err := WriteEnvelopeAnswer(runDir, "agent-bench", "claude", []byte(`{}`), &out); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(out.String(), "motion M1 ") || !strings.Contains(out.String(), "motion M2 ") {
-		t.Fatalf("the writer did not print the refusal naming both twins: %q", out.String())
+	// The bench's docket sitting is held by the docket's first (the docket order).
+	if !strings.Contains(out.String(), "docketing D1 ") {
+		t.Fatalf("the writer did not print the refusal naming the docket's first: %q", out.String())
 	}
 	var stray bytes.Buffer
 	if err := WriteEnvelopeAnswer(runDir, "agent-of-no-seat", "claude", []byte(`{}`), &stray); err != nil || stray.Len() != 0 {
@@ -65,8 +71,8 @@ func TestTheWriterPrintsAndLogsAnEnvelopeRefusal(t *testing.T) {
 	if len(evs) != 1 || evs[0].GetSeatId() != "judge" {
 		t.Fatalf("want the bench's one refusal entry, got %d entr(ies)", len(evs))
 	}
-	if l, _ := recordpb.BodyAs[*recordpb.Log](evs[0]); l.GetType() != recordpb.LogType_LOG_TYPE_REFUSAL || !strings.Contains(l.GetText(), "motion M2 ") {
-		t.Errorf("the entry is not the tool's refusal naming the twins: %v", l)
+	if l, _ := recordpb.BodyAs[*recordpb.Log](evs[0]); l.GetType() != recordpb.LogType_LOG_TYPE_REFUSAL || !strings.Contains(l.GetText(), "docketing D1 ") {
+		t.Errorf("the entry is not the tool's refusal naming the docket's first: %v", l)
 	}
 	if got := admissions(t, runDir); len(got) != 0 {
 		t.Errorf("a refused envelope was recorded as admitted: %v", got)

@@ -9,7 +9,7 @@ import (
 )
 
 // blockedPlan is the plan the chair's `dispatch next` stores over a board whose open material gap G1
-// holds the PASS: nothing permits it, and the lens that minted G1 clears it.
+// holds the PASS: nothing permits it, and G1's assignee clears it.
 func (b *stage) blockedPlan() *stage {
 	p := emptyPlan()
 	p.Head = b.head()

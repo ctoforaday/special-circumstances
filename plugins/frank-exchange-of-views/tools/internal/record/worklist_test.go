@@ -24,12 +24,12 @@ func chairBoard(t *testing.T, lensSat bool) *stage {
 
 const outsideLens = "red-lens-logic"
 
-func cmMint(gap string, cm recordpb.ClassMaterial, severity string, supersedes ...string) *recordpb.Mint {
+func cmMint(gap string, cm recordpb.ClassMaterial, severity string) *recordpb.Mint {
 	sev, _ := GradeOf(severity)
 	return &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), GapId: proto.String(gap), Class: recordtest.ClassFor(cm).Enum(), Problem: proto.String("p"),
 		AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
 		Severity: &sev, Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
-		ClassMaterial: cm.Enum(), Supersedes: supersedes}
+		ClassMaterial: cm.Enum()}
 }
 
 // openChairSitting opens the chair's sitting after the parties sat and closes its log channel, so
@@ -98,10 +98,6 @@ func TestChairWorkListAgreesWithPassGate(t *testing.T) {
 		{"by_grade-medium", func(b *stage) {
 			b.add(outsideLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "medium"))
 		}, true, false},
-		{"superseded by_grade-medium ancestor", func(b *stage) {
-			b.add(outsideLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "medium"))
-			b.add(outsideLens, cmMint("G2", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "low", "G1"))
-		}, false, true},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			b := chairBoard(t, true)
@@ -121,55 +117,6 @@ func TestChairWorkListAgreesWithPassGate(t *testing.T) {
 					t.Errorf("open[G1].material=%v, want %v", g.Material, c.wantMaterial)
 				}
 			}
-			// THE SUCCESSOR'S MINT CLOSED THE MATERIAL ANCESTOR: no row of the list names it.
-			if strings.HasPrefix(c.name, "superseded") {
-				if it, listed := itemNaming(s, "gap G1 "); listed {
-					t.Errorf("the superseded ancestor is still on the chair's list: %q", it.What)
-				}
-			}
 		})
-	}
-}
-
-// THE DOCKET OFFER STANDS ONLY ON A GAP THAT HOLDS PASS: docketing one that does not would create
-// the block the gap itself does not.
-func TestChairDocketAffordanceOnlyOnMaterialGaps(t *testing.T) {
-	gaps := []WorkGapState{
-		{ID: "NEVER", Open: true, ClassMaterial: "never"},
-		{ID: "LOW", Open: true, ClassMaterial: "by_grade", Severity: "low"},
-		{ID: "MAT", Open: true, Material: true},
-		{ID: "CARRIED", Open: true, Material: true, Remanded: true},
-	}
-	open := availableOf(nil, WindowIndex{}, gaps, "chair", "red-chair", false)
-	// THE OFFER IS THE VERB, NOT THE GAP'S NAME. A remanded gap is named by a row that says the
-	// opposite — it returns only if docketed again — so a predicate that matched the id alone
-	// read that row as an offer and could not fail.
-	items := func(id string) []string {
-		var out []string
-		for _, it := range open {
-			if strings.Contains(it.What, "gap "+id+" ") {
-				out = append(out, it.What)
-			}
-		}
-		return out
-	}
-	// EVERY item naming the gap is read, not the first: the remanded row is added before the
-	// offer would be, so a first-match predicate hides an offer standing behind it.
-	anyItem := func(id, want string) bool {
-		for _, w := range items(id) {
-			if strings.Contains(w, want) {
-				return true
-			}
-		}
-		return false
-	}
-	offered := func(id string) bool { return anyItem(id, "motion docket file") }
-	if !anyItem("CARRIED", "BENCH REMANDED") {
-		t.Errorf("a carried gap gets the remanded row in place of the offer, got %q", items("CARRIED"))
-	}
-	for id, want := range map[string]bool{"NEVER": false, "LOW": false, "MAT": true, "CARRIED": false} {
-		if offered(id) != want {
-			t.Errorf("%s: docket offer present=%v, want %v (%v)", id, offered(id), want, hows(open))
-		}
 	}
 }

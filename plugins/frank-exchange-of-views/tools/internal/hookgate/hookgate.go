@@ -5,7 +5,7 @@
 // rule is unit-tested directly (the CLI wrapper in internal/cli/hook.go handles the I/O).
 //
 // It USED to also be the blue-report write-lockdown — a PreToolUse deny of a non-author raw write to
-// blue/report.md and a PostToolUse backstop for a dropped finding-marker. Under report-as-record
+// blue/report.md and a PostToolUse backstop for a dropped anchor. Under report-as-record
 // (#709) there is no blue/report.md file: the report is the record, every change is an appended
 // event, and a raw write cannot reach it. The lockdown protected a file that no longer exists, so it
 // is gone. The injection — orthogonal to it from the start — remains, and beside it one refusal: a

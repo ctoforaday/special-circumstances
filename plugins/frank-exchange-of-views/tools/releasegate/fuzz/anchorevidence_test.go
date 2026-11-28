@@ -12,9 +12,8 @@ import (
 
 // anchorEvidence renders the two sides of the anchor bijection into the failure text.
 //
-// #645 IS THE CASE THIS EXISTS FOR. The consistency oracle reported "the record carries finding
-// id f-005dff8e and report.md has no marker for it" — a true statement that names one id and
-// nothing else. Answering the only question that follows (was the marker never written, or
+// #645 IS THE CASE THIS EXISTS FOR. The consistency oracle reported that the record carries an id
+// report.md has no marker for — a true statement that names one id and nothing else. Answering the only question that follows (was the marker never written, or
 // written and then removed?) needs the report and the record side by side, and the sweep's
 // promise to keep the failing run directory is worth nothing in the environment where a
 // 1-in-160 violation is actually seen: a CI container that is reclaimed before anyone reads

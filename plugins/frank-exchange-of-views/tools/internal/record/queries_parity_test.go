@@ -11,8 +11,7 @@ import (
 
 // EACH QUERY IS HELD AGAINST THE FOLD IT REPLACED, on one record written through the real write
 // path — the test plans/record-sqlite.md step 4 demands per converted projection. The fixture
-// deliberately exercises the folds' edges: a regrade overlaying a mint grade, a superseded
-// ancestor left open, a computation gap with and without a computation, and a record that does not
+// deliberately exercises the folds' edges: a regrade overlaying a mint grade, a computation gap with and without a computation, and a record that does not
 // exist at all (whose every answer must be the honest zero, never an error).
 func TestQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 	runDir := newRun(t)
@@ -45,11 +44,7 @@ func TestQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 		m.Location = proto.String("the sky is teal at noon")
 		m.FixNew = proto.String("the sky is blue at noon")
 	})
-	// G2's mint supersedes G0, which closes in that act.
-	mint("G0", recordpb.CheckKind_CHECK_KIND_DOCUMENT, nil)
-	mint("G2", recordpb.CheckKind_CHECK_KIND_DOCUMENT, func(m *recordpb.Mint) {
-		m.Supersedes = []string{"G0"}
-	})
+	mint("G2", recordpb.CheckKind_CHECK_KIND_DOCUMENT, nil)
 	mint("G3", recordpb.CheckKind_CHECK_KIND_COMPUTATION, nil)
 
 	// The regrade overlay: impact moves MEDIUM -> HIGH on G1; every other axis keeps the mint's.
@@ -105,36 +100,6 @@ func TestQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 	}
 	if got, err := gapState(recordOf(t, run), "G4"); got || err != nil {
 		t.Errorf("gapState on an unknown gap = (%v, %v), want (false, nil) — existence is requireGap's question", got, err)
-	}
-
-	// The grade overlay: proposing the CURRENT post-regrade impact must be refused as no change;
-	// proposing a different one must pass. A pre-regrade reading would get both wrong.
-	noChange := &recordpb.GradeMotion{GapId: proto.String("G1"),
-		Dimension: recordpb.GradeDimension_GRADE_DIMENSION_IMPACT.Enum(),
-		Proposed:  recordpb.Grade_GRADE_HIGH.Enum()}
-	if err := requireGradeMotionAsksForAChange(recordOf(t, run), noChange); err == nil {
-		t.Error("a motion proposing the regraded current grade was not refused — the query missed the regrade overlay")
-	}
-	change := &recordpb.GradeMotion{GapId: proto.String("G1"),
-		Dimension: recordpb.GradeDimension_GRADE_DIMENSION_IMPACT.Enum(),
-		Proposed:  recordpb.Grade_GRADE_LOW.Enum()}
-	if err := requireGradeMotionAsksForAChange(recordOf(t, run), change); err != nil {
-		t.Errorf("a motion proposing a different grade was refused: %v", err)
-	}
-	untouched := &recordpb.GradeMotion{GapId: proto.String("G1"),
-		Dimension: recordpb.GradeDimension_GRADE_DIMENSION_LIKELIHOOD.Enum(),
-		Proposed:  recordpb.Grade_GRADE_MEDIUM.Enum()}
-	if err := requireGradeMotionAsksForAChange(recordOf(t, run), untouched); err == nil {
-		t.Error("a motion proposing the mint's grade on an axis no regrade touched was not refused")
-	}
-
-	// The supersession join: G2's mint names G0, which closed in that act, and an act on G0 is refused
-	// naming G2. G1, which no mint names, is open and refused nothing.
-	if err := requireNotSuperseded(recordOf(t, run), "G0", "--id"); err == nil || !strings.Contains(err.Error(), "G0, which closed when G2 was minted superseding it") {
-		t.Errorf("the superseded refusal = %v, want G0's successor G2 named", err)
-	}
-	if err := requireNotSuperseded(recordOf(t, run), "G1", "--id"); err != nil {
-		t.Errorf("the superseded refusal on G1, which nothing superseded = %v", err)
 	}
 
 	// requireInquiry: the proposed inquiry resolves, an unknown one is refused.
@@ -207,9 +172,6 @@ func TestQueriesAnswerTheHonestZeroOverNoRecord(t *testing.T) {
 	}
 	if closed, err := gapState(recordOf(t, run), "G1"); closed || err != nil {
 		t.Errorf("gapState = (%v, %v)", closed, err)
-	}
-	if err := requireNotSuperseded(recordOf(t, run), "G1", "--id"); err != nil {
-		t.Errorf("the superseded refusal = %v", err)
 	}
 	if got := awaitingEvidenceT(t, run); got != nil {
 		t.Errorf("the work list's awaiting-evidence gaps = %v", got)

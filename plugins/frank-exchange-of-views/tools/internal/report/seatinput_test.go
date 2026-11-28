@@ -149,16 +149,21 @@ func assembleHostile(t *testing.T, h string) Shipped {
 		InquiryId: proto.String("Q2"), Status: recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_ABANDONED),
 		Question: proto.String("other " + h), Reason: proto.String("why " + h),
 	})
-	add("red-chair", &recordpb.Motion{MotionId: proto.String("M1"), Basis: proto.String("basis " + h),
-		Filing: &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}}})
+	archived(t, runDir, "red-chair", &recordpb.Docketing{DocketingId: proto.String("M1"), GapId: proto.String("G1"),
+		Cause: recordpb.DocketingCause_DOCKETING_CAUSE_IMPASSE.Enum(), Basis: proto.String("basis " + h)})
 	add("blue-respond", &recordpb.Closing{GapId: proto.String("G1"), Text: proto.String("closing " + h)})
-	add("judge", &recordpb.MotionRule{MotionId: proto.String("M1"), Opinion: proto.String("opinion " + h),
+	// THE BENCH RULES THE REMAND IN THE DOCKET SITTING THE DISPATCH CONVENES, where a plan follows it.
+	benchConvenedOn(t, runDir, "G1")
+	seen["judge"] = true
+	add("judge", &recordpb.MotionRule{Opinion: proto.String("opinion " + h),
 		Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
+			DocketingId: proto.String("M1"),
 			Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REMANDED),
 			Principle:   proto.String("correctness"), Tension: proto.String("cost vs certainty"), ReviewFlag: proto.String("false"),
 			Settled:   proto.String("settled " + h),
 			Direction: proto.String("direction " + h),
 		}}})
+	benchSits(t, runDir, "assemble")
 	add("judge", &recordpb.Outcome{
 		Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_CEILING),
 		Prose:   proto.String("prose " + h),
@@ -279,7 +284,7 @@ func TestTheAllowlistHoldsTheTitle(t *testing.T) {
 func TestATokenInAComputationReasonOrCitationTitleDoesNotShip(t *testing.T) {
 	runDir := newRun(t)
 	const sha = "feed0000face1111"
-	const script = "console.log('<!--fx:F-0000beef-->'.length);"
+	const script = "console.log('<!--gap:G-0000beef-->'.length);"
 	seedStore(t, runDir, sha, "K-00000001", script, "26\n")
 	blue := "# On the cache — research report\n\n## TL;DR\nCoherent<!--cite:C-00000001-->, and checked<!--computation:K-00000001-->.\n"
 	id := record.Identity{Run: runtest.Open(t, runDir), SeatID: "blue-synthesize"}
@@ -294,7 +299,7 @@ func TestATokenInAComputationReasonOrCitationTitleDoesNotShip(t *testing.T) {
 		},
 		&recordpb.Computation{Argv: []string{"python3", "script.py"}, Basis: recordpb.Basis_BASIS_REPRODUCIBLE.Enum(),
 			ComputationId: proto.String("K-00000001"), BundleSha: proto.String(sha),
-			Text: proto.String("trial division <!--fx:F-0000beef-->settles it <!--computation:K-00000002-->\n\n    <!--gap:G-00000001-->"),
+			Text: proto.String("trial division <!--gap:G-0000beef-->settles it <!--computation:K-00000002-->\n\n    <!--gap:G-00000001-->"),
 		},
 	} {
 		if deliverytest.StandsOnDeliveredText(body) {

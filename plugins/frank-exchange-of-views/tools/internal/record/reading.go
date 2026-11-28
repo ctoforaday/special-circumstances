@@ -122,7 +122,7 @@ func requireNotARetriedReading(w writeView, seatID string, v *recordpb.Verify) e
 			changed = fmt.Sprintf(", reworded by blue's edit at event %d", reworded)
 		}
 		tail := ""
-		if a := SupersedingAnswer(recordpb.EventType_EVENT_TYPE_VERIFY, v); a != "" {
+		if a := SupersedingAnswer(seatID, recordpb.EventType_EVENT_TYPE_VERIFY, v); a != "" {
 			tail = " " + a
 		}
 		return feov.Errorf(feov.Validation,

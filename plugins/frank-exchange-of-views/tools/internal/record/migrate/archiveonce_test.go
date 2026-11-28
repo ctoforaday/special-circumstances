@@ -100,7 +100,7 @@ func archiveStoreDir(name string) (string, error) {
 	if err := os.MkdirAll(filepath.Dir(dir), 0o755); err != nil { // a bundle-store/<run> name nests
 		return "", err
 	}
-	return dir, os.Mkdir(dir, 0o755)
+	return dir, os.MkdirAll(dir, 0o755)
 }
 
 // ArchiveMigrations is how many times the store has migrated each archive it was asked for.

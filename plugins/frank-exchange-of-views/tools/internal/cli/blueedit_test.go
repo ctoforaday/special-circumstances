@@ -15,7 +15,7 @@ import (
 )
 
 // blue edit is the write path for the report's text once the parts are recorded. These drive the
-// real command tree: an exact span replace that PRESERVES red's invisible finding-markers, rejects
+// real command tree: an exact span replace that PRESERVES red's invisible markers, rejects
 // a marker-spanning edit, records a report op, and reconciles idempotently after a crash.
 
 func writeReport(t *testing.T, runDir, body string) {
@@ -74,17 +74,17 @@ func registerBlue(t *testing.T, runDir string) {
 
 func TestBlueEditReplacesSpanPreservingMarker(t *testing.T) {
 	runDir := newRun(t)
-	// A trailing finding-marker after "time"; a footnote after "grows".
-	writeReport(t, runDir, "# Findings\n\nThe cost is high and rising over time<!--fx:F-00abc123-->. Volume grows[^v] steadily.\n")
+	// A trailing gap marker after "time"; a footnote after "grows".
+	writeReport(t, runDir, "# Findings\n\nThe cost is high and rising over time<!--gap:G-00abc123-->. Volume grows[^v] steadily.\n")
 	registerBlue(t, runDir)
 
 	// THE QUOTE CARRIES THE MARKER, because the span ends exactly where the marker begins —
-	// "rising over time" IS the text F-00abc123 is attached to. Quoting it without the token was
+	// "rising over time" IS the text G-00abc123 is attached to. Quoting it without the token was
 	// accepted before and left the anchor beside prose it was never placed against; now the seat
 	// quotes what `show report` prints and copies the token into --new like any other character.
 	out, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
-		"--key", "E1", "--quote", "rising over time<!--fx:F-00abc123-->",
-		"--new", "climbing sharply<!--fx:F-00abc123-->", "--reason", "sharper phrasing")
+		"--key", "E1", "--quote", "rising over time<!--gap:G-00abc123-->",
+		"--new", "climbing sharply<!--gap:G-00abc123-->", "--reason", "sharper phrasing")
 	if err != nil {
 		t.Fatalf("blue edit: %v (out %q)", err, out)
 	}
@@ -92,20 +92,20 @@ func TestBlueEditReplacesSpanPreservingMarker(t *testing.T) {
 	if !strings.Contains(rep, "climbing sharply") || strings.Contains(rep, "rising over time") {
 		t.Errorf("span not replaced: %q", rep)
 	}
-	if !strings.Contains(rep, "<!--fx:F-00abc123-->") {
-		t.Errorf("finding-marker was dropped: %q", rep)
+	if !strings.Contains(rep, "<!--gap:G-00abc123-->") {
+		t.Errorf("gap marker was dropped: %q", rep)
 	}
 	// THE MARKERS ARE IN THE RECORDED OP, on both sides. The diff stack is the record of what
 	// text moved, and the anchor is part of the text — an op showing a replacement that silently
 	// omits the token would describe an edit nobody made. Carrying it in `old` and `new` is also
 	// what lets the stack be replayed or reviewed without the document to hand.
 	ev := lastBody(t, runDir, &recordpb.BlueEdit{})
-	if ev.GetOld() != "rising over time<!--fx:F-00abc123-->" || ev.GetNew() != "climbing sharply<!--fx:F-00abc123-->" {
+	if ev.GetOld() != "rising over time<!--gap:G-00abc123-->" || ev.GetNew() != "climbing sharply<!--gap:G-00abc123-->" {
 		t.Errorf("blue_edit op payload wrong: old=%q new=%q", ev.GetOld(), ev.GetNew())
 	}
-	// AND THE EDIT REOPENED THE FINDING, because it rewrote the words that finding is anchored to.
-	if got := ev.GetReopened(); len(got) != 1 || got[0] != "F-00abc123" {
-		t.Errorf("reopened = %v, want [F-00abc123] — the marker survived onto different words, which is exactly the case that needs re-reading", got)
+	// AND THE EDIT REOPENED THE ANCHOR, because it rewrote the words the gap is anchored to.
+	if got := ev.GetReopened(); len(got) != 1 || got[0] != "G-00abc123" {
+		t.Errorf("reopened = %v, want [G-00abc123] — the marker survived onto different words, which is exactly the case that needs re-reading", got)
 	}
 	if ev.GetText() != "sharper phrasing" {
 		t.Errorf("reason not recorded: %q", ev.GetText())
@@ -114,7 +114,7 @@ func TestBlueEditReplacesSpanPreservingMarker(t *testing.T) {
 
 func TestBlueEditRejectsMarkerSpanningEdit(t *testing.T) {
 	runDir := newRun(t)
-	writeReport(t, runDir, "# H\n\nThe value is context<!--fx:F-00000001-->: important here.\n")
+	writeReport(t, runDir, "# H\n\nThe value is context<!--gap:G-00000001-->: important here.\n")
 	registerBlue(t, runDir)
 
 	out, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
@@ -126,7 +126,7 @@ func TestBlueEditRejectsMarkerSpanningEdit(t *testing.T) {
 	// name the marker and tell blue how to succeed — carry the token across — rather than the old
 	// "edit around it", which deadlocked against the uniqueness guard whenever the disambiguating
 	// context was the anchored text itself.
-	if !strings.Contains(err.Error(), "F-00000001") || !strings.Contains(err.Error(), "<!--fx:F-00000001-->") {
+	if !strings.Contains(err.Error(), "G-00000001") || !strings.Contains(err.Error(), "<!--gap:G-00000001-->") {
 		t.Errorf("reject message should name the marker and quote the token to reproduce: %v", err)
 	}
 	if strings.Contains(readReport(t, runDir), "vital") {
@@ -505,7 +505,7 @@ func TestEstoppelRefusesAFreshGapAgainstRedsOwnPrescription(t *testing.T) {
 	if err == nil {
 		t.Fatal("red opened a fresh gap against text it prescribed itself")
 	}
-	for _, want := range []string{"estoppel", prior, "--supersedes", "your fix for " + prior} {
+	for _, want := range []string{"estoppel", prior, "`amend --id " + prior + "`", "your fix for " + prior} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("the refusal must name %q so red knows where to argue it: %v", want, err)
 		}
@@ -519,43 +519,64 @@ func TestEstoppelRefusesAFreshGapAgainstRedsOwnPrescription(t *testing.T) {
 	}
 }
 
-// THE REFUSAL NAMES WHOSE FIX IT WAS. The guard refuses any lens's mint against an applied
-// prescription — red is the party bound — and it told every lens the words were "text YOU
-// prescribed": the evidence lens on the #1565 smoke was handed the logic lens's fix as its own.
-func TestEstoppelNamesTheLensWhoseFixItWas(t *testing.T) {
+// ESTOPPEL BINDS ONLY THE PRESCRIBING LENS (#1695 X11, T-B42): another lens's mint quoting the applied
+// text is no relitigation of its own words, and lands as any gap on blue's text does — asked in a class
+// no gap on the sentence holds, so the one-gap rule does not refuse it first.
+func TestEstoppelBindsOnlyThePrescribingLens(t *testing.T) {
 	runDir := newRun(t)
-	prior := seedProposalApplied(t, runDir)
+	seedProposalApplied(t, runDir)
 	const other = "red-lens-logic"
 	if out, err := run(t, "register", "--run", runDir, "--seat-id", other); err != nil {
 		t.Fatalf("register %s: %v\n%s", other, err, out)
 	}
-	_, err := runAt(t, "mint", "--run", runDir, "--seat-id", other,
-		"--key", "G2", "--class", "spec_underspecification", "--quote", prescribedText,
+	if out, err := runAt(t, "mint", "--run", runDir, "--seat-id", other,
+		"--key", "G2", "--class", "risk_coverage_omission", "--quote", prescribedText,
 		"--problem", "this sentence overclaims", "--check-kind", "document", "--check", "c",
-		"--severity", "medium", "--likelihood", "medium", "--impact", "medium")
-	if err == nil {
-		t.Fatal("a lens opened a fresh gap against another lens's applied prescription")
+		"--severity", "medium", "--likelihood", "medium", "--impact", "medium"); err != nil {
+		t.Fatalf("another lens's mint over %s's applied prescription was refused: %v\n%s", lensSeat, err, out)
 	}
-	if want := lensSeat + "'s fix for " + prior; !strings.Contains(err.Error(), want) {
-		t.Errorf("the refusal does not name the lens whose fix it was (%q): %v", want, err)
-	}
-	if strings.Contains(err.Error(), "your fix") || strings.Contains(strings.ToLower(err.Error()), "you prescribed") {
-		t.Errorf("the refusal tells %s that %s's words were its own: %v", other, lensSeat, err)
+	if _, err := runAt(t, "mint", "--run", runDir, "--seat-id", lensSeat,
+		"--key", "G3", "--class", "false_universal", "--quote", prescribedText,
+		"--problem", "this sentence overclaims", "--check-kind", "document", "--check", "c",
+		"--severity", "medium", "--likelihood", "medium", "--impact", "medium"); err == nil || !strings.Contains(err.Error(), "estoppel") {
+		t.Errorf("the prescribing lens's mint over its own applied text was not refused as estoppel: %v", err)
 	}
 }
 
-// RED IS NOT SILENCED. Declaring the lineage IS the amendment the guard asks for, so a mint
-// naming the estopping gap in --supersedes goes through.
-func TestEstoppelLetsAnAmendmentThroughWhenLineageIsDeclared(t *testing.T) {
-	runDir := newRun(t)
-	prior := seedProposalApplied(t, runDir)
-
-	if _, err := runAt(t, "mint", "--run", runDir, "--seat-id", lensSeat,
-		"--key", "G2", "--class", "spec_underspecification", "--quote", prescribedText,
-		"--problem", "my own fix turned out to contradict §3", "--check-kind", "document", "--check", "c",
-		"--severity", "medium", "--likelihood", "medium", "--impact", "medium",
-		"--supersedes", prior); err != nil {
-		t.Fatalf("red was blocked from AMENDING its own prescription, which the guard must allow: %v", err)
+// A CLOSING'S PAIR BARS AS A MINT'S PRESCRIPTION DOES (T-B42, X11): G's mint prescribes nothing, its
+// raiser states a pair in its closing at the docketing, and blue's --accept G applies it; the raiser's
+// mint quoting the applied text is refused as estoppel, another lens's lands, and the raiser's closing
+// road over it on another gap is refused the same way.
+func TestAClosingsAppliedPairEstopsItsRaiser(t *testing.T) {
+	const other = "red-lens-logic"
+	runDir := acceptRun(t)
+	seedCastWith(t, runDir, lensSeat, other)
+	g, err := mintQuote(t, runDir, "G", acceptS+".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	docketNow(t, runDir, g, recordpb.DocketingCause_DOCKETING_CAUSE_IMPASSE, "")
+	if out, err := redStates(t, runDir, g); err != nil {
+		t.Fatalf("red's closing on G: %v\n%s", err, out)
+	}
+	if err := acceptEdit(t, runDir, "A", g, "--accept"); err != nil {
+		t.Fatalf("blue's accept of G's closing pair: %v\n%s", err, readReport(t, runDir))
+	}
+	mintOver := func(seat, key, class string) error {
+		_, err := runAt(t, "mint", "--run", runDir, "--seat-id", seat,
+			"--key", key, "--class", class, "--quote", acceptN+".",
+			"--problem", "this sentence overclaims", "--check-kind", "document", "--check", "c",
+			"--severity", "medium", "--likelihood", "medium", "--impact", "medium")
+		return err
+	}
+	if err := mintOver(lensSeat, "R1", "false_universal"); err == nil || !strings.Contains(err.Error(), "estoppel") || !strings.Contains(err.Error(), g) {
+		t.Errorf("the raiser's mint over its applied closing pair: want estoppel naming %s, got %v", g, err)
+	}
+	if out, err := run(t, "register", "--run", runDir, "--seat-id", other); err != nil {
+		t.Fatalf("register %s: %v\n%s", other, err, out)
+	}
+	if err := mintOver(other, "R2", "false_universal"); err != nil {
+		t.Errorf("another lens's mint over the applied closing pair was refused: %v", err)
 	}
 }
 
@@ -570,29 +591,25 @@ func TestEstoppelDoesNotBlockAGapAgainstUnrelatedText(t *testing.T) {
 		"--key", "G2", "--class", "spec_underspecification", "--quote", "Sieve costs grow with the bound.",
 		"--problem", "unsupported", "--check-kind", "document", "--check", "c",
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium"); err != nil {
-		t.Fatalf("an unrelated finding was estopped — the guard is over-broad: %v", err)
+		t.Fatalf("an unrelated gap was estopped — the guard is over-broad: %v", err)
 	}
 }
 
 // A REWORD ENDS ESTOPPEL AND A RE-APPLY RESTORES IT (plans/gap-is-the-one-holder.md F12), through
-// the verbs: a lens's mint quoting red's applied text is refused naming the prescribing gap; once blue
+// the verbs: the prescribing lens's mint quoting its applied text is refused naming the prescribing gap; once blue
 // rewords the sentence the same mint lands, the span being blue's; once blue puts its words back and
 // accepts red's text again, the mint is refused again. record.TestARewordEndsEstoppel pins the fold;
 // this pins the refusal the mint verb gives on the record the edits wrote.
 func TestARewordEndsEstoppelAndAReapplyRestoresIt(t *testing.T) {
 	runDir := newRun(t)
 	prior := seedProposalApplied(t, runDir)
-	const other = "red-lens-logic"
-	if out, err := run(t, "register", "--run", runDir, "--seat-id", other); err != nil {
-		t.Fatalf("register %s: %v\n%s", other, err, out)
-	}
 	// 76 characters of red's text, the sentence's end left out so the reword can extend it.
 	const quote = "Five verification approaches agree, all sharing one definition of primality"
 	// Each admitted-or-refused question is asked in a class no gap on the sentence holds, so the only
 	// refusal open to it is estoppel's: one class per subject would refuse (c)'s mint on its own.
 	mint := func(key, class string) error {
 		t.Helper()
-		_, err := runAt(t, "mint", "--run", runDir, "--seat-id", other,
+		_, err := runAt(t, "mint", "--run", runDir, "--seat-id", lensSeat,
 			"--key", key, "--class", class, "--quote", quote,
 			"--problem", "this sentence overclaims", "--check-kind", "document", "--check", "c",
 			"--severity", "medium", "--likelihood", "medium", "--impact", "medium")
@@ -617,8 +634,29 @@ func TestARewordEndsEstoppelAndAReapplyRestoresIt(t *testing.T) {
 		}
 	}
 	tok := "<!--gap:" + prior + "-->"
+	// rowsAre fails unless the record's estoppel rows on prior are want, in order: "place" or "end",
+	// each right after a blue edit.
+	rowsAre := func(stage string, want ...string) {
+		t.Helper()
+		rows, after := tombstoneRows(t, runDir)
+		var got []string
+		for i, r := range rows {
+			if r.GetGapId() != prior || r.GetKind() != recordpb.TombstoneKind_TOMBSTONE_KIND_ESTOPPEL || after[i] != "*recordpb.BlueEdit" {
+				t.Fatalf("%s: row %v after %s, want an estoppel row on %s after a blue edit", stage, r, after[i], prior)
+			}
+			if r.GetEnds() {
+				got = append(got, "end")
+			} else {
+				got = append(got, "place")
+			}
+		}
+		if strings.Join(got, ",") != strings.Join(want, ",") {
+			t.Fatalf("%s: estoppel rows %v, want %v", stage, got, want)
+		}
+	}
 
-	// (a) red's text applied verbatim estops.
+	// (a) red's text applied verbatim writes P's estoppel row, and estops.
+	rowsAre("(a) applied", "place")
 	estopped("(a) applied", mint("R1", "risk_coverage_omission"))
 
 	// (b) blue rewords the sentence the fix placed the gap's token in; the mint lands.
@@ -627,6 +665,7 @@ func TestARewordEndsEstoppelAndAReapplyRestoresIt(t *testing.T) {
 		t.Fatalf("the applied sentence %q is not in the report:\n%s", applied, readReport(t, runDir))
 	}
 	editAt("W1", applied, quote+", on every input tried"+tok+".")
+	rowsAre("(b) reworded", "place", "end")
 	if err := mint("R2", "risk_coverage_omission"); err != nil {
 		t.Fatalf("(b) reworded: a mint of the text blue reworded was refused — a reword ends estoppel: %v", err)
 	}
@@ -647,14 +686,75 @@ func TestARewordEndsEstoppelAndAReapplyRestoresIt(t *testing.T) {
 		anchors.WriteString(anchor.Token(id))
 	}
 	editAt("W2", reworded, "Five independent verification approaches agree"+anchors.String()+".")
+	rowsAre("(b) a second reword, nothing standing", "place", "end")
 	if _, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
-		"--key", "A2", "--answers", prior, "--accept", "--reason", "red's wording after all"); err != nil {
+		"--key", "A2", "--accept", prior, "--reason", "red's wording after all"); err != nil {
 		t.Fatalf("(c) blue's re-application of red's text: %v\n%s", err, readReport(t, runDir))
 	}
 	if !lastBody(t, runDir, &recordpb.BlueEdit{}).GetAppliedVerbatim() {
 		t.Fatal("(c) the re-application is not recorded as verbatim")
 	}
+	rowsAre("(c) re-applied", "place", "end", "place")
 	estopped("(c) re-applied", mint("R3", "false_universal"))
+
+	// (d) a keyed retry of the re-application is answered at its own key — the act it names, no second
+	// edit — and writes no row; one with another reason is refused there. Place, end and place again
+	// stood in blue's one sitting, each under its own key.
+	edits := countType(t, runDir, recordpb.EventType_EVENT_TYPE_BLUE_EDIT)
+	out, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
+		"--key", "A2", "--accept", prior, "--reason", "red's wording after all")
+	if err != nil || !strings.Contains(out, "nothing was written") {
+		t.Errorf("(d) the identical keyed retry was not answered at its key: %v\n%s", err, out)
+	}
+	if _, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
+		"--key", "A2", "--accept", prior, "--reason", "another reason"); err == nil {
+		t.Error("(d) a keyed retry with another reason landed")
+	}
+	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_BLUE_EDIT); n != edits {
+		t.Errorf("(d) the keyed retries wrote %d edits", n-edits)
+	}
+	rowsAre("(d) retried", "place", "end", "place")
+}
+
+// T-B19 (14), the cut: a pure cut that takes the applied sentence out with P's token stamps P in
+// removed_anchors (F16), so it is a change to P's sentence and writes P's estoppel end row; a mint quoting red's
+// applied text, back in blue's own sentence, then lands — the estoppel bound the text it applied.
+func TestACutOfAnEstoppedSentenceEndsItsEstoppel(t *testing.T) {
+	runDir := newRun(t)
+	prior := seedProposalApplied(t, runDir)
+	const other = "red-lens-logic"
+	if out, err := run(t, "register", "--run", runDir, "--seat-id", other); err != nil {
+		t.Fatalf("register %s: %v\n%s", other, err, out)
+	}
+	const quote = "Five verification approaches agree, all sharing one definition of primality"
+	tok := "<!--gap:" + prior + "-->"
+	report := readReport(t, runDir)
+	at := strings.Index(report, quote)
+	if at < 0 {
+		t.Fatalf("the applied sentence is not in the report:\n%s", report)
+	}
+	end := strings.Index(report[at:], tok+".") + len(tok+".")
+	if _, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat, "--key", "CUT", "--quote", report[at:at+end],
+		"--new", "", "--reason", "the sentence goes"); err != nil {
+		t.Fatalf("blue's cut: %v\n%s", err, readReport(t, runDir))
+	}
+	if rows, _ := tombstoneRows(t, runDir); len(rows) != 2 || rows[0].GetEnds() || !rows[1].GetEnds() || rows[1].GetGapId() != prior {
+		t.Fatalf("the cut wrote estoppel rows %v, want P's place and its end", rows)
+	}
+	if strings.Contains(readReport(t, runDir), tok) || strings.Contains(readReport(t, runDir), quote) {
+		t.Fatalf("the cut left %q, want the sentence gone with its token", readReport(t, runDir))
+	}
+	// The text is gone from the report, so the mint is asked of a sentence holding red's words again.
+	if _, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat, "--key", "BACK", "--quote", "Sieve costs grow with the bound.",
+		"--new", "Sieve costs grow with the bound. "+quote+", on every input.", "--reason", "blue's own sentence"); err != nil {
+		t.Fatalf("blue's own sentence: %v\n%s", err, readReport(t, runDir))
+	}
+	_, err := runAt(t, "mint", "--run", runDir, "--seat-id", other, "--key", "M", "--class", "risk_coverage_omission", "--quote", quote,
+		"--problem", "this sentence overclaims", "--check-kind", "document", "--check", "c",
+		"--severity", "medium", "--likelihood", "medium", "--impact", "medium")
+	if err != nil {
+		t.Errorf("after the cut ended %s's estoppel, a mint quoting red's applied text was refused: %v", prior, err)
+	}
 }
 
 // --- blue edit --accept: the tool supplies red's text so blue cannot mis-transcribe it -------
@@ -667,7 +767,7 @@ func TestAcceptAppliesTheRecordedFix(t *testing.T) {
 	gap := mintWithProposal(t, runDir, "G1", "Five independent verification approaches agree", prescribedText)
 	registerBlue(t, runDir)
 	if _, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
-		"--key", "A1", "--answers", gap, "--accept",
+		"--key", "A1", "--accept", gap,
 		"--reason", "red is right and its wording is the one I would have written"); err != nil {
 		t.Fatalf("accept: %v", err)
 	}
@@ -693,7 +793,7 @@ func TestAcceptStillRequiresBluesReason(t *testing.T) {
 	gap := mintWithProposal(t, runDir, "G1", "Five independent verification approaches agree", prescribedText)
 	registerBlue(t, runDir)
 	_, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
-		"--key", "A1", "--answers", gap, "--accept")
+		"--key", "A1", "--accept", gap)
 	if err == nil {
 		t.Fatal("accepting with no --reason was allowed; the argument red re-audits against would be absent")
 	}
@@ -709,7 +809,7 @@ func TestAcceptRefusedWithoutFixNew(t *testing.T) {
 	gap := mintGap(t, runDir, "G0", "spec_underspecification")
 	registerBlue(t, runDir)
 	_, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
-		"--key", "A1", "--answers", gap, "--accept", "--reason", "accepting")
+		"--key", "A1", "--accept", gap, "--reason", "accepting")
 	if err == nil {
 		t.Fatal("accepted a gap that prescribes no text")
 	}
@@ -728,7 +828,7 @@ func TestAcceptRefusesSuppliedText(t *testing.T) {
 	gap := mintWithProposal(t, runDir, "G1", "Five independent verification approaches agree", prescribedText)
 	registerBlue(t, runDir)
 	_, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
-		"--key", "A1", "--answers", gap, "--accept",
+		"--key", "A1", "--accept", gap,
 		"--quote", "Five independent verification approaches agree", "--new", "my own wording",
 		"--reason", "accepting")
 	if err == nil {
@@ -751,7 +851,7 @@ func TestAcceptRefusedWhenThePrescriptionNoLongerApplies(t *testing.T) {
 		t.Fatalf("moving the span: %v", err)
 	}
 	_, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
-		"--key", "A1", "--answers", gap, "--accept", "--reason", "accepting")
+		"--key", "A1", "--accept", gap, "--reason", "accepting")
 	if err == nil {
 		t.Fatal("accepted a prescription whose span is gone")
 	}
@@ -770,7 +870,7 @@ func TestAcceptIsIdempotentOnRetry(t *testing.T) {
 	registerBlue(t, runDir)
 	for i := 0; i < 2; i++ {
 		if _, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
-			"--key", "A1", "--answers", gap, "--accept", "--reason", "accepting"); err != nil {
+			"--key", "A1", "--accept", gap, "--reason", "accepting"); err != nil {
 			t.Fatalf("accept attempt %d: %v", i+1, err)
 		}
 	}
@@ -792,9 +892,9 @@ func TestAcceptIsIdempotentOnRetry(t *testing.T) {
 // naming it, with nothing recorded; a fragment edit keeping its fragment re-places the anchor and
 // reopens it, because the document's sentence moved.
 func TestBlueEditPutsBackAnAnchorWhoseSentenceSurvives(t *testing.T) {
-	const fx, cite, rose, climb = "<!--fx:F-aaaa1111-->", "<!--cite:C-bbbb2222-->", "<!--fx:F-cccc3333-->", "<!--fx:F-dddd4444-->"
+	const high, cite, rose, climb = "<!--gap:G-aaaa1111-->", "<!--cite:C-bbbb2222-->", "<!--gap:G-cccc3333-->", "<!--gap:G-dddd4444-->"
 	runDir := newRun(t)
-	writeReport(t, runDir, "# Findings\n\nOld intro. The cost is high"+fx+".\n\nRevenue fell sharply in Q1"+cite+".\n\n"+
+	writeReport(t, runDir, "# Findings\n\nOld intro. The cost is high"+high+".\n\nRevenue fell sharply in Q1"+cite+".\n\n"+
 		"Costs rose"+rose+".\n\nPrices climbed"+climb+".\n")
 	registerBlue(t, runDir)
 	edit := func(quote, replacement string) error {
@@ -820,13 +920,13 @@ func TestBlueEditPutsBackAnAnchorWhoseSentenceSurvives(t *testing.T) {
 	}
 
 	t.Run("the sentence once in the replacement", func(t *testing.T) {
-		if err := edit("Old intro. The cost is high"+fx, "New intro. The cost is high"); err != nil {
+		if err := edit("Old intro. The cost is high"+high, "New intro. The cost is high"); err != nil {
 			t.Fatal(err)
 		}
-		if ev := lastBody(t, runDir, &recordpb.BlueEdit{}); ev.GetNew() != "New intro. The cost is high"+fx {
-			t.Errorf("recorded new = %q, want the hand-carried %q", ev.GetNew(), "New intro. The cost is high"+fx)
+		if ev := lastBody(t, runDir, &recordpb.BlueEdit{}); ev.GetNew() != "New intro. The cost is high"+high {
+			t.Errorf("recorded new = %q, want the hand-carried %q", ev.GetNew(), "New intro. The cost is high"+high)
 		}
-		if md := readReport(t, runDir); !strings.Contains(md, "\nNew intro. The cost is high"+fx+".\n") {
+		if md := readReport(t, runDir); !strings.Contains(md, "\nNew intro. The cost is high"+high+".\n") {
 			t.Errorf("the anchor is not back on its sentence:\n%s", md)
 		}
 	})

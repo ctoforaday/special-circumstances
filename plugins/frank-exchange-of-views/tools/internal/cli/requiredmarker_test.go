@@ -57,8 +57,9 @@ type requiredProbe struct {
 // oneOfAnother are flags the verb accepts in place of each other, with what stands in. Omitting
 // one while the other is present runs clean, and omitting both is refused naming both — a
 // requirement no single-flag marker states, so these are exempt from the marker check and the
-// help carries the alternative in prose. `motion docket rule` answers what follows its ruling with one
-// of three, chosen by --as: --direction on a remand, else --reopens-on or --final. `motion position
+// help carries the alternative in prose. `motion docket rule` answers with one flag of the docketing's
+// pair or --remand, and answers what follows its ruling with one of three: --direction on a remand,
+// else --reopens-on or --final. `motion position
 // rule` names an upheld ruling's work one of two ways: --lens or --ids. `verify` names its subject one
 // of two ways, a flag group cobra refuses at the parse: --anchor (a citation) or --url (a source the
 // lens found).
@@ -68,6 +69,7 @@ var oneOfAnother = map[string]string{
 	"reopens-on": "final",
 	"final":      "reopens-on",
 	"direction":  "final",
+	"remand":     "for-author",
 	"lens":       "ids",
 	"ids":        "lens",
 	"anchor":     "url",
@@ -81,7 +83,7 @@ var oneOfAnother = map[string]string{
 // held to the marker like any other.
 var verbsWithAOneOf = map[string][]string{
 	"mint":                 {"problem", "reason"},
-	"motion docket rule":   {"reopens-on", "final", "direction"},
+	"motion docket rule":   {"reopens-on", "final", "direction", "remand"},
 	"motion position rule": {"lens", "ids"},
 	"verify":               {"anchor", "url"},
 }
@@ -104,13 +106,12 @@ func requiredProbes() map[string]requiredProbe {
 			return actVars{"p": id}
 		},
 		args: func(v actVars) []string { return []string{"question", "check", "--id", v["p"]} }}
-	probes["lens finding"] = requiredProbe{seat: lensSeat, args: fixed("finding", "--key", "F1",
-		"--quote", "§1 first — a finding sits in sec 1 here.",
-		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--reason", "r")}
 	probes["lens mint"] = requiredProbe{seat: lensSeat, args: fixed("mint", "--quote", "§2 the finding prose lands in a quoted sentence.", "--key", "M-probe",
 		"--class", "spec_underspecification", "--check-kind", "document", "--check", "c",
 		"--severity", "low", "--likelihood", "low", "--impact", "low", "--complexity", "low",
 		"--problem", "p", "--fix", "f", "--reason", "r")}
+	// Two wording fields, so the omission of either still restates one: no wording flag is required alone.
+	probes["lens amend"] = requiredProbe{seat: lensSeat, args: fixed("amend", "--id", "G1", "--problem", "p", "--required-fix", "f", "--reason", "r")}
 	probes["lens render-page"] = requiredProbe{seat: lensSeat, fullIsRefused: true,
 		args: fixed("render-page", "--sha", strings.Repeat("a", 64), "--page", "1")}
 	probes["lens verify"] = requiredProbe{seat: lensSeat,
@@ -137,12 +138,21 @@ func requiredProbes() map[string]requiredProbe {
 			return actVars{"anchor": firstCiteEvent(t, runDir).GetLabel()}
 		},
 		args: func(v actVars) []string { return []string{"retire", "--anchor", v["anchor"], "--reason", "r"} }}
-	probes["motion grade file"] = requiredProbe{seat: "blue-respond", args: fixed("motion", "grade", "file",
-		"--id", "G1", "--dimension", "severity", "--proposed", "low", "--reason", "r")}
 	probes["motion petition file"] = requiredProbe{seat: lensSeat, args: fixed("motion", "petition", "file",
 		"--class", "safety", "--relief", "stop", "--reason", "r")}
-	probes["motion docket file"] = requiredProbe{seat: "red-chair", args: fixed("motion", "docket", "file",
-		"--id", "G1", "--reason", "r")}
+	// A DOCKET PROPOSAL NAMES ITS ACT, filed by the gap's author once the gap has had its one
+	// exchange; each act's own flags are its contract.
+	exchanged := func(t *testing.T, runDir string) actVars {
+		exchangeOn(t, runDir, "G1")
+		// The filer reads the gap as the exchange left it, in a sitting of its own.
+		must(t, runDir, "register", "--seat-id", "blue-respond")
+		return nil
+	}
+	probes["motion docket file regrade"] = requiredProbe{seat: "blue-respond", setup: exchanged,
+		// Two axes, so the omission of either still moves one: no grade flag is required alone.
+		args: fixed("motion", "docket", "file", "regrade", "--id", "G1", "--severity", "low", "--likelihood", "low", "--reason", "r")}
+	probes["motion docket file close"] = requiredProbe{seat: "blue-respond", setup: exchanged,
+		args: fixed(append([]string{"motion", "docket", "file", "close", "--id", "G1", "--reason", "r"}, closeFlags("not_a_defect")...)...)}
 	probes["fetch"] = requiredProbe{seat: lensSeat,
 		setup: func(t *testing.T, runDir string) actVars {
 			withFetcher(t, &fakeFetcher{resp: map[string][]byte{"https://src/f": []byte("<html>the source</html>")}})
@@ -156,8 +166,9 @@ func requiredProbes() map[string]requiredProbe {
 	// occasion the bench alone is asked for.
 	probes["bench register"] = requiredProbe{seat: "judge", args: fixed("register", "--occasion", "docket")}
 	probes["blue register"] = requiredProbe{seat: "blue-respond", args: fixed("register")}
-	// engage runs clean only in a sitting that found an engaged gap closed with an open successor,
-	// which the act fixture does not stage; the record's tests drive it whole (successor_test.go).
+	// engage runs clean only in the last epoch blue answers in, on a gap of blue's minted after its
+	// dispatch, which the act fixture does not stage; the record's tests drive it whole
+	// (engagement_test.go).
 	// The bench rules the chair's position where the chair withheld a PASS its plan permitted.
 	probes["motion position rule"] = requiredProbe{seat: "judge",
 		setup: func(t *testing.T, runDir string) actVars { return actVars{"id": heardPosition(t, runDir)} },

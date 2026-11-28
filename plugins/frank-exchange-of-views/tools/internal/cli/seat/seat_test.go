@@ -41,7 +41,7 @@ func TestAReadHonoursTheInjectedRunLikeAWrite(t *testing.T) {
 //
 // Measured before the fix: with an identity injected, a call passing --seat-id blue-respond
 // was accepted and filed under r9 — a seat no dispatch created, carrying its own register event
-// and its own shard. Attribution is the one fact a seat must not be able to get wrong: found_by,
+// and its own shard. Attribution is the one fact a seat must not be able to get wrong: the assignee,
 // estoppel and every parity check read it.
 //
 // THE IDENTITY NOW COMES FROM THE RECORD, so this test stages the real thing: the agent registers,

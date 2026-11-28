@@ -17,7 +17,7 @@ import (
 //
 // # What is checked
 //
-// Each reference flag is checked against what it names: the board, the findings, the citations,
+// Each reference flag is checked against what it names: the board, the citations,
 // the inquiries, the archive, the report, the gap class's closed set.
 //
 // # Why a TABLE and a behavioural test, rather than a list of individual tests
@@ -41,12 +41,6 @@ var referenceChecks = []struct {
 }{
 	{verb: []string{"close"}, flag: "--id", against: "the board", bogus: "G2",
 		extra: []string{"--as", "repaired", "--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x", "--reason", "r"}},
-	{verb: []string{"close"}, flag: "--superseded-by", against: "the board", bogus: "G2",
-		extra: []string{"--id", "G1", "--as", "repaired_with_regression", "--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x", "--reason", "r"}},
-	{verb: []string{"mint"}, flag: "--supersedes", against: "the board", bogus: "G2",
-		extra: []string{"--about-kind", "section", "--about", "Findings", "--class", "spec_underspecification", "--check-kind", "document", "--check", "c", "--severity", "low", "--likelihood", "low", "--impact", "low", "--problem", "p"}},
-	{verb: []string{"mint"}, flag: "--found-by", against: "the findings on the record", bogus: "F-0000f9f9",
-		extra: []string{"--about-kind", "section", "--about", "Findings", "--class", "spec_underspecification", "--check-kind", "document", "--check", "c", "--severity", "low", "--likelihood", "low", "--impact", "low", "--problem", "p"}},
 	{verb: []string{"mint"}, flag: "--class", against: "the GapClass set", bogus: "no-such-class-slug",
 		extra: []string{"--check-kind", "document", "--check", "c", "--severity", "low", "--likelihood", "low", "--impact", "low", "--problem", "p"}},
 	// THE ONE THIS TABLE WAS WRITTEN FOR.
@@ -54,6 +48,14 @@ var referenceChecks = []struct {
 		extra: []string{"--class", "spec_underspecification", "--check-kind", "document", "--check", "c", "--severity", "low", "--likelihood", "low", "--impact", "low", "--problem", "p"}},
 	{verb: []string{"regrade"}, flag: "--id", against: "the board", bogus: "G2",
 		extra: []string{"--severity", "high", "--reason", "r"}},
+	{verb: []string{"regrade"}, flag: "--answers", against: "the board", bogus: "G2",
+		extra: []string{"--severity", "high", "--reason", "r"}},
+	{verb: []string{"amend"}, flag: "--id", against: "the board", bogus: "G2",
+		extra: []string{"--problem", "p", "--reason", "r"}},
+	{verb: []string{"amend"}, flag: "--accept", against: "the board", bogus: "G2",
+		extra: []string{"--reason", "r"}},
+	{verb: []string{"amend"}, flag: "--answers", against: "the board", bogus: "G2",
+		extra: []string{"--id", "G1", "--problem", "p", "--reason", "r"}},
 	{verb: []string{"closing"}, flag: "--id", against: "the board", bogus: "G2",
 		extra: []string{"--reason", "r"}},
 	{verb: []string{"spot-check"}, flag: "--ids", against: "the closure archive", bogus: "G2",
@@ -64,21 +66,31 @@ var referenceChecks = []struct {
 		extra: []string{"--quote", "the parser accepts an empty body in this line.", "--new", "the parser accepts an empty body on this line.", "--reason", "r"}},
 	{verb: []string{"retire"}, flag: "--answers", against: "the board", bogus: "G2",
 		extra: []string{"--anchor", "C-00000001", "--reason", "r"}},
+	{verb: []string{"edit"}, flag: "--accept", against: "the board", bogus: "G2",
+		extra: []string{"--reason", "r"}},
+	{verb: []string{"retire"}, flag: "--accept", against: "the board", bogus: "G2",
+		extra: []string{"--reason", "r"}},
 	{verb: []string{"inquiry", "record"}, flag: "--id", against: "the inquiries on the record", bogus: "Q9",
 		extra: []string{"--as", "abandoned", "--reason", "r"}},
 	{verb: []string{"question", "cover"}, flag: "--id", against: "the question parts on the record", bogus: "S-00000009",
 		extra: []string{"--as", "covered", "--reason", "r"}},
+	{verb: []string{"inquiry", "record"}, flag: "--answers", against: "the board", bogus: "G2",
+		extra: []string{"--id", "Q9", "--as", "abandoned", "--reason", "r"}},
+	{verb: []string{"question", "cover"}, flag: "--answers", against: "the board", bogus: "G2",
+		extra: []string{"--id", "S-00000009", "--as", "covered", "--reason", "r"}},
+	{verb: []string{"question", "split"}, flag: "--answers", against: "the board", bogus: "G2",
+		extra: []string{"--text", "t"}},
 	{verb: []string{"question", "check"}, flag: "--id", against: "the question parts on the record", bogus: "S-00000009"},
-	{verb: []string{"motion", "grade", "file"}, flag: "--id", against: "the board", bogus: "G2",
-		extra: []string{"--dimension", "severity", "--proposed", "low", "--reason", "r"}},
 	// THE THREE BELOW DRIVE THE VERB BODY'S OWN REFERENCE CHECK, not a flag checker — see idShapeFor,
 	// which deliberately carries no checker because each of these verbs already resolves its id and the
 	// two rulings resolve it more strictly than existence would. They are here because the behaviour
-	// was UNCOVERED: `motion docket file` had no test that a dangling gap id is refused, and a body
+	// was UNCOVERED: a docket motion's filing had no test that a dangling gap id is refused, and a body
 	// check no test drives is the hole this file exists to close. The derived gate does not demand
 	// them; nothing about a shape-only flag does.
-	{verb: []string{"motion", "docket", "file"}, flag: "--id", against: "the board", bogus: "G2",
-		extra: []string{"--reason", "r"}},
+	{verb: []string{"motion", "docket", "file", "regrade"}, flag: "--id", against: "the board", bogus: "G2",
+		extra: []string{"--severity", "low", "--reason", "r"}},
+	{verb: []string{"motion", "docket", "file", "close"}, flag: "--id", against: "the board", bogus: "G2",
+		extra: []string{"--as", "not_a_defect", "--verified-by", "blue-respond", "--verified-with", "read", "--verified-against", "the report", "--reason", "r"}},
 	// THE LENS'S CHECK KEYS ON Q: it judges an inquiry blue proposed, and its flag is checked against
 	// the inquiries on the record before the write asks whose check it is.
 	{verb: []string{"inquiry", "check"}, flag: "--id", against: "the inquiries on the record", bogus: "Q9",
@@ -95,13 +107,11 @@ var referenceChecks = []struct {
 		extra: []string{"--as", "supports", "--confidence", "high", "--reason", "r"}},
 	{verb: []string{"reproduce"}, flag: "--anchor", against: "the computations on the record", bogus: "K-deadbeef",
 		extra: []string{"--as", "sound", "--reason", "r"}},
-	// `chair carry` is `close`'s sibling, not a mode of it, so it carries its own copy of the two
-	// gap references and needs its own fixture — which is the whole point of deriving this gate
+	// `chair carry` is `close`'s sibling, not a mode of it, so it carries its own copy of the gap
+	// reference and needs its own fixture — which is the whole point of deriving this gate
 	// from the tree rather than trusting the table to have kept up.
 	{verb: []string{"carry"}, flag: "--id", against: "the board", bogus: "G2",
 		extra: []string{"--carried-from", "1", "--as", "repaired", "--reason", "r"}},
-	{verb: []string{"carry"}, flag: "--superseded-by", against: "the board", bogus: "G2",
-		extra: []string{"--id", "G1", "--carried-from", "1", "--as", "repaired", "--reason", "r"}},
 	// A READ'S REFERENCE IS CHECKED TOO: the changes view scoped to a gap nobody minted answers
 	// with nothing, which reads as a gap nobody has answered.
 	{verb: []string{"show", "changes"}, flag: "--id", against: "the board", bogus: "G2"},

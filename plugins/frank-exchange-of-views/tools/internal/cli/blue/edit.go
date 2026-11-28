@@ -57,9 +57,14 @@ func newEdit() *cobra.Command {
 		oldStr := seat.Str(cmd, flags.Quote)
 		newStr := seat.Str(cmd, flags.New)
 		gapID := seat.Str(cmd, flags.Answers)
-		accepting, err := cmd.Flags().GetBool(flags.Accept)
-		if err != nil {
-			return nil, err
+		// --accept G NAMES THE GAP whose statement blue takes, and the edit answers it: one id, so
+		// --answers beside it would be a second source for one fact.
+		accepting := seat.Str(cmd, flags.Accept) != ""
+		if accepting {
+			if gapID != "" {
+				return nil, feov.Errorf(feov.Validation, "--accept %s names the gap this edit answers — drop --answers, which would be a second source for one fact", seat.Str(cmd, flags.Accept))
+			}
+			gapID = seat.Str(cmd, flags.Accept)
 		}
 
 		// ACCEPTANCE: THE TOOL SUPPLIES THE TEXT, SO BLUE CANNOT MIS-TRANSCRIBE IT.
@@ -73,9 +78,6 @@ func newEdit() *cobra.Command {
 		// WHAT BLUE STILL SUPPLIES IS ITS REASON. Accepting is an act it should argue for, and
 		// --reason is the argument red re-audits against; nothing about agreeing removes that.
 		if accepting {
-			if gapID == "" {
-				return nil, feov.Errorf(feov.MissingField, "--accept needs --answers: the gap whose prescribed fix you are accepting")
-			}
 			if oldStr != "" || newStr != "" {
 				return nil, feov.Errorf(feov.Validation, "--accept supplies --quote and --new for you, from the fix red recorded on %s — passing either would be a second source for one fact. Drop them, or drop --accept and write the edit yourself", gapID)
 			}
@@ -120,7 +122,7 @@ func newEdit() *cobra.Command {
 		// report from then on (#1252).
 		body := &recordpb.BlueEdit{
 			EditKey: proto.String(seat.Str(cmd, flags.Key)),
-			Answers: proto.String(seat.Str(cmd, flags.Answers)),
+			Answers: proto.String(gapID),
 			Text:    proto.String(reason),
 		}
 		var tells []string
@@ -128,19 +130,26 @@ func newEdit() *cobra.Command {
 			report, old, applied string
 			exact                bool
 		}
-		_, err = record.Append(s.Identity(), body, record.Check(func(l *record.Landing) error {
+		_, err = record.Append(s.Identity(), body, append([]record.Guard{record.Check(func(l *record.Landing) error {
 			peek, err := l.Report()
 			if err != nil {
 				return err
 			}
 			var a Accepted
 			if accepting {
-				loc, fix, found, err := l.Prescription(gapID)
+				st, found, err := l.Statement(gapID)
 				if err != nil {
 					return err
 				}
 				if !found {
 					return feov.Errorf(feov.NotFound, "--accept: no gap %s on the board", gapID)
+				}
+				loc, fix := st.Location, st.FixNew
+				switch {
+				case st.Withdrawn:
+					return feov.Errorf(feov.Conflict, "--accept: gap %s's raiser stated no text in its closing, withdrawing every pair it offered, so there is nothing to accept. Write the edit yourself with --quote and --new", gapID)
+				case st.Retire:
+					return feov.Errorf(feov.Conflict, "--accept: gap %s's raiser states a retire of its anchor in its closing, not a pair: take it with `retire --accept %s`", gapID, gapID)
 				}
 				if strings.TrimSpace(fix) == "" {
 					return feov.Errorf(feov.Conflict, "--accept: gap %s prescribes no concrete text, so there is nothing to accept — red raised it without proposing a fix. Write the edit yourself with --quote and --new", gapID)
@@ -240,7 +249,7 @@ func newEdit() *cobra.Command {
 				}
 			}
 			return nil
-		}))
+		})}, roadsHold(editRemedy)...)...)
 		if errors.Is(err, errBunched) {
 			return nil, bunchedRefusal(run, bunched.report, bunched.old, bunched.applied, bunched.exact)
 		}
@@ -255,10 +264,10 @@ func newEdit() *cobra.Command {
 	// condition rather than the bare word — the bare marker would tell an accepting seat to type
 	// what the tool fills in.
 	flags.Text(c, flags.Quote, flags.DescQuote+". In a rewrite, an anchor standing at its end stays where it is unless the quote carries it; a cut of whole sentences takes their anchors, those at the end included")
-	seat.RequiredUnless(c, flags.Quote, "unless --accept")
+	seat.RequiredUnlessGiven(c, flags.Quote, flags.Accept)
 	flags.Text(c, flags.New, "the text that span should become. Where an anchor the quote leaves out stands at the span's end, leave the closing punctuation off: a replacement that ends its own sentence there is refused")
 	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.Answers, "the gap id this edit responds to — the provenance join key; omit only for an edit that answers no gap")
-	c.Flags().Bool(flags.Accept, false, flags.DescAccept)
+	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.Accept, flags.DescAccept)
 	// The handler refuses an edit with no argument; the marker says so where the seat reads.
 	return seat.SaysRequired(c, flags.Reason)
 }
@@ -430,6 +439,40 @@ func PlanAccept(report, gapID, loc, fix string) (Accepted, error) {
 	return planTyped(report, old, new)
 }
 
+// AcceptPair is the edit `--accept` makes of a gap's pair loc/fix, planned with PlanAccept over the
+// report l lands on, written into body: the span, the replacement with the anchors the tool put back,
+// the anchors it reopened, the literal span where it took one, and that the text is red's, applied
+// verbatim. The bench's answer for red (or for the assignee) applies red's closing's road through it,
+// in the ruling's transaction.
+func AcceptPair(l *record.Landing, body *recordpb.BlueEdit, gapID, loc, fix string) error {
+	report, err := l.Report()
+	if err != nil {
+		return err
+	}
+	a, err := PlanAccept(report, gapID, loc, fix)
+	if err != nil {
+		return err
+	}
+	if err := refuseBaredAnchors(report, a.Planned); err != nil {
+		return err
+	}
+	body.Old, body.New = proto.String(a.Old), proto.String(a.Applied)
+	// Stamped as every edit's write stamps it: the paragraphs it touched, before and after, and what
+	// it reopened read from them.
+	start, end, located := bluedoc.SpliceSpan(report, a.Old, a.Exact)
+	if !located {
+		return feov.Errorf(feov.Conflict, "the edit planned over the report and its span no longer locates in it by replay's rule: %q", a.Old)
+	}
+	oldParas, newParas := bluedoc.TouchedParagraphs(report, a.Planned, start, end)
+	body.OldParagraphs, body.NewParagraphs = proto.String(oldParas), proto.String(newParas)
+	body.Reopened = bluedoc.ReopenedAnchors(oldParas, newParas)
+	if a.Exact {
+		body.ExactSpan = proto.Bool(true)
+	}
+	body.Accepted, body.AppliedVerbatim = proto.Bool(true), proto.Bool(true)
+	return nil
+}
+
 // planExact is the edit of old by new over report at old's literal span (bluedoc.LocateLiteral),
 // held to the checks every planned edit meets — anchors transit a rewrite unchanged, no marker dropped
 // that the cut's list does not name, no terminator doubled, a change made, a composed document — and false where old does not occur
@@ -525,7 +568,7 @@ func validateEdit(report, old, new string) (string, string, bool, error) {
 	// The quote left the run out, so it stands after the replacement; the seam tidy takes the
 	// replacement's terminator and the run lands on the replacement's last sentence, whichever
 	// sentence held its claims. Measured on universe-m19: all four stay-put edits whose --new ended
-	// its sentence meant something other than a rewording (one left a finding on the wrong
+	// its sentence meant something other than a rewording (one left a gap on the wrong
 	// sentence), and the nine without one were clean. The sentence rule is anchor.Sentences, read
 	// over the splice before the tidy: the run opens a sentence of its own exactly when the
 	// replacement closed the one before it.
@@ -649,15 +692,9 @@ func bunchedRefusal(run record.Run, report, old, applied string, exact bool) err
 	for _, id := range ids {
 		about := ""
 		switch anchor.Kind(id) {
-		case "finding":
-			for _, f := range record.FindingsJSONOf(fam.Events, fam.At).Findings {
-				if f.ID == id {
-					about = f.Text
-				}
-			}
 		case "gap":
 			if g := fam.Gap(id); g != nil && g.Mint != nil {
-				about = g.Mint.GetProblem()
+				about = g.Current().GetProblem()
 			}
 		case "computation":
 			for _, p := range computations {

@@ -16,6 +16,7 @@ import (
 // searched six views and three help pages, then ruled `rejected` on an argument it had not read.
 func TestMotionsViewCarriesTheAskNotJustTheAnswer(t *testing.T) {
 	runDir := newRun(t)
+	mustAppend(t, Identity{Run: mustRun(t, runDir), SeatID: HarnessSeat}, castBody([]string{evLens, "red-chair", "blue-respond", "judge"}, nil))
 	for _, s := range []string{"blue-respond", "red-chair"} {
 		if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: s}, "", ""); err != nil {
 			t.Fatal(err)
@@ -25,13 +26,16 @@ func TestMotionsViewCarriesTheAskNotJustTheAnswer(t *testing.T) {
 		t.Fatal(err)
 	}
 	basis := "the defect is presentational, so `certain` severity prices a rewrite as a data error"
+	// Blue's proposal is admitted once G1 has had its one exchange.
+	exchangeOn(t, mustRun(t, runDir), "G1")
 	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "blue-respond"}, &recordpb.Motion{
 		MotionId: proto.String("M1"),
 		Basis:    proto.String(basis),
-		Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{
-			GapId:     proto.String("G1"),
-			Dimension: recordtest.P(recordpb.GradeDimension_GRADE_DIMENSION_SEVERITY),
-			Proposed:  recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+		Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}},
+		Act: &recordpb.Motion_Regrade{Regrade: &recordpb.Regrade{
+			GapId:    proto.String("G1"),
+			Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+			Basis:    proto.String(basis),
 		}},
 	}); err != nil {
 		t.Fatal(err)
@@ -57,22 +61,19 @@ func TestMotionsViewCarriesTheAskNotJustTheAnswer(t *testing.T) {
 	if j.Counts.Outstanding != 1 {
 		t.Errorf("outstanding = %d, want 1 — this is the count that blocks a PASS", j.Counts.Outstanding)
 	}
-	if m.Fields["gap_id"] != "G1" || m.Fields["dimension"] != "severity" || m.Fields["proposed"] != "medium" {
+	if m.Fields["gap_id"] != "G1" {
 		t.Errorf("subject-specific fields lost: %v", m.Fields)
 	}
 
 	// And once answered, the answer sits beside the ask rather than replacing it.
-	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, &recordpb.MotionRule{
-		MotionId: proto.String("M1"),
-		Opinion:  proto.String("the grades stand"),
-		Ruling:   &recordpb.MotionRule_Grade{Grade: recordpb.GradeRuling_GRADE_RULING_REJECTED},
-	}); err != nil {
+	d := docketProposal(t, mustRun(t, runDir), "G1", "M1")
+	if _, err := Append(convene(t, mustRun(t, runDir), "G1"), forRed(heldBy(actRule("M1", false, "judge"), d))); err != nil {
 		t.Fatal(err)
 	}
 	b, _ = FamilyOf(mustRun(t, runDir))
 	j = motionsJSONOf(b.Events, b.At)
 	m = j.Motions[0]
-	if !m.Ruled || m.Ruling != "rejected" || m.Opinion == "" {
+	if !m.Ruled || m.Ruling != "for raiser" || m.Opinion == "" {
 		t.Fatalf("ruling not projected: %+v", m)
 	}
 	if m.Basis != basis {
@@ -87,6 +88,7 @@ func TestMotionsViewCarriesTheAskNotJustTheAnswer(t *testing.T) {
 // the fabricated ruling in the first place.
 func TestThePassRefusalNamesTheRead(t *testing.T) {
 	runDir := newRun(t)
+	mustAppend(t, Identity{Run: mustRun(t, runDir), SeatID: HarnessSeat}, castBody([]string{evLens, "red-chair", "blue-respond", "judge"}, nil))
 	withReport(t, mustRun(t, runDir))
 	for _, sid := range []string{"blue-respond", "red-chair", evLens} {
 		if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: sid}, "", ""); err != nil {
@@ -96,17 +98,8 @@ func TestThePassRefusalNamesTheRead(t *testing.T) {
 	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: evLens}, &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), Severity: recordtest.P(recordpb.Grade_GRADE_CERTAIN), GapId: proto.String("G1"), AcceptanceCheck: proto.String("the check runs"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Problem: proto.String("p"), RequiredFix: proto.String("f"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "blue-respond"}, &recordpb.Motion{
-		MotionId: proto.String("M1"),
-		Basis:    proto.String("b"),
-		Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{
-			GapId:     proto.String("G1"),
-			Dimension: recordtest.P(recordpb.GradeDimension_GRADE_DIMENSION_SEVERITY),
-			Proposed:  recordtest.P(recordpb.Grade_GRADE_LOW),
-		}},
-	}); err != nil {
-		t.Fatal(err)
-	}
+	// Blue's proposal is admitted once G1 has had its one exchange.
+	exchangeOn(t, mustRun(t, runDir), "G1")
 	// The board must be otherwise CLEAN, or the open-gap arm answers first and the motion arm
 	// — the one under test — is never reached. The minting lens closes from its delivered sitting.
 	deliver(t, mustRun(t, runDir), evLens)
@@ -116,6 +109,16 @@ func TestThePassRefusalNamesTheRead(t *testing.T) {
 		AnchorTool:   proto.String("Read"),
 		AnchorTarget: proto.String("blue/report.md"),
 		Prose:        proto.String("verified at the leaf"),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	// The motion is a petition, filed after the close: the board is clean but for it.
+	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "blue-respond"}, &recordpb.Motion{
+		MotionId: proto.String("M1"),
+		Basis:    proto.String("the required fix asks me to assert a search nobody ran"),
+		Relief:   proto.String("strike the requirement"),
+		Filing: &recordpb.Motion_Petition{Petition: &recordpb.PetitionMotion{
+			Class: recordtest.P(recordpb.PetitionClass_PETITION_CLASS_INTEGRITY)}},
 	}); err != nil {
 		t.Fatal(err)
 	}

@@ -11,9 +11,9 @@ import (
 )
 
 // subjectlessOwed are the kinds of owed item about the run rather than one thing on it: the sitting a
-// seat owes, the chair's verdict, and blue's engage on every successor it found.
+// seat owes, the chair's verdict, and blue's engage on every gap its sitting owes.
 var subjectlessOwed = map[record.ItemKind]bool{
-	record.ItemRegisterOwed: true, record.ItemVerdictOwed: true, record.ItemSuccessorOwed: true,
+	record.ItemRegisterOwed: true, record.ItemVerdictOwed: true, record.ItemEngagementOwed: true,
 }
 
 // queueHolds holds a lens's work list, on whatever board the sweep reached, to its delivery one item

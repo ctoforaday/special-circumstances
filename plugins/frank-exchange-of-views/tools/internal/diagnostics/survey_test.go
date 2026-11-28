@@ -41,7 +41,7 @@ func res(id, text string, isErr bool) any {
 const rootHelp = `feov-record — red lens seats
 
 Available Commands:
-  finding     record a finding
+  mint        mint a gap
   verify      adjudicate one citation
   fetch       fetch a source
 
@@ -49,7 +49,7 @@ Flags:
   -h, --help
 `
 
-const findingHelp = `record a finding
+const mintHelp = `mint a gap
 
 Flags:
       --quote string   REQUIRED
@@ -151,9 +151,9 @@ func TestASittingThatInvokedNothingSaysSoRatherThanScoringZero(t *testing.T) {
 func TestPagesOpenedForCommandsNeverRunAreTheSurveySignal(t *testing.T) {
 	p := traj(t,
 		use("a", `/tmp/x/feov-record --seat-id x --help`), res("a", rootHelp, false),
-		use("b", `/tmp/x/feov-record finding --help`), res("b", findingHelp, false),
+		use("b", `/tmp/x/feov-record mint --help`), res("b", mintHelp, false),
 		use("c", `/tmp/x/feov-record verify --help`), res("c", "adjudicate one citation", false),
-		use("d", `/tmp/x/feov-record finding --quote "x" --reason "y"`), res("d", "ok", false),
+		use("d", `/tmp/x/feov-record mint --quote "x" --reason "y"`), res("d", "ok", false),
 	)
 	s, err := ReadSurvey(p, "feov-record", nil)
 	if err != nil {
@@ -171,7 +171,7 @@ func TestPagesOpenedForCommandsNeverRunAreTheSurveySignal(t *testing.T) {
 // reported `"`, `edit \` and a paragraph of a --reason body as commands the seat had run.
 func TestQuotedPathsContinuationsAndProseAreNotVerbs(t *testing.T) {
 	for _, tc := range []struct{ cmd, want string }{
-		{`"/tmp/x/feov-record" --seat-id s finding --quote "a"`, "finding"},
+		{`"/tmp/x/feov-record" --seat-id s mint --quote "a"`, "mint"},
 		{"/tmp/x/feov-record edit \\\n  --key G1", "edit"},
 		{`/tmp/x/feov-record position --reason $(cat <<EOF
 Red identified a real gap: the report's load-bearing input cannot be inspected.
@@ -204,8 +204,8 @@ func joinWords(w []string) string {
 // A phantom command is a first-use with no help read — an invented blind call.
 func TestQuotedProseCannotNominateAVerb(t *testing.T) {
 	for _, tc := range []struct{ cmd, want string }{
-		{`/tmp/x/feov-record finding --quote "the corpus holds 340" --reason "close the gap"`, "finding"},
-		{`/tmp/x/feov-record --run . --seat-id red-lens-evidence lens finding --key F1`, "finding"},
+		{`/tmp/x/feov-record mint --quote "the corpus holds 340" --reason "close the gap"`, "mint"},
+		{`/tmp/x/feov-record --run . --seat-id red-lens-evidence lens mint --key F1`, "mint"},
 		{`/tmp/x/feov-record motion petition file --class integrity --relief "strike the requirement"`, "motion petition file"},
 		{`/tmp/x/feov-record friction --none --reason "reached for verify, found it"`, "friction"},
 	} {

@@ -7,7 +7,6 @@
 package view
 
 import (
-	"cmp"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -18,6 +17,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -264,35 +264,6 @@ func ledgerMD(in Input) []byte {
 	// happen to a database. An always-empty footer would say "nothing was dropped" on every render
 	// whether or not anything was, which is the shape it was built to prevent.
 	anomalyFooter := ""
-	// UNMINTED: a finding is addressed by being named in some gap's found_by, and that is the only
-	// way. This footer is the chair's live work list of lens work it has not minted a gap from.
-	minted := map[string]bool{}
-	for _, g := range in.Gaps {
-		if g == nil || g.Mint == nil {
-			continue
-		}
-		for _, lbl := range g.Mint.GetFoundBy() {
-			minted[lbl] = true
-		}
-	}
-	var unminted []*record.Observation
-	findingRef := findingRefs(in.Events)
-	for _, o := range record.ObservationsOf(in.Events) {
-		if !minted[o.Finding.GetId()] {
-			unminted = append(unminted, o)
-		}
-	}
-	notesFooter := ""
-	if len(unminted) > 0 {
-		lines := make([]string, len(unminted))
-		for i, o := range unminted {
-			// `reason` WAS THE PAYLOAD KEY; `text` is the field (lens/finding.go writes the
-			// prose under it). Finding carries no `reason`.
-			lines[i] = fmt.Sprintf("- %s %s: %s", o.SeatID, findingRef[o.Finding.GetId()], truncate(o.Finding.GetText(), 120))
-		}
-		notesFooter = "\n## lens findings no gap was minted from (whether each was weighed is not recorded)\n\n" + strings.Join(lines, "\n") + "\n"
-	}
-
 	ledgerParts := []string{
 		"# The board — RENDERED PROJECTION (source of truth: the record; do not hand-edit)",
 		"",
@@ -300,15 +271,6 @@ func ledgerMD(in Input) []byte {
 		"",
 	}
 	for _, g := range open {
-		supersedes := ""
-		if s := g.Mint.GetSupersedes(); len(s) > 0 {
-			supersedes = " | supersedes " + strings.Join(s, " ")
-		}
-		foundBy := ""
-		for i, id := range g.Mint.GetFoundBy() {
-			// a found_by naming no finding on the record stays visible, bare
-			foundBy += []string{" | found_by ", ","}[min(i, 1)] + cmp.Or(findingRef[id], id)
-		}
 		regraded := ""
 		if n := len(g.Regrades); n > 0 {
 			// `reason` WAS THE PAYLOAD KEY; the field is `basis` (recordpb/required.go declares
@@ -318,18 +280,18 @@ func ledgerMD(in Input) []byte {
 		// The two `undefined`-sentinel fields are read as POINTERS, not getters: absence is what
 		// prints `undefined`, and a field written empty is a different fact.
 		var class, check *string
-		if m := g.Mint; m != nil {
+		if m := g.Current(); m != nil {
 			check = m.AcceptanceCheck
 			if m.Class != nil {
 				class = proto.String(recordpb.Word(m.GetClass()))
 			}
 		}
-		ledgerParts = append(ledgerParts, fmt.Sprintf("### %s — %s\n%s\nseverity %s | %s x %s | cx %s | class %s%s%s%s\nrequired_fix: %s\nacceptance_check: %s\n",
-			g.ID, truncate(g.Mint.GetProblem(), 100),
+		ledgerParts = append(ledgerParts, fmt.Sprintf("### %s — %s\n%s\nseverity %s | %s x %s | cx %s | class %s%s\nrequired_fix: %s\nacceptance_check: %s\n",
+			g.ID, truncate(g.Current().GetProblem(), 100),
 			g.Mint.GetLocation(),
 			gradeText(g.Severity), gradeText(g.Likelihood), gradeText(g.Impact), gradeText(g.ComplexityCost), undefStr(class),
-			supersedes, foundBy, regraded,
-			g.Mint.GetRequiredFix(),
+			regraded,
+			g.Current().GetRequiredFix(),
 			undefStr(check)))
 	}
 	ledgerParts = append(ledgerParts, "## CLOSURE INDEX", "")
@@ -344,13 +306,9 @@ func ledgerMD(in Input) []byte {
 		if cc == "" {
 			cc = "repaired"
 		}
-		succ := g.Successor()
-		if succ == "" {
-			succ = "-"
-		}
-		ledgerParts = append(ledgerParts, fmt.Sprintf("%s | %s | %s | %s", g.ID, cc, truncate(g.Mint.GetProblem(), 60), succ))
+		ledgerParts = append(ledgerParts, fmt.Sprintf("%s | %s | %s", g.ID, cc, truncate(g.Current().GetProblem(), 60)))
 	}
-	ledgerParts = append(ledgerParts, anomalyFooter, notesFooter)
+	ledgerParts = append(ledgerParts, anomalyFooter)
 	return []byte(strings.Join(ledgerParts, "\n"))
 }
 
@@ -381,12 +339,8 @@ func archiveMD(in Input) []byte {
 		if carriedFrom != nil {
 			anchor = "CARRIED from " + undefStr(carriedFrom)
 		}
-		successor := ""
-		if s := g.Successor(); s != "" {
-			successor = "\nsuccessor: " + s
-		}
-		archiveParts = append(archiveParts, fmt.Sprintf("## %s — %s\n%s\nverification anchor: %s%s\n",
-			g.ID, cc, g.Mint.GetProblem(), anchor, successor))
+		archiveParts = append(archiveParts, fmt.Sprintf("## %s — %s\n%s\nverification anchor: %s\n",
+			g.ID, cc, g.Current().GetProblem(), anchor))
 	}
 	return []byte(strings.Join(archiveParts, "\n"))
 }
@@ -421,7 +375,6 @@ func telemetryRows(in Input) ([]*recordpb.TelemetryLine, error) {
 		seenEpoch[r] = true
 	}
 	// Defensive: a gap minted or closed outside the event epoch span still gets its row.
-	byID := record.GapsByID(in.Gaps)
 	for _, g := range in.Gaps {
 		seenEpoch[g.Epoch] = true
 		if g.HasClosed {
@@ -439,7 +392,7 @@ func telemetryRows(in Input) ([]*recordpb.TelemetryLine, error) {
 	var telemetry []*recordpb.TelemetryLine
 	prevClasses := map[string]bool{} // the previous epoch's mint classes — the repeat-rate basis
 	for _, r := range epochs {
-		var openAtR, minted, closedAtR, lineage []*record.Gap
+		var openAtR, minted []*record.Gap
 		realizedOpen := 0
 		for _, g := range in.Gaps {
 			closedEpoch := 99 // mirrors `g.closedRound ?? 99`
@@ -454,27 +407,6 @@ func telemetryRows(in Input) ([]*recordpb.TelemetryLine, error) {
 			}
 			if g.Epoch == r {
 				minted = append(minted, g)
-				if len(g.Mint.GetSupersedes()) > 0 {
-					lineage = append(lineage, g)
-				}
-			}
-			if g.HasClosed && g.ClosedEpoch == r {
-				closedAtR = append(closedAtR, g)
-			}
-		}
-		var down, up float64
-		for _, g := range lineage {
-			for _, anc := range g.Mint.GetSupersedes() {
-				a := byID[anc]
-				if a == nil {
-					continue
-				}
-				d := record.GapMass(record.GradeStr(g.Likelihood), record.GradeStr(g.Impact)) - record.GapMass(record.GradeStr(a.Likelihood), record.GradeStr(a.Impact))
-				if d < 0 {
-					down += -d
-				} else {
-					up += d
-				}
 			}
 		}
 		// ORDER IS OWNED HERE, which is the schema's stated reason for `repeated` over a map:
@@ -492,12 +424,12 @@ func telemetryRows(in Input) ([]*recordpb.TelemetryLine, error) {
 		for _, gr := range bySevOrder {
 			bySev = append(bySev, &recordpb.SeverityTally{Grade: gr.Enum(), Count: proto.Int32(bySevCount[gr])})
 		}
-		// THE CLASS DISTRIBUTION — "did the findings change CHARACTER" made computable.
+		// THE CLASS DISTRIBUTION — "did the gaps change CHARACTER" made computable.
 		//
 		// The severity profile answers "how bad", and a run can hold severity flat for
 		// epochs while the KIND of thing being found moves from "this is wrong about the
 		// world" to "this document disagrees with itself". That phase change is the bench's
-		// stopping signal (#284): findings continuing is normal; findings turning into
+		// stopping signal (#284): gaps continuing is normal; gaps turning into
 		// internal-consistency complaints means the rest is cheaper to shake out in
 		// execution than in review. Class is already a REQUIRED mint field from a closed
 		// enum, so this is an aggregation, never a new assertion.
@@ -566,10 +498,6 @@ func telemetryRows(in Input) ([]*recordpb.TelemetryLine, error) {
 				maxSeverity = sevs[0].Enum()
 			}
 		}
-		var ratio *float64
-		if len(closedAtR) > 0 {
-			ratio = proto.Float64(round2(float64(len(lineage)) / float64(len(closedAtR))))
-		}
 		line := &recordpb.TelemetryLine{
 			Epoch:          proto.Int32(int32(r)),
 			MappingVersion: proto.String(record.MassMappingVersion),
@@ -584,15 +512,6 @@ func telemetryRows(in Input) ([]*recordpb.TelemetryLine, error) {
 			},
 			Mass:         proto.Float64(massSum(openAtR)),
 			RealizedOpen: proto.Int32(int32(realizedOpen)),
-			RepairRegression: &recordpb.RepairRegression{
-				Closures:     proto.Int32(int32(len(closedAtR))),
-				LineageMints: proto.Int32(int32(len(lineage))),
-				Ratio:        ratio,
-			},
-			EdgeDeltas: &recordpb.EdgeDeltas{
-				DownMass: proto.Float64(round2(down)),
-				UpMass:   proto.Float64(round2(up)),
-			},
 		}
 		telemetry = append(telemetry, line)
 		prevClasses = nextPrevClasses
@@ -617,13 +536,14 @@ func debateMD(in Input) []byte {
 	}
 	sort.Ints(epochOrder)
 
-	// ONE PAIRING, READ MANY TIMES. The gap a bench disposition settles rides the docket motion's
-	// FILING, never its ruling, so this indexes the gap by motion id once and the LEAD lines
-	// below name it without recomputing the join per event. The twin in record/viewjson.go
+	// ONE PAIRING, READ MANY TIMES. The gap a bench disposition settles rides the docketing, never
+	// its ruling, so this builds the join once (record.DocketRulingGap) and the LEAD lines below name
+	// it without recomputing it per event. The twin in record/viewjson.go
 	// (DebateJSONOf) builds the same map for the same reason.
-	docketGapOf := record.DocketGapByMotion(in.Events)
+	docketGapOf := record.DocketRulingGap(in.Events)
 	archive := record.ArchiveOf(in.Gaps)
 	kept := record.KeptGrades(in.Events, in.At)
+	author := record.AuthorsOn(in.Events)
 
 	debateParts := []string{"# debate.md — RENDERED PROJECTION (source of truth: the record, records/record.db)"}
 	for _, r := range epochOrder {
@@ -645,15 +565,15 @@ func debateMD(in Input) []byte {
 		// Neither message has a `reason`. The twin in record/viewjson.go reads them the same way,
 		// which is the point of the note above.
 		parts := []string{fmt.Sprintf("\n## Epoch %d", r)}
-		// THE POSITION IS THE CHAIR'S, AND A CLOSING ITS PARTY'S: the gap's minting lens (RED) or
-		// blue-respond (BLUE) (record/closingowed.go). The write path admits no other
+		// THE POSITION IS THE CHAIR'S, AND A CLOSING ITS PARTY'S: the gap's assignee (RED) or its
+		// subject's author (BLUE, record.ClosingByAuthor) (record/closingowed.go). The write path admits no other
 		// (record.PositionRefusal, record.ClosingRefusal), so each renders as the record holds it.
 		var positions, redClosings, blueClosings []*record.Event
 		for _, l := range re {
 			switch {
 			case l.GetType() == recordpb.EventType_EVENT_TYPE_POSITION:
 				positions = append(positions, l)
-			case l.GetType() == recordpb.EventType_EVENT_TYPE_CLOSING && record.PartyOf(l) == "blue":
+			case record.ClosingByAuthor(l, author):
 				blueClosings = append(blueClosings, l)
 			case l.GetType() == recordpb.EventType_EVENT_TYPE_CLOSING:
 				redClosings = append(redClosings, l)
@@ -710,7 +630,7 @@ func debateMD(in Input) []byte {
 		//
 		// The bench is this system's ethical and safety boundary. A boundary whose rulings cannot
 		// reach the seat they bind is decoration, and an undelivered ruling is worse than an
-		// unread finding: an unread finding costs a reader, an undelivered ruling costs
+		// unread gap: an unread gap costs a reader, an undelivered ruling costs
 		// compliance, and nothing anywhere reported that it was not delivered.
 		var ops []string
 		for _, l := range re {
@@ -731,13 +651,17 @@ func debateMD(in Input) []byte {
 				// the only thing that can name what was settled. The bench's argument is
 				// `MotionRule.opinion`, the prose channel every subject's ruling carries.
 				if d, isDocket := t.GetRuling().(*recordpb.MotionRule_Docket); isDocket {
+					// THE BENCH'S RULINGS ONLY: a gap's assignee accepting a proposed act is its own act.
+					if seatclass.RoleOfSeat(l.GetSeatId()) != "bench" {
+						continue
+					}
 					ops = append(ops, "- "+fmt.Sprintf("%s: %s — principle: %s; tension: %s; review: %s",
 						// recordpb.Word, NOT the enum's own String(). A generated enum prints its
 						// Go constant name — a seat reading the debate would be shown
 						// `DISPOSITION_REPAIRED` where the vocabulary's word belongs. The typing
 						// made this a rendering bug that no longer announces itself as a type
 						// error.
-						docketGapOf[t.GetMotionId()], recordpb.Word(d.Docket.GetDisposition()),
+						docketGapOf(t), record.RulingWord(t),
 						d.Docket.GetPrinciple(), d.Docket.GetTension(), d.Docket.GetReviewFlag())+"\n"+t.GetOpinion())
 					continue
 				}
@@ -839,7 +763,7 @@ func inquiryMD(in Input) []byte {
 	inquiry := []string{"# Inquiries — RENDERED PROJECTION (source of truth: the record, records/record.db)", ""}
 	body := InquiryBody(in.Events, in.At, AsWritten)
 	if body == "" {
-		inquiry = append(inquiry, "_No inquiries recorded. On a run past epoch 0 that is itself a finding: the exploration",
+		inquiry = append(inquiry, "_No inquiries recorded. On a run past epoch 0 that is itself a defect: the exploration",
 			"either did not happen or was not written down, and a report with no roads-not-taken is",
 			"indistinguishable from one that never looked._", "")
 		return []byte(strings.Join(inquiry, "\n"))
@@ -968,8 +892,7 @@ func AsWritten(s, _ string) string { return s }
 //
 // One struct per nested object, in the field order the line has always had. Pointers WITHOUT
 // omitempty are deliberate: a nil renders as `null`, which is what this wire says for "not
-// measured this epoch" — max_severity with nothing graded, class_repeat_rate with nothing minted,
-// ratio with nothing closed. Omitting the key instead would make an unmeasured epoch and an epoch
+// measured this epoch" — max_severity with nothing graded, class_repeat_rate with nothing minted. Omitting the key instead would make an unmeasured epoch and an epoch
 // that never reported the field indistinguishable to a reader.
 
 // TelemetryLineShape is the zero value of ONE telemetry line, exported so the projection's
@@ -983,15 +906,13 @@ func AsWritten(s, _ string) string { return s }
 func TelemetryLineShape() any { return telemetryLineJSON{} }
 
 type telemetryLineJSON struct {
-	Epoch            *int32         `json:"epoch"`
-	MappingVersion   *string        `json:"mapping_version"`
-	OpenCount        *int32         `json:"open_count"`
-	MaxSeverity      *string        `json:"max_severity"`
-	NewMint          newMintJSON    `json:"new_mint"`
-	Mass             *float64       `json:"mass"`
-	RealizedOpen     *int32         `json:"realized_open"`
-	RepairRegression repairRegJSON  `json:"repair_regression"`
-	EdgeDeltas       edgeDeltasJSON `json:"edge_deltas"`
+	Epoch          *int32      `json:"epoch"`
+	MappingVersion *string     `json:"mapping_version"`
+	OpenCount      *int32      `json:"open_count"`
+	MaxSeverity    *string     `json:"max_severity"`
+	NewMint        newMintJSON `json:"new_mint"`
+	Mass           *float64    `json:"mass"`
+	RealizedOpen   *int32      `json:"realized_open"`
 }
 
 type newMintJSON struct {
@@ -1010,17 +931,6 @@ type severityTallyJSON struct {
 type classTallyJSON struct {
 	Class string `json:"class"`
 	Count *int32 `json:"count"`
-}
-
-type repairRegJSON struct {
-	Closures     *int32   `json:"closures"`
-	LineageMints *int32   `json:"lineage_mints"`
-	Ratio        *float64 `json:"ratio"`
-}
-
-type edgeDeltasJSON struct {
-	DownMass *float64 `json:"down_mass"`
-	UpMass   *float64 `json:"up_mass"`
 }
 
 // telemetryWire maps the typed row onto that shape. gradeText, not recordpb.Word: an ungraded top
@@ -1053,20 +963,5 @@ func telemetryWire(t *recordpb.TelemetryLine) telemetryLineJSON {
 	for _, ct := range nm.GetByClass() {
 		w.NewMint.ByClass = append(w.NewMint.ByClass, classTallyJSON{Class: recordpb.Word(ct.GetClass()), Count: ct.Count})
 	}
-	if rr := t.GetRepairRegression(); rr != nil {
-		w.RepairRegression = repairRegJSON{Closures: rr.Closures, LineageMints: rr.LineageMints, Ratio: rr.Ratio}
-	}
-	if ed := t.GetEdgeDeltas(); ed != nil {
-		w.EdgeDeltas = edgeDeltasJSON{DownMass: ed.DownMass, UpMass: ed.UpMass}
-	}
 	return w
-}
-
-// findingRefs is how text names each finding: its id and its lens's area.
-func findingRefs(evs []*record.Event) map[string]string {
-	refs := map[string]string{}
-	for _, o := range record.ObservationsOf(evs) {
-		refs[o.Finding.GetId()] = record.FindingRef(o.Finding.GetId(), record.AreaOf(o.SeatID))
-	}
-	return refs
 }

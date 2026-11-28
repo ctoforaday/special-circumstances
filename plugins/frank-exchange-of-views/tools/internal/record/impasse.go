@@ -14,7 +14,7 @@ import (
 // GapExchanges is what the record says about one gap's dispute (plans/roundless.md §III.B.2).
 //
 // THE ROUND ENDS ON THE LENS'S RE-AUDIT (ruled by gblock 2026-10-31). One exchange on G is blue's
-// answer followed by its minting lens's audit of that answer: the turn is blue's from the mint, from a
+// answer followed by its assignee's audit of that answer: the turn is blue's from the mint, from a
 // remand ruling and from the end of the last exchange, and the exchange ends when a sitting of the
 // lens engaged on G, opened with its turn come (lensTurnOn), ends. A sitting that closes having
 // recorded nothing on G is a NULL TURN: silence is a turn taken, and the exchange still counts. Where
@@ -23,13 +23,14 @@ import (
 // not finish — failed: no envelope admitted — is NO TURN (ruled by gblock 2026-11-11, gapSittingsOf):
 // its silence judges nothing.
 //
-// Movement is a STATE change: the gap's grade changed, its anchored text changed (a blue edit
-// answering G with old != new, or a retire answering it, or a retire or a cut taking out the anchor it
-// is about), blue placed a citation or computation as its answer (ruled
-// by gblock 2026-10-31) or changed a fate on the inquiry G is anchored on or that the section G is
-// anchored on prints (fateActsOf, ruled by gblock 2026-11-05), its lineage moved (a mint superseding
-// G), or it closed. A closing argument, a motion, a spot-check, a regrade to the same
-// grade or an edit that changed nothing are acts but not movement.
+// Movement is a STATE change by a party's act on G: the gap's grade changed, an act naming G (its
+// `answers`) changed what G is about — a blue edit with old != new, a retire, a citation or
+// computation placed as its answer (ruled by gblock 2026-10-31), a fate or question part that changed
+// the inquiry, section or part G is about (fateActsOf), the minter's moving regrade of the gap G is
+// about — or it closed. A change to G's subject that names no gap — a cut of its marker, a retire or a
+// cut taking out the anchor it is about — is G's raiser's turn and no movement (lensTurnActsOf;
+// F-FATE, 2026-11-24). A closing argument, a spot-check, a regrade to the same grade or an edit that
+// changed nothing are acts but not movement; a proposal is neither.
 //
 // THE COUNTS ARE A FLOOR AND UNRESOLVED IS THE REST OF THE ANSWER. Exchanges and Stalled state
 // what the record can establish; Unresolved states what it cannot, so a reader is never handed a
@@ -56,7 +57,7 @@ type GapExchanges struct {
 	// pending is the exchange blue's answer has opened and no lens sitting has ended: what its round
 	// would be if the lens's next sitting ended it now.
 	pending exchangeRound
-	// lensTurn is whether the minting lens's turn on the gap has come (lensTurnOn), lensRead the place
+	// lensTurn is whether the assignee's turn on the gap has come (lensTurnOn), lensRead the place
 	// that turn is read from: its last act or sitting on the gap, the mint, the latest remand ruling.
 	lensTurn bool
 	lensRead int64
@@ -178,7 +179,7 @@ func exchangesOf(evs []*Event, ids []int64, win WindowIndex, p Params, when Read
 }
 
 // lensGoesFirst is THE LENS'S PREFERENCE IN THE ORDER (ruled by gblock 2026-10-31): a gap at its
-// limits, or whose owed audit would bring it there, readies its minting lens alone, and the docket
+// limits, or whose owed audit would bring it there, readies its assignee alone, and the docket
 // comes only after that lens's sitting. Blue is held off the gap for that epoch, because blue sits
 // after the lens and its answer would be one the lens has not read when the bench is asked.
 //
@@ -224,6 +225,9 @@ func auditSpent(x *GapExchanges, p Params) bool {
 // sittingCloser says — by facts about THAT seat alone, so no rule enforced at another seat's write
 // path can decide what this read reports. Two rows answered by one sitting are that one sitting.
 //
+// A gap's parties are its minter and its subject's author (authorOf); a dispatch of any other seat on
+// it is no sitting of the gap's.
+//
 // A SITTING THAT DID NOT FINISH IS NO TURN (noTurnSittingsOf): a failed sitting is not among them.
 // Its seat stays engaged, and the next sitting it opens is the one that answers. The acts it recorded before it ended stay on the record, and the
 // round they fall in reads them as movement like any other.
@@ -231,6 +235,7 @@ func gapSittingsOf(evs []*Event, ids []int64, win WindowIndex, when ReadWhen, mi
 	dispatches, openings := dispatchLedger(evs, ids, win)
 	closer := sittingCloserOf(evs, ids, win, openings, when)
 	noTurn := noTurnSittingsOf(evs, win)
+	authorOf := authorsOn(evs)
 	ordinal := map[int64]int{} // an opening's place -> its stored sitting ordinal for its seat
 	for i, e := range evs {
 		if _, opens := win.Opens(e); opens {
@@ -251,7 +256,7 @@ func gapSittingsOf(evs []*Event, ids []int64, win WindowIndex, when ReadWhen, mi
 			switch {
 			case d.seat == minted[g]:
 				out[g] = append(out[g], partySitting{start: start, end: end, red: true, open: !closed})
-			case seatclass.RoleOfSeat(d.seat) == "blue":
+			case d.seat == authorOf(g):
 				out[g] = append(out[g], partySitting{start: start, end: end, open: !closed})
 			}
 		}
@@ -267,19 +272,21 @@ func gapSittingsOf(evs []*Event, ids []int64, win WindowIndex, when ReadWhen, mi
 // exchangesOf applies the run's terms and the remands to them. remands is the "remand" view's rows
 // by gap (remandRulingsOf), read here for where each ruling hands the turn to blue.
 //
-// THE TURN IS BLUE'S WHEN A ROUND OPENS, and a round opens at the mint, at a remand ruling and at the
+// THE TURN IS BLUE'S WHEN A ROUND OPENS, and a round opens at the mint, at a remand ruling, at the bench's amend of the gap and at the
 // end of the last round. Blue's sitting then either leaves the lens something to audit (lensTurnOn),
 // and the round stays open until the lens's sitting ends it, or leaves nothing: the lens's turn does
 // not come, and the round ends with blue's sitting, so a gap blue never answers stalls exchange by
 // exchange. A minter that is no lens has no re-audit to wait on, and blue's sitting ends its round. A
 // lens sitting with no turn come, which only an archived dispatch has, ends nothing.
 func exchangeFold(evs []*Event, ids []int64, win WindowIndex, when ReadWhen, remands map[string][]remandRow) map[string]*GapExchanges {
-	minted := map[string]string{}    // gap -> the lens that minted it
-	mintedAt := map[string]int64{}   // gap -> the place of its mint
-	grades := map[string][3]string{} // gap -> current severity, likelihood, impact
-	movement := map[string][]int64{} // gap -> ids of movement events
+	assignees := assigneeOf(evs)
+	minted := map[string]string{}     // gap -> its assignee, the lens party of its exchanges
+	mintedAt := map[string]int64{}    // gap -> the place of its mint
+	grades := map[string][3]string{}  // gap -> current severity, likelihood, impact
+	wording := map[string][4]string{} // gap -> current problem, required fix, acceptance check, fix_new
+	movement := map[string][]int64{}  // gap -> ids of movement events
 	fates := fateActsOf(evs)
-	acts := gapActsOf(evs, ids, win)
+	acts := gapActsOf(evs, ids)
 
 	for i, e := range evs {
 		id := ids[i]
@@ -287,12 +294,33 @@ func exchangeFold(evs []*Event, ids []int64, win WindowIndex, when ReadWhen, rem
 		case *recordpb.Mint:
 			g := b.GetGapId()
 			if _, seen := minted[g]; !seen {
-				minted[g] = e.GetSeatId()
+				minted[g] = assignees[g]
 				mintedAt[g] = id
 				grades[g] = [3]string{recordpb.Word(b.GetSeverity()), recordpb.Word(b.GetLikelihood()), recordpb.Word(b.GetImpact())}
+				wording[g] = [4]string{b.GetProblem(), b.GetRequiredFix(), b.GetAcceptanceCheck(), b.GetFixNew()}
 			}
-			for _, s := range b.GetSupersedes() {
-				movement[s] = append(movement[s], id)
+		case *recordpb.Amend:
+			g := b.GetGapId()
+			cur := wording[g]
+			moved := false
+			for k, w := range []*string{b.Problem, b.RequiredFix, b.AcceptanceCheck, b.FixNew} {
+				if w != nil && *w != cur[k] {
+					cur[k], moved = *w, true
+				}
+			}
+			wording[g] = cur
+			// THE BENCH'S AMEND IS NO PARTY'S ACT (§III.B3): it applies a for-raiser ruling's statement,
+			// so it is no movement, and it opens a round on the gap with its author's turn, as a remand
+			// ruling does. The raiser's moving amend is its half of the exchange, counted as its moving
+			// regrade is; one naming a gap about this gap is that gap's author's answer, and movement there.
+			switch {
+			case seatclass.RoleOfSeat(e.GetSeatId()) == "bench":
+				// benchAmendPlaces reads it as the round it opens.
+			case moved:
+				movement[g] = append(movement[g], id)
+				if g2 := b.GetAnswers(); g2 != "" {
+					movement[g2] = append(movement[g2], id)
+				}
 			}
 		case *recordpb.Regrade:
 			g := b.GetGapId()
@@ -304,23 +332,22 @@ func exchangeFold(evs []*Event, ids []int64, win WindowIndex, when ReadWhen, rem
 				}
 			}
 			grades[g] = cur
-			// MOVEMENT IS A PARTY'S ACT. The bench's regrade sets the grade its ruling rules on
-			// (benchgrade.go); counted here, a bench regrade before a remand would read as the
+			// MOVEMENT IS A PARTY'S ACT. The bench's regrade is the statement a ruling applies, written
+			// by the tool (benchgrade.go); counted here, a bench regrade before a remand would read as the
 			// remand's exchange moving the gap and undo the one-remand limit.
 			if moved && seatclass.RoleOfSeat(e.GetSeatId()) != "bench" {
 				movement[g] = append(movement[g], id)
+				// The minter's moving regrade naming a gap about this gap is that gap's author's answer,
+				// and it changed what the gap is about: movement there too, as an answering edit is.
+				if g2 := b.GetAnswers(); g2 != "" {
+					movement[g2] = append(movement[g2], id)
+				}
 			}
 		case *recordpb.BlueEdit:
-			if g := b.GetAnswers(); g != "" && b.GetOld() != b.GetNew() {
+			// The bench's edit applies red's text in a ruling's transaction: no party's act, so no
+			// exchange counts it.
+			if g := b.GetAnswers(); g != "" && b.GetOld() != b.GetNew() && seatclass.RoleOfSeat(e.GetSeatId()) != "bench" {
 				movement[g] = append(movement[g], id)
-			}
-			// A REACHING CUT moves each gap it reaches as a reaching retire does: it took out the
-			// anchor the gap is about (WindowIndex.Reaches). The gap whose own marker it took is not
-			// reached: that cut is its raiser's turn, not movement on it.
-			for _, r := range win.Reaches(e) {
-				if !slices.Contains(movement[r.gap], id) {
-					movement[r.gap] = append(movement[r.gap], id)
-				}
 			}
 		case *recordpb.Computation:
 			if g := b.GetAnswers(); g != "" && seatclass.RoleOfSeat(e.GetSeatId()) == "blue" {
@@ -332,28 +359,25 @@ func exchangeFold(evs []*Event, ids []int64, win WindowIndex, when ReadWhen, rem
 				movement[g] = append(movement[g], id)
 			}
 		case *recordpb.QuestionPart:
-			// A QUESTION PART BLUE RECORDED MOVES THE GAPS ABOUT WHAT IT CHANGED (fateActsOf).
-			for _, g := range fates[e] {
+			// A QUESTION PART NAMING THE GAP MOVES IT where it changed what the gap is about (fateActsOf);
+			// one naming none is its raiser's turn and no movement (lensTurnActsOf).
+			if g := b.GetAnswers(); slices.Contains(fates[e], g) {
 				movement[g] = append(movement[g], id)
 			}
 		case *recordpb.Inquiry:
-			// A FATE BLUE CHANGED MOVES THE GAPS ABOUT WHAT IT CHANGED (fateActsOf): those anchored on
-			// the inquiry, which no edit can answer, and those anchored on a section that prints it,
-			// which only a fate changes. A fate repeated moves nothing.
-			for _, g := range fates[e] {
+			// A FATE NAMING THE GAP MOVES IT where it changed what the gap is about (fateActsOf): an
+			// inquiry the gap is anchored on, which no edit can answer, or a section that prints it, which
+			// only a fate changes. A fate repeated moves nothing; a fate naming no gap is each such gap's
+			// raiser's turn and no movement (lensTurnActsOf).
+			if g := b.GetAnswers(); slices.Contains(fates[e], g) {
 				movement[g] = append(movement[g], id)
 			}
 		case *recordpb.Retire:
-			// A retire answering a gap moves it: the anchor leaves a sentence that stays. An anchor's
-			// removal, by a retire or a cut, moves each gap it reaches as a named one does: it meets the
-			// gap's demand whatever gap it named (WindowIndex.Reaches).
+			// A retire naming the gap moves the report as an edit does: the anchor leaves a sentence that
+			// stays. A retire or a cut that takes out the anchor a gap is about without naming it is that
+			// gap's raiser's turn and no movement (lensTurnActsOf).
 			if g := retireAnswers(e); g != "" {
 				movement[g] = append(movement[g], id)
-			}
-			for _, r := range win.Reaches(e) {
-				if !slices.Contains(movement[r.gap], id) {
-					movement[r.gap] = append(movement[r.gap], id)
-				}
 			}
 		case *recordpb.Close:
 			movement[b.GetGapId()] = append(movement[b.GetGapId()], id)
@@ -361,18 +385,21 @@ func exchangeFold(evs []*Event, ids []int64, win WindowIndex, when ReadWhen, rem
 	}
 
 	sittings := gapSittingsOf(evs, ids, win, when, minted)
-	turns := lensTurnActsOf(evs, ids, acts, sittings, minted)
+	turns := lensTurnActsOf(evs, ids, win, acts, sittings, minted)
+	authorOf := authorsOn(evs)
+	opens := benchAmendPlaces(evs, ids)
 
 	out := map[string]*GapExchanges{}
 	for g := range minted {
 		x := &GapExchanges{GapID: g}
 		out[g] = x
-		lens, moves := minted[g], movement[g]
+		lens, author, moves := minted[g], authorOf(g), movement[g]
 		audits := seatclass.RoleOfSeat(lens) == "lens"
 		movedIn := func(from, to int64) bool {
 			return slices.ContainsFunc(moves, func(m int64) bool { return m > from && m <= to })
 		}
 		rulings := remandPlaces(remands[g])
+		openers := roundOpeners(rulings, opens[g])
 		start, next := mintedAt[g], 0
 		end := func(at int64, audited bool) {
 			x.Exchanges++
@@ -382,15 +409,15 @@ func exchangeFold(evs []*Event, ids []int64, win WindowIndex, when ReadWhen, rem
 			} else {
 				x.Stalled++
 			}
-			x.rounds = append(x.rounds, exchangeRound{start: start, end: at, moved: moved, acted: blueActed(acts[g], start, at), audited: audited})
+			x.rounds = append(x.rounds, exchangeRound{start: start, end: at, moved: moved, acted: authorActed(acts[g], author, start, at), audited: audited})
 			start = at
 		}
 		// A LENS SITTING THE RECORD CANNOT CLOSE IS UNMEASURED, so no blue sitting after it ends a
 		// round: whether the lens is auditing the answer is what the record cannot yet say.
 		unmeasured := false
 		for _, s := range sittings[g] {
-			for ; next < len(rulings) && rulings[next] < s.start; next++ {
-				start = rulings[next] // a ruling hands the turn to blue: what it heard opens nothing
+			for ; next < len(openers) && openers[next] < s.start; next++ {
+				start = openers[next] // a ruling or the bench's amend hands the turn to the author: what it heard opens nothing
 			}
 			switch {
 			case s.open:
@@ -400,7 +427,7 @@ func exchangeFold(evs []*Event, ids []int64, win WindowIndex, when ReadWhen, rem
 				unmeasured = unmeasured || s.red
 			case s.red:
 				unmeasured = false
-				if audits && lensTurnOn(turns[g], lens, mintedAt[g], latestBefore(rulings, s.start), s.start-1) {
+				if audits && lensTurnOn(turns[g], lens, author, mintedAt[g], latestBefore(openers, s.start), s.start-1) {
 					end(s.end, true)
 				}
 			case unmeasured:
@@ -409,23 +436,44 @@ func exchangeFold(evs []*Event, ids []int64, win WindowIndex, when ReadWhen, rem
 				// opened: the round holds blue's acts from where blue's sitting began, and what blue left
 				// unread is read off where the lens stood when blue sat.
 				start = min(start, s.start)
-				floor := latestBefore(rulings, s.end)
+				floor := latestBefore(openers, s.end)
 				read := lensReadAt(turns[g], lens, mintedAt[g], floor, s.start)
-				if !audits || !blueActed(turns[g], read, s.end) {
+				if !audits || !authorActed(turns[g], author, read, s.end) {
 					end(s.end, false)
 				}
 			}
 		}
-		for ; next < len(rulings); next++ {
-			start = rulings[next]
+		for ; next < len(openers); next++ {
+			start = openers[next]
 		}
-		floor := latestBefore(rulings, math.MaxInt64)
+		// The author's acts before an opener answered what it replaced: the lens reads from the latest
+		// one. A remand is discharged only by an act after the remand ruling itself.
+		floor := latestBefore(openers, math.MaxInt64)
 		x.lensRead = lensReadAt(turns[g], lens, mintedAt[g], floor, math.MaxInt64)
-		x.lensTurn = audits && lensTurnOn(turns[g], lens, mintedAt[g], floor, math.MaxInt64)
-		x.answeredRemand = blueActed(acts[g], floor, math.MaxInt64)
-		x.pending = exchangeRound{start: start, end: math.MaxInt64 - 1, moved: movedIn(start, math.MaxInt64), acted: blueActed(acts[g], start, math.MaxInt64), audited: true}
+		x.lensTurn = audits && lensTurnOn(turns[g], lens, author, mintedAt[g], floor, math.MaxInt64)
+		x.answeredRemand = authorActed(acts[g], author, latestBefore(rulings, math.MaxInt64), math.MaxInt64)
+		x.pending = exchangeRound{start: start, end: math.MaxInt64 - 1, moved: movedIn(start, math.MaxInt64), acted: authorActed(acts[g], author, start, math.MaxInt64), audited: true}
 	}
 	return out
+}
+
+// benchAmendPlaces is the place of each bench's amend of each gap, in record order: the application of
+// a for-raiser ruling on a gap about it, which opens a round on the gap with its author's turn
+// (§III.B3). ids are evs's places.
+func benchAmendPlaces(evs []*Event, ids []int64) map[string][]int64 {
+	out := map[string][]int64{}
+	for i, e := range evs {
+		if a, ok := recordpb.BodyAs[*recordpb.Amend](e); ok && seatclass.RoleOfSeat(e.GetSeatId()) == "bench" {
+			out[a.GetGapId()] = append(out[a.GetGapId()], ids[i])
+		}
+	}
+	return out
+}
+
+// roundOpeners is the places a gap's round opens at besides its mint, sorted: its remand rulings and
+// the bench's amends of it. The lens reads the author's acts from the latest one (lensTurnOn's floor).
+func roundOpeners(rulings, amends []int64) []int64 {
+	return slices.Sorted(slices.Values(slices.Concat(rulings, amends)))
 }
 
 // remandPlaces is the place of each of a gap's remand rulings, in record order.

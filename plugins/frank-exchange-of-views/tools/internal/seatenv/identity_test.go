@@ -13,8 +13,8 @@ func bound(seat string) func() (string, error) {
 // A DISAGREEING --seat-id IS REFUSED, not obeyed and not silently overridden.
 //
 // Attribution is the one fact a seat must not be able to get wrong: an event filed under the
-// wrong seat is credited to the wrong party, and found_by, estoppel and every parity check read
-// it. Obeying the flag reinstates the typo; overriding it silently makes a seat's own argument
+// wrong seat is credited to the wrong party, and estoppel and every parity check read it.
+// Obeying the flag reinstates the typo; overriding it silently makes a seat's own argument
 // vanish, which is the failure where a seat spends a round arguing with a value it never chose.
 func TestASeatIDDisagreeingWithTheBoundIdentityIsRefused(t *testing.T) {
 	if _, err := ResolveSeat("red-lens-logic", bound("red-lens-evidence")); err == nil {

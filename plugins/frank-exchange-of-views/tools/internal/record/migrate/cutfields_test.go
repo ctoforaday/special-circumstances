@@ -85,8 +85,18 @@ func TestEveryArchivedIndependentVerificationMigratesAsACorroboration(t *testing
 					labels[l] = true
 				}
 			}
+			// A QUOTELESS READING IS WRITTEN AS NO EVENT (EventSchema 80): its quote was only the
+			// tokens the fold takes out, so it is neither a verify nor a corroboration of the record.
+			man, dir := MigratedArchive(t, name)
+			quoteless := map[int64]bool{}
+			for _, id := range man.QuotelessReadings {
+				quoteless[id] = true
+			}
 			reReadings := 0
 			for _, old := range evs {
+				if quoteless[old.ID] {
+					continue
+				}
 				switch old.Word {
 				case "verify", "cite", "sitting_open", "sitting_close":
 					want[old.Word]++
@@ -117,7 +127,6 @@ func TestEveryArchivedIndependentVerificationMigratesAsACorroboration(t *testing
 					reReadings++
 				}
 			}
-			_, dir := MigratedArchive(t, name)
 			m, err := record.MergedEvents(runtest.Open(t, dir))
 			if err != nil {
 				t.Fatal(err)

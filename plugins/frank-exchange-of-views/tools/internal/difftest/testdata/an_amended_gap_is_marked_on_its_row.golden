@@ -1,0 +1,150 @@
+$ register --run {RUN} --seat-id red-chair
+exit 0
+stdout:
+registered red-chair
+
+YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent to this seat. You are registered and your events are recorded; what is missing is the binding that lets a LATER call resolve who you are without being told.
+
+TWO CONSEQUENCES:
+  PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
+  REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
+ALL CLEAR — nothing blocks you and you may end your turn (2 item(s) stay open to you and none of them is owed).
+
+$ register --run {RUN} --seat-id red-lens-evidence
+exit 0
+stdout:
+registered red-lens-evidence
+
+YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent to this seat. You are registered and your events are recorded; what is missing is the binding that lets a LATER call resolve who you are without being told.
+
+TWO CONSEQUENCES:
+  PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
+  REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
+1 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
+  · the whole report arrives on your work list this sitting, one item after each of your tool calls, and your envelope waits until all of it has been delivered to you. A lens is delivered the whole report at its first sitting and once more at its next — its full re-read — and at every other sitting the changes since its pin and its own gaps' passages; the PASS is refused while a lens that has sat still owes either whole delivery
+
+drive: red-lens-evidence reads its delivery
+
+$ mint --about-kind section --about Findings --run {RUN} --seat-id red-lens-evidence --class spec_underspecification --check-kind document --check the first check --severity medium --likelihood medium --impact medium --problem the first wording, amended twice
+exit 0
+stdout:
+minted GAP001
+  acceptance check RECORDED as: the first check
+  (read it back — a shell may have rewritten it before this tool saw it; your amend restates it at your next sitting)
+ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
+
+$ mint --about-kind section --about Findings --run {RUN} --seat-id red-lens-evidence --class unsourced_claim --check-kind document --check the second check --severity medium --likelihood medium --impact medium --problem the second wording, amended then closed
+exit 0
+stdout:
+minted GAP002
+  acceptance check RECORDED as: the second check
+  (read it back — a shell may have rewritten it before this tool saw it; your amend restates it at your next sitting)
+ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
+
+$ mint --about-kind section --about Findings --run {RUN} --seat-id red-lens-evidence --class false_universal --check-kind document --check the third check --severity medium --likelihood medium --impact medium --problem the third wording, never amended
+exit 0
+stdout:
+minted GAP003
+  acceptance check RECORDED as: the third check
+  (read it back — a shell may have rewritten it before this tool saw it; your amend restates it at your next sitting)
+ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
+
+$ amend --run {RUN} --seat-id red-lens-evidence --id GAP001 --problem the first gap restated once --reason the defect is narrower
+exit 0
+stdout:
+amended GAP001
+ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
+
+$ amend --run {RUN} --seat-id red-lens-evidence --id GAP002 --acceptance-check the second check, relaxed --reason the check asked too much
+exit 0
+stdout:
+amended GAP002
+ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
+
+$ close --run {RUN} --seat-id red-lens-evidence --id GAP002 --as repaired --verified-by L1 --verified-with Read --verified-against report.md#S2 --reason the relaxed check is met
+exit 0
+stdout:
+closed GAP002 (repaired)
+ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
+
+$ register --run {RUN} --seat-id red-lens-evidence
+exit 0
+stdout:
+registered red-lens-evidence (dispatch 2 — a previous dispatch of this seat is on the record)
+
+YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent to this seat. You are registered and your events are recorded; what is missing is the binding that lets a LATER call resolve who you are without being told.
+
+TWO CONSEQUENCES:
+  PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
+  REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
+1 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
+  · the whole report arrives on your work list this sitting, one item after each of your tool calls, and your envelope waits until all of it has been delivered to you. A lens is delivered the whole report at its first sitting and once more at its next — its full re-read — and at every other sitting the changes since its pin and its own gaps' passages; the PASS is refused while a lens that has sat still owes either whole delivery
+
+$ amend --run {RUN} --seat-id red-lens-evidence --id GAP001 --problem the first gap restated twice --required-fix the fix, restated --reason narrower still
+exit 0
+stdout:
+amended GAP001
+1 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
+  · the whole report arrives on your work list this sitting, one item after each of your tool calls, and your envelope waits until all of it has been delivered to you. A lens is delivered the whole report at its first sitting and once more at its next — its full re-read — and at every other sitting the changes since its pin and its own gaps' passages; the PASS is refused while a lens that has sat still owes either whole delivery
+
+═══ EVENTS ═══
+{"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}
+{"key":"harness:setup:report","report_part":{"text":"## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n"},"seat_id":"harness","ts":1,"type":"EVENT_TYPE_REPORT_PART"}
+{"key":"red-chair:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-chair","ts":2,"type":"EVENT_TYPE_REGISTER"}
+{"key":"red-lens-evidence:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-lens-evidence","ts":3,"type":"EVENT_TYPE_REGISTER"}
+{"key":"red-lens-evidence:report_read:#1","report_read":{"head":"2"},"seat_id":"red-lens-evidence","ts":4,"type":"EVENT_TYPE_REPORT_READ"}
+{"key":"red-lens-evidence:mint:GAP001","mint":{"about_kind":"ABOUT_KIND_SECTION","about_ref":"Findings","acceptance_check":"the first check","check_kind":"CHECK_KIND_DOCUMENT","class":"GAP_CLASS_SPEC_UNDERSPECIFICATION","class_material":"CLASS_MATERIAL_BY_GRADE","fix_basis":"proposed","gap_id":"GAP001","impact":"GRADE_MEDIUM","likelihood":"GRADE_MEDIUM","location":"","mint_key":"","problem":"the first wording, amended twice","required_fix":"","severity":"GRADE_MEDIUM"},"seat_id":"red-lens-evidence","ts":5,"type":"EVENT_TYPE_MINT"}
+{"key":"red-lens-evidence:mint:GAP002","mint":{"about_kind":"ABOUT_KIND_SECTION","about_ref":"Findings","acceptance_check":"the second check","check_kind":"CHECK_KIND_DOCUMENT","class":"GAP_CLASS_UNSOURCED_CLAIM","class_material":"CLASS_MATERIAL_BY_GRADE","fix_basis":"proposed","gap_id":"GAP002","impact":"GRADE_MEDIUM","likelihood":"GRADE_MEDIUM","location":"","mint_key":"","problem":"the second wording, amended then closed","required_fix":"","severity":"GRADE_MEDIUM"},"seat_id":"red-lens-evidence","ts":6,"type":"EVENT_TYPE_MINT"}
+{"key":"red-lens-evidence:mint:GAP003","mint":{"about_kind":"ABOUT_KIND_SECTION","about_ref":"Findings","acceptance_check":"the third check","check_kind":"CHECK_KIND_DOCUMENT","class":"GAP_CLASS_FALSE_UNIVERSAL","class_material":"CLASS_MATERIAL_ALWAYS","fix_basis":"proposed","gap_id":"GAP003","impact":"GRADE_MEDIUM","likelihood":"GRADE_MEDIUM","location":"","mint_key":"","problem":"the third wording, never amended","required_fix":"","severity":"GRADE_MEDIUM"},"seat_id":"red-lens-evidence","ts":7,"type":"EVENT_TYPE_MINT"}
+{"amend":{"basis":"the defect is narrower","gap_id":"GAP001","problem":"the first gap restated once","result_acceptance_check":"the first check","result_fix_basis":"proposed","result_problem":"the first gap restated once","result_required_fix":""},"key":"red-lens-evidence:amend:#1:GAP001","seat_id":"red-lens-evidence","ts":8,"type":"EVENT_TYPE_AMEND"}
+{"amend":{"acceptance_check":"the second check, relaxed","basis":"the check asked too much","gap_id":"GAP002","result_acceptance_check":"the second check, relaxed","result_fix_basis":"proposed","result_problem":"the second wording, amended then closed","result_required_fix":""},"key":"red-lens-evidence:amend:#1:GAP002","seat_id":"red-lens-evidence","ts":9,"type":"EVENT_TYPE_AMEND"}
+{"close":{"anchor_seat":"L1","anchor_target":"report.md#S2","anchor_tool":"Read","closure_class":"DISPOSITION_REPAIRED","gap_id":"GAP002","prose":"the relaxed check is met"},"key":"red-lens-evidence:close:#1:GAP002","seat_id":"red-lens-evidence","ts":10,"type":"EVENT_TYPE_CLOSE"}
+{"key":"red-lens-evidence:register:#2","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-lens-evidence","ts":11,"type":"EVENT_TYPE_REGISTER"}
+{"amend":{"basis":"narrower still","gap_id":"GAP001","problem":"the first gap restated twice","required_fix":"the fix, restated","result_acceptance_check":"the first check","result_fix_basis":"proposed","result_problem":"the first gap restated twice","result_required_fix":"the fix, restated"},"key":"red-lens-evidence:amend:#2:GAP001","seat_id":"red-lens-evidence","ts":12,"type":"EVENT_TYPE_AMEND"}
+
+═══ RENDERS ═══
+-- inquiries
+# Inquiries — RENDERED PROJECTION (source of truth: the record, records/record.db)
+
+_No inquiries recorded. On a run past epoch 0 that is itself a defect: the exploration
+either did not happen or was not written down, and a report with no roads-not-taken is
+indistinguishable from one that never looked._
+
+
+═══ REPORT ═══
+# _(blue/report.md has no title — not authored here)_
+
+**Report** · [Board](docket.md) · [Debate](debate.md) · [Run](run.md)
+
+---
+
+**Outcome:** PENDING (no outcome on the record yet — the bench records it at the run's exit)
+
+## S2
+
+A claim sits under S2.
+
+## S4
+
+A claim sits under S4.
+
+## Risk matrix
+
+| Risk | Likelihood | Impact | Complexity to mitigate | Mitigation / disposition |
+|---|---|---|---|---|
+| the first gap restated twice **[amended ×2]** | medium | medium | — | the fix, restated |
+| the third wording, never amended | medium | medium | — | — |
+
+The matrix is a scan surface: a cell is the field's first sentence, or its first 100 characters cut at a word boundary and marked `…`. Each row's full problem statement, required fix and acceptance check are in [the board](docket.md).
+
+## Research areas
+
+No approach was put forward or pursued.
+
+## Future research directions
+
+No approach was kept for later research.
+
+## Alternatives considered
+
+No approach was weighed and set aside.

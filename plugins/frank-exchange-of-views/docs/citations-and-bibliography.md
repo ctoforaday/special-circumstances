@@ -205,7 +205,7 @@ Red fetches the cited url, a cache hit on blue's exact bytes, and records a read
 `lens verify`: `--anchor` for a check of blue's citation, or `--url` with `--title` and `--quote`
 for a source red found itself, read against the report's sentence. The outcome vocabulary has a
 negative half — `refutes`, `absent` — and a reading records what the source did and nothing else:
-the gap red mints on it is the finding, and until red mints it the reading is red's debt.
+red reports the defect by the gap it mints on the reading, and until red mints it the reading is red's debt.
 
 - **`absent` is refused** on a copy recorded as abstract or not the work: an abstract's silence is
   not the work's.
@@ -234,7 +234,7 @@ report carries. Each source and computation row is located by its token as a quo
 ## 4. Assembly — what the reader sees
 
 Assembly weaves citations **per document** of the report set, because a footnote definition cannot
-cross a file boundary. Finding markers are stripped; citation markers are resolved:
+cross a file boundary. Gap anchors are stripped; citation anchors are resolved:
 
 - Each anchor becomes `[^N]`, numbered by first appearance. Each note reads `Title, PDF p. N. url
   (accessed date)`: the page locator appears only for OCR quotes, and the date is the day the run's

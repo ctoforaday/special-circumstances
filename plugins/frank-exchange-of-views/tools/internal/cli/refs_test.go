@@ -4,14 +4,14 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // EVERY CROSS-REFERENCE, CHECKED.
 //
 // An audit of the whole surface found TWELVE OF TWELVE references unvalidated: only
-// `close --id` and `mint --supersedes` were checked, and every other field naming a gap,
-// an observation, a finding or a seat was accepted on the seat's say-so.
+// `close --id` and `mint --supersedes` were checked, and every other field naming a gap
+// or a seat was accepted on the seat's say-so.
 //
 // That is the mechanism behind the 2026-07-18 run's worst damage. Eight judicial closures
 // were `opinion --id` events ACCEPTED at write time and silently DROPPED at replay,
@@ -24,7 +24,7 @@ import (
 
 func TestEveryCrossReferenceIsCheckedAtWriteTime(t *testing.T) {
 	runDir := seatRun(t)
-	real := mintGap(t, runDir, "the-real-gap", "spec_underspecification")
+	mintGap(t, runDir, "the-real-gap", "spec_underspecification")
 	// The spot-check row stands on a stale area's delivered changes, so the run has one; without it the
 	// refusal measured would be the delivered-text one, not the reference's.
 	chairOwesAStaleArea(t, runDir, "red-lens-logic")
@@ -33,29 +33,18 @@ func TestEveryCrossReferenceIsCheckedAtWriteTime(t *testing.T) {
 		name, wants string
 		args        []string
 	}{
-		// THE GAP REFERENCE MOVED TO THE FILING. `bench opinion --id` named the gap; the bench's
-		// ruling names the MOTION, so the dangling-gap case this row has always pinned is now
-		// `motion docket file --id`, and the dangling-motion case is the row below it.
-		{"motion docket file --id", "no mint event created", []string{"motion", "docket", "file", "--seat-id", "red-chair",
-			"--id", "G99", "--reason", "escalating a gap nobody minted"}},
-		{"motion docket rule --id", "which no filing created", []string{"motion", "docket", "rule", "--seat-id", "judge",
-			"--id", "M9", "--as", "remanded", "--principle", "p", "--tension", "t",
+		// The gap reference is the filing's; the bench's ruling names the DOCKETING, so the
+		// dangling-gap case is `motion docket file --id`, and the dangling-docketing case the row
+		// below it.
+		{"motion docket file --id", "no mint event created", append([]string{"motion", "docket", "file", "close", "--seat-id", "blue-respond",
+			"--id", "G99", "--reason", "escalating a gap nobody minted"}, closeFlags("not_a_defect")...)},
+		{"motion docket rule --id", "no docketing", []string{"motion", "docket", "rule", "--seat-id", "judge",
+			"--id", "D9", "--for-author", "--principle", "p", "--tension", "t",
 			"--review-flag", "no", "--settled", "the proposition this ruling bars", "--final"}},
-		{"motion grade file --id", "no mint event created", []string{"motion", "grade", "file", "--seat-id", "blue-respond",
-			"--id", "G99", "--dimension", "severity", "--proposed", "low", "--reason", "b"}},
-		{"motion grade rule --id", "which no filing created", []string{"motion", "grade", "rule", "--seat-id", "red-chair",
-			"--id", "M9", "--as", "accepted", "--reason", "b"}},
 		{"regrade --id", "no mint event created", []string{"regrade", "--seat-id", lensSeat,
 			"--id", "G99", "--severity", "low", "--reason", "b"}},
 		{"closing --id", "no mint event created", []string{"closing", "--seat-id", "blue-respond",
 			"--id", "G99", "--reason", "t"}},
-		{"close --successor", "no mint event created", []string{"close", "--seat-id", lensSeat,
-			"--id", real, "--as", "repaired", "--verified-by", "L1", "--verified-with", "t",
-			"--verified-against", "x", "--superseded-by", "G99"}},
-		{"mint --found-by", "no lens recorded", []string{"mint", "--about-kind", "section", "--about", "Findings", "--seat-id", lensSeat,
-			"--key", "k2", "--class", "spec_underspecification", "--problem", "p",
-			"--fix", "f", "--check-kind", "document", "--check", "c", "--severity", "medium", "--likelihood", "medium",
-			"--impact", "medium", "--complexity", "low", "--found-by", "F-0000f9f9"}},
 		{"spot-check --ids", "no mint event created", []string{"spot-check", "--seat-id", "red-chair",
 			"--ids", "G99"}},
 		// The petitioner is no longer a field the ruler RESTATES, so there is no seat reference
@@ -87,17 +76,17 @@ func TestEveryCrossReferenceIsCheckedAtWriteTime(t *testing.T) {
 func TestValidReferencesStillResolve(t *testing.T) {
 	runDir := seatRun(t)
 	first := mintGap(t, runDir, "first", "spec_underspecification")
-	second := mintGap(t, runDir, "second", "spec_underspecification")
 
-	// The bench's two references — the gap on the filing, the motion on the ruling — both
+	// The bench's two references — the gap on the filing, the docketing on the ruling — both
 	// resolve, which is the converse of the two rows above.
-	m := docketFile(t, runDir, "red-chair", first, "put before the bench")
-	benchSitsOn(t, runDir, first)
+	m := docketFile(t, runDir, blueSeat, first, "put before the bench")
+	k := docketNow(t, runDir, first, recordpb.DocketingCause_DOCKETING_CAUSE_PROPOSAL, m)
+	conveneBench(t, runDir, first)
 	for _, c := range [][]string{
-		{"motion", "docket", "rule", "--seat-id", "judge", "--id", m, "--as", "remanded",
+		{"motion", "docket", "rule", "--seat-id", "judge", "--id", k, "--remand",
 			"--principle", "p", "--tension", "t", "--review-flag", "no", "--settled", "the proposition this ruling bars", "--direction", "a reproduction on the shipped binary", "--reason", "the ruling"},
-		{"close", "--seat-id", lensSeat, "--id", first, "--as", "repaired_with_regression",
-			"--verified-by", "L1", "--verified-with", "t", "--verified-against", "x", "--superseded-by", second, "--reason", "verified"},
+		{"close", "--seat-id", lensSeat, "--id", first, "--as", "repaired",
+			"--verified-by", "L1", "--verified-with", "t", "--verified-against", "x", "--reason", "verified"},
 	} {
 		// cmdPath lifts the verb PATH out — a subject tree is three words deep where a bare
 		// verb is one — so `--run` lands after the command and before its flags.
@@ -112,10 +101,8 @@ func TestValidReferencesStillResolve(t *testing.T) {
 // STATE, not just existence. A reference can resolve and still be wrong: the thing exists,
 // but not in a state where the act means anything.
 //
-// Every rule here was measured against the 2026-07-18 run before being written, and one
-// candidate was DROPPED by that check: "supersedes must name a closed gap" sounded right
-// and would have refused NINE OF NINE real mints, because superseding a still-open
-// predecessor is the normal pattern. The rules that survived had zero violations.
+// Every rule here was measured against the 2026-07-18 run before being written; the rules that
+// survived had zero violations.
 func TestActsAreRefusedOnTheWrongState(t *testing.T) {
 	runDir := seatRun(t)
 	open := mintGap(t, runDir, "stays-open", "policy_without_mechanism")
@@ -138,17 +125,10 @@ func TestActsAreRefusedOnTheWrongState(t *testing.T) {
 			"--verified-by", "L1", "--verified-with", "t", "--verified-against", "x"}},
 		{"regrade a closed gap", "changes a number nobody reads", []string{"regrade",
 			"--seat-id", lensSeat, "--id", closed, "--severity", "low", "--reason", "b"}},
-		{"file a grade motion on a closed gap", "disposition has already been made", []string{"motion", "grade", "file",
-			"--seat-id", "blue-respond", "--id", closed, "--dimension", "severity",
-			"--proposed", "low", "--reason", "b"}},
-		{"rule a motion nobody filed", "which no filing created", []string{"motion", "grade", "rule",
-			"--seat-id", "red-chair", "--id", "M9", "--as", "accepted", "--reason", "b"}},
+		{"rule a motion nobody filed", "which no filing created", []string{"motion", "petition", "rule",
+			"--seat-id", "judge", "--id", "M9", "--as", "denied", "--reason", "b"}},
 		{"spot-check an OPEN gap", "still OPEN", []string{"spot-check",
 			"--seat-id", "red-chair", "--ids", open}},
-		{"carry residue into a closed gap", "already finished", []string{"close",
-			"--seat-id", lensSeat, "--id", open, "--as", "repaired",
-			"--verified-by", "L1", "--verified-with", "t", "--verified-against", "x",
-			"--superseded-by", closed}},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			args := append(cmdPath(c.args), "--run", runDir)
@@ -169,67 +149,9 @@ func TestActsAreRefusedOnTheWrongState(t *testing.T) {
 	}
 }
 
-// The rule the evidence KILLED. Nine of nine mints in the run superseded a still-open
-// predecessor, so requiring a closed one would have refused every real lineage claim.
-func TestSupersedingAnOpenGapIsNormal(t *testing.T) {
-	runDir := seatRun(t)
-	ancestor := mintGap(t, runDir, "the-ancestor", "policy_without_mechanism")
-	if _, err := run(t, "mint", "--about-kind", "section", "--about", "Findings", "--run", runDir, "--seat-id", lensSeat,
-		"--key", "the-successor", "--class", "policy_without_mechanism",
-		"--problem", "p", "--fix", "f", "--check-kind", "document", "--check", "c",
-		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--complexity", "low",
-		"--supersedes", ancestor); err != nil {
-		t.Errorf("superseding an OPEN gap must be accepted — it is what 9 of 9 real mints did: %v", err)
-	}
-}
-
-// A SUCCESSOR'S MINT CLOSES ITS OPEN ANCESTOR (ruled by gblock 2026-11-04), through the verbs. The
-// 2026-07-18 run held nine mints superseding an open gap: seven closed the ancestor afterwards naming
-// the successor, and two (G3 over G1 and G2) closed neither, so the board read nine open gaps for
-// seven defects. The mint now closes the ancestor in the same act: the ancestor's close is refused
-// naming the successor, and with the successor closed the verdict goes through.
-func TestASuccessorsMintClosesItsAncestor(t *testing.T) {
-	t.Setenv("CLAUDE_PROJECT_DIR", recordtest.TmpRun(t))
-	runDir := castRun(t)
-	castSeats(t, runDir)
-	ancestor := mintGap(t, runDir, "the-ancestor", "risk_coverage_omission")
-
-	out, err := run(t, "mint", "--about-kind", "section", "--about", "Findings", "--run", runDir, "--seat-id", lensSeat,
-		"--key", "the-successor", "--class", "risk_coverage_omission",
-		"--problem", "p", "--fix", "f", "--check-kind", "document", "--check", "c",
-		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--complexity", "low",
-		"--supersedes", ancestor)
-	if err != nil {
-		t.Fatalf("superseding an OPEN gap of the lens's own was refused: %v", err)
-	}
-	successor := gapID(out)
-
-	_, err = run(t, "close", "--run", runDir, "--seat-id", lensSeat,
-		"--id", ancestor, "--as", "repaired",
-		"--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x",
-		"--reason", "replaced by its successor")
-	if err == nil || !strings.Contains(err.Error(), ancestor+", which closed when "+successor+" was minted superseding it") {
-		t.Fatalf("the close of the superseded ancestor = %v, want it refused naming %s", err, successor)
-	}
-
-	if _, err := run(t, "close", "--run", runDir, "--seat-id", lensSeat,
-		"--id", successor, "--as", "repaired",
-		"--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./y",
-		"--reason", "successor resolved"); err != nil {
-		t.Fatal(err)
-	}
-	// The lens sits once more for its full re-read and the chair after it: a PASS waits on both whole
-	// deliveries.
-	lensRereads(t, runDir)
-	chairSitsAgain(t, runDir)
-	if _, err := run(t, "verdict", "--run", runDir, "--seat-id", "red-chair"); err != nil {
-		t.Errorf("with the successor closed and the ancestor closed by its mint, the verdict must go through: %v", err)
-	}
-}
-
 // cmdPath is the leading run of non-flag words in an argv — the command path, however deep.
-// Taking args[0] and args[1] assumed a two-level tree and silently mangled `motion grade file`
-// into `motion grade --run … file`.
+// Taking args[0] and args[1] assumed a two-level tree and silently mangled `motion docket file`
+// into `motion docket --run … file`.
 func cmdPath(args []string) []string {
 	n := 0
 	for n < len(args) && !strings.HasPrefix(args[n], "-") {

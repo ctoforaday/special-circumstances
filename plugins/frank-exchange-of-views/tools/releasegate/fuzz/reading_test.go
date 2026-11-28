@@ -252,12 +252,13 @@ func sentenceMarked(report, quote string) (marked, once bool) {
 // foundSourceQuote is the sentence a found-source reading of seatID's under outcome reads a source
 // for, and whether an anchor marks it: the first of foundSourceSentences the report holds once — or,
 // for an `absent` reading on a coin, the first it holds once that is marked, since a found page
-// silent on a cited sentence owes nothing (found_absent_on_marked_no_debt). "" where none qualifies.
+// silent on a cited sentence owes nothing (found_absent_on_marked_no_debt). A sentence a forced drive
+// reserves (reservedDebtSubject) is read by none. "" where none qualifies.
 func (r *runner) foundSourceQuote(cur, outcome string) (quote string, marked bool) {
 	wantMarked := outcome == "absent" && r.coin(50)
 	for _, s := range foundSourceSentences {
 		m, once := sentenceMarked(cur, s)
-		if !once || wantMarked && !m {
+		if !once || wantMarked && !m || r.reservedDebtSubject(s) {
 			continue
 		}
 		return s, m
@@ -450,31 +451,25 @@ func setArg(args []string, flag, val string) {
 	}
 }
 
-// gapTally reads the gap counts off the stored record at the run's end: what held the run open
-// (PR #1642's four, F7), the gaps minted and closed by epoch, and the one-gap rule over the report.
+// gapTally reads the gap counts off the stored record at the run's end: the gaps minted and closed
+// by epoch, the gaps minted below material, and the one-gap rule over the report.
 func gapTally(res *outcome, board record.Family, run record.Run) {
-	res.openByFoundBy, res.mintsByEpoch, res.closesByEpoch = map[string]int{}, map[int]int{}, map[int]int{}
+	res.mintsByEpoch, res.closesByEpoch = map[int]int{}, map[int]int{}
 	report, rerr := record.RenderRun(run)
 	spans := anchor.Sentences(report)
 	perClassSentence := map[string][]*record.Gap{}
 	var keys []string
 	for _, g := range board.Gaps {
 		res.mintsByEpoch[g.Epoch]++
+		if g.Mint.GetClassMaterial() == recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE &&
+			g.Mint.GetSeverity() != recordpb.Grade_GRADE_UNSPECIFIED && g.Mint.GetSeverity() < recordpb.Grade_GRADE_MEDIUM {
+			res.nonMaterialMints++
+		}
 		if g.HasClosed {
 			res.closesByEpoch[g.ClosedEpoch]++
 		}
 		if !g.Open {
 			continue
-		}
-		switch {
-		case slices.Contains(record.ReadingMintedClasses(), g.Mint.GetClass()):
-			res.openByFoundBy["reading"]++
-		case len(g.Mint.GetFoundBy()) > 0:
-			res.openByFoundBy["finding"]++
-		case g.Mint.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_ANCHOR && anchor.Kind(g.Mint.GetAboutRef()) == "computation":
-			res.openByFoundBy["unsound_computation"]++
-		default:
-			res.openByFoundBy["none"]++
 		}
 		// ONE GAP PER CLASS IN ONE SENTENCE, read off the report: the sentence the gap's token stands
 		// in, as the rule reads it (record's gapSentenceIn) — the whole token inside one sentence span.
@@ -489,22 +484,11 @@ func gapTally(res *outcome, board record.Family, run record.Run) {
 			perClassSentence[k] = append(perClassSentence[k], g)
 		}
 	}
-	// A GAP ITS SUCCESSOR NAMES IN --supersedes IS NOT A SECOND GAP ON THE SUBJECT: the rule admits the
-	// successor over it by design (record.requireOneGapPerClassAndSubject), as checkOneGap does at the
-	// mint. Every other pair is the rule broken, and the run names it.
+	// Every pair is the rule broken (record.requireOneGapPerClassAndSubject), and the run names it.
 	for _, k := range keys {
-		gs := perClassSentence[k]
-		superseded := map[string]bool{}
-		for _, g := range gs {
-			for _, a := range g.Mint.GetSupersedes() {
-				superseded[a] = true
-			}
-		}
 		var standing []string
-		for _, g := range gs {
-			if !superseded[g.ID] {
-				standing = append(standing, g.ID)
-			}
+		for _, g := range perClassSentence[k] {
+			standing = append(standing, g.ID)
 		}
 		res.maxOpenPerClassSentence = max(res.maxOpenPerClassSentence, len(standing))
 		if len(standing) > 1 && res.oneGapBreach == "" {
@@ -651,8 +635,7 @@ func (r *runner) sourceRows(url string) int {
 // new evidence — and the gap it obliges meets the estoppel guard like any `--quote` mint
 // (plans/gap-is-the-one-holder.md D10, F4 (a)): the claim_contradicts_source mint quoting the
 // sentence is refused naming the prescribing gap (found_source_mints_estopped), and the lens's
-// debt clears by the mint `--supersedes` that gap where the lens minted it, else by the lens's
-// reading of another source for the sentence.
+// debt clears by its reading of another source for the sentence.
 func (r *runner) readOverPrescription(seatID, line, prescribing string) {
 	quote := strings.TrimSpace(plainText(line))
 	url := foundSourceURL(seatID)
@@ -681,12 +664,12 @@ func (r *runner) readOverPrescription(seatID, line, prescribing string) {
 		r.debtDischargedBy(seatID, quote, "mint", "the mint quoting the sentence blue reworded")
 		return
 	case merr == nil:
-		r.noteActErr("a claim_contradicts_source mint quoting text blue applied from a red --new was admitted with no --supersedes, and a found-source gap meets the estoppel guard like any quote mint: " + firstLine(mout))
+		r.noteActErr("a claim_contradicts_source mint quoting text blue applied from a red --new was admitted, and a found-source gap meets the estoppel guard like any quote mint: " + firstLine(mout))
 		r.noteReadingMintLanded(seatID, mout, classContradicts, "quote")
 		return
 	case strings.Contains(mout, oneGapWords):
-		// A SIBLING'S claim_contradicts_source GAP ON THE SENTENCE — its own mint --supersedes the
-		// prescribing gap — met the one-gap rule first, and discharges this lens's debt (F9).
+		// A SIBLING'S claim_contradicts_source GAP ON THE SENTENCE met the one-gap rule first, and
+		// discharges this lens's debt (F9).
 		noteEither(args[:2], "a found-source mint over a prescription, refused by the one-gap rule over a sibling's gap on the sentence", false)
 		r.oneGapOnReading(seatID, classContradicts, mout, args, "quote")
 		return
@@ -710,17 +693,8 @@ func (r *runner) readOverPrescription(seatID, line, prescribing string) {
 	}
 	prescribing = named
 	r.countReading(func(c *readingCounts) { c.foundSourceMintsEstopped++ })
-	if r.minterOf(prescribing) == seatID {
-		sout, serr := r.exec(append(args, "--supersedes", prescribing)...)
-		if serr == nil {
-			r.noteReadingMintLanded(seatID, sout, classContradicts, "quote")
-			r.debtDischargedBy(seatID, quote, "mint", "the mint --supersedes "+prescribing+" on the reading over it")
-			return
-		}
-		noteEither(args[:2], "a found-source mint superseding the prescribing gap, refused", false)
-	}
-	// ANOTHER LENS PRESCRIBED THE TEXT, or its gap takes no successor now: the lens's debt clears by its
-	// reading of another source for the sentence that leaves no debt (readFoundClearing).
+	// THE LENS'S DEBT CLEARS BY ITS READING of another source for the sentence that leaves no debt
+	// (readFoundClearing).
 	if r.readFoundClearing(seatID, quote) != 0 {
 		r.debtDischargedBy(seatID, quote, "reread", "the lens's reading of another source for the prescribed sentence")
 	}

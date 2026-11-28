@@ -10,7 +10,7 @@ import (
 func TestRemoveAnchorTakesTheHusk(t *testing.T) {
 	const c = "<!--cite:C-00000001-->"
 	for _, tc := range []struct{ name, in, want string }{
-		{"an emptied bullet goes whole", "- a.\n- " + "<!--fx:F-00000001-->" + "?\n- c.\n", "- a.\n- c.\n"},
+		{"an emptied bullet goes whole", "- a.\n- " + "<!--gap:G-00000001-->" + "?\n- c.\n", "- a.\n- c.\n"},
 		{"a paragraph that was only the anchor goes, blank run collapsed", "P one.\n\n" + c + "\n\nP two.\n", "P one.\n\nP two.\n"},
 		{"the last paragraph goes with no trailing blank", "P one.\n\n" + c + ".\n", "P one.\n"},
 		{"the first line goes with no leading blank", c + "\n\nP two.\n", "P two.\n"},
@@ -18,7 +18,7 @@ func TestRemoveAnchorTakesTheHusk(t *testing.T) {
 		{"an emptied final segment goes with its space", "One. " + c + "\n", "One.\n"},
 		{"at a line start, the seam space goes", c + " Two.\n", "Two.\n"},
 		{"at a line start with a stray terminator", c + ". Two.\n", "Two.\n"},
-		{"a second anchor keeps the segment until it too leaves", "One. " + c + "<!--fx:F-00000002-->. Two.\n", "One. <!--fx:F-00000002-->. Two.\n"},
+		{"a second anchor keeps the segment until it too leaves", "One. " + c + "<!--gap:G-00000002-->. Two.\n", "One. <!--gap:G-00000002-->. Two.\n"},
 		{"prose around the anchor is untouched", "One " + c + " two.\n", "One two.\n"},
 		{"a closer before the emptied sentence stays", "**One.** " + c + ". Two.\n", "**One.** Two.\n"},
 		{"an emptied first sentence keeps its list marker", "- " + c + ". Two.\n", "- Two.\n"},
@@ -41,12 +41,12 @@ func TestRemoveAnchorTakesTheHusk(t *testing.T) {
 		{"a task's box stays", "- [ ] " + c + "\n", "- [ ]\n"},
 		{"a parenthesis emptied inside a sentence that still reads stays", "One (" + c + ") two.\n", "One () two.\n"},
 		{"a quoted emptied bullet goes whole", "> - a.\n> - " + c + ".\n> - c.\n", "> - a.\n> - c.\n"},
-		{"the cut stays on the token's line", "<!--fx:F-00000002-->\n" + c + ". Two.\n", "<!--fx:F-00000002-->\nTwo.\n"},
+		{"the cut stays on the token's line", "<!--gap:G-00000002-->\n" + c + ". Two.\n", "<!--gap:G-00000002-->\nTwo.\n"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			tok := c
 			if !strings.Contains(tc.in, c) {
-				tok = "<!--fx:F-00000001-->"
+				tok = "<!--gap:G-00000001-->"
 			}
 			got := RemoveAnchorAt(tc.in, strings.Index(tc.in, tok), len(tok))
 			if got != tc.want {
@@ -58,10 +58,10 @@ func TestRemoveAnchorTakesTheHusk(t *testing.T) {
 
 // ORDER-INDEPENDENT across several anchors exiting one segment: only the last finds it empty.
 func TestRemoveAnchorOrderIndependent(t *testing.T) {
-	in := "- a.\n- <!--cite:C-00000001--><!--fx:F-00000002-->\n- c.\n"
+	in := "- a.\n- <!--cite:C-00000001--><!--gap:G-00000002-->\n- c.\n"
 	rm := func(s, tok string) string { return RemoveAnchorAt(s, strings.Index(s, tok), len(tok)) }
-	ab := rm(rm(in, "<!--cite:C-00000001-->"), "<!--fx:F-00000002-->")
-	ba := rm(rm(in, "<!--fx:F-00000002-->"), "<!--cite:C-00000001-->")
+	ab := rm(rm(in, "<!--cite:C-00000001-->"), "<!--gap:G-00000002-->")
+	ba := rm(rm(in, "<!--gap:G-00000002-->"), "<!--cite:C-00000001-->")
 	if ab != "- a.\n- c.\n" || ab != ba {
 		t.Errorf("order changed the result: %q vs %q", ab, ba)
 	}

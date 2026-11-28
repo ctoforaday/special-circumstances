@@ -22,7 +22,7 @@ import (
 // motions`. The assembled set is a rendering of those sources: a seat reading it audits the
 // rendering in place of the record, and a lens or blue reading it reads the debate transcript and
 // the motions, which the `inquest` group keeps from the parties being judged. A rendering defect is a defect of
-// the assembler's code, found by its tests, and not a finding for a seat to file. Blue's `ingest`
+// the assembler's code, found by its tests, and not a gap for a seat to mint. Blue's `ingest`
 // and `edit` name the composed sections in their own refusal (report.RefusedHeadings).
 func newShowAssembled() *cobra.Command {
 	c := &cobra.Command{

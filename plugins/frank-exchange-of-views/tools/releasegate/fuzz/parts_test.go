@@ -226,7 +226,7 @@ func (r *runner) laneReadsTheReport(seatID string) {
 	if !r.partsArm() {
 		return
 	}
-	for _, v := range []string{"report", "board", "changes", "evidence", "findings"} {
+	for _, v := range []string{"report", "board", "changes", "evidence"} {
 		r.admit("show", v, "--seat-id", seatID)
 	}
 }

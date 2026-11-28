@@ -112,7 +112,7 @@ func TestACutReadiesItsRaiser(t *testing.T) {
 			if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_CLOSE); n != closes {
 				t.Errorf("the cut wrote %d close(s): the record writes none, the lens closes", n-closes)
 			}
-			if gp := boardGap(t, runDir, g); gp == nil || gp.LocationState != record.LocationGone {
+			if gp := boardGapRow(t, runDir, g); gp == nil || gp.LocationState != record.LocationGone {
 				t.Errorf("%s after its marker's cut: %+v, want open and gone", g, gp)
 			}
 			if !lensEngagedOn(t, runDir, g) {
@@ -219,14 +219,14 @@ func TestACutReadiesItsRaiser(t *testing.T) {
 			"--reason", "the overreach survives in the section's opening"); err != nil {
 			t.Fatalf("the lens's regrade of %s after the cut: %v", g, err)
 		}
-		if gp := boardGap(t, runDir, g); gp == nil {
+		if gp := boardGapRow(t, runDir, g); gp == nil {
 			t.Errorf("%s is not open after the lens kept it", g)
 		}
 	})
 }
 
 // boardGap is gap g's open row on the board, nil where it is not open.
-func boardGap(t *testing.T, runDir, g string) *record.GapJSON {
+func boardGapRow(t *testing.T, runDir, g string) *record.GapJSON {
 	t.Helper()
 	b := boardOf(t, runDir)
 	for i := range b.Open {

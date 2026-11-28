@@ -39,10 +39,10 @@ func TestAFlagStatedTwiceIsRefusedNamingBothValues(t *testing.T) {
 			"mint", "problem", "a complaint", "a complaint", "pass it once"},
 		{"a grade", mint("--problem", "p", "--severity", "high"),
 			"mint", "severity", "low", "high", "pass it once"},
-		{"a list holds one list", []string{"close", "--seat-id", lensSeat, "--anchor", "F-00000001", "--anchor", "F-00000002"},
-			"close", "anchor", "F-00000001", "F-00000002", "comma-separated list"},
-		{"a verb under a group", []string{"motion", "docket", "file", "--seat-id", "blue-respond", "--reason", "one", "--reason", "two"},
-			"motion docket file", "reason", "one", "two", "pass it once"},
+		{"a list holds one list", []string{"close", "--seat-id", lensSeat, "--anchor", "C-00000001", "--anchor", "C-00000002"},
+			"close", "anchor", "C-00000001", "C-00000002", "comma-separated list"},
+		{"a verb under a group", []string{"motion", "docket", "file", "close", "--seat-id", "blue-respond", "--reason", "one", "--reason", "two"},
+			"motion docket file close", "reason", "one", "two", "pass it once"},
 		{"the root's own flag", []string{"show", "board", "--seat-id", lensSeat, "--seat-id", "red-chair"},
 			"show board", "seat-id", lensSeat, "red-chair", "pass it once"},
 	} {
@@ -129,7 +129,8 @@ func TestEverySingleValueFlagOfEveryVerbRefusesASecondStatement(t *testing.T) {
 				flagsSeen++
 				argv := append(append([]string{}, path...), "--"+f.Name+"=one", "--"+f.Name+"=two")
 				leaf, err := refuseRepeatedFlagNoted(root, argv)
-				if err == nil || leaf != c || !strings.Contains(err.Error(), "--"+f.Name+" was given twice") {
+				want := "--" + f.Name + " was given twice"
+				if err == nil || leaf != c || !strings.Contains(err.Error(), want) {
 					t.Errorf("%v --%s stated twice answered %v from %s", path, f.Name, err, leaf.CommandPath())
 				}
 			})

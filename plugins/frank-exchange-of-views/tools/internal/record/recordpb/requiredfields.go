@@ -1,6 +1,7 @@
 package recordpb
 
 import (
+	"slices"
 	"strings"
 
 	"google.golang.org/protobuf/proto"
@@ -148,4 +149,22 @@ func ArmsOf(md protoreflect.MessageDescriptor) []protoreflect.FieldDescriptor {
 		}
 	}
 	return out
+}
+
+// CheckSaid refuses, in CheckRequired's words, a message that leaves a named field unsaid: absent,
+// or a string blank where allowEmpty does not name it. It is the requiredness a column cannot state
+// because it turns on the writer (record.requireBenchOpinion).
+func CheckSaid(body proto.Message, names []protoreflect.Name, allowEmpty ...protoreflect.Name) error {
+	m := body.ProtoReflect()
+	for _, n := range names {
+		fd := m.Descriptor().Fields().ByName(n)
+		o, _ := proto.GetExtension(fd.Options(), E_Sql).(*Sql)
+		if !m.Has(fd) {
+			return feov.Errorf(feov.MissingField, "requires --%s%s", flagFor(fd, o), because(o))
+		}
+		if fd.Kind() == protoreflect.StringKind && !slices.Contains(allowEmpty, n) && strings.TrimSpace(m.Get(fd).String()) == "" {
+			return feov.Errorf(feov.MissingField, "requires --%s to say something%s", flagFor(fd, o), because(o))
+		}
+	}
+	return nil
 }

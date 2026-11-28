@@ -248,41 +248,6 @@ func TestBoardStateReplaysGapLifecycle(t *testing.T) {
 	}
 }
 
-// FINDINGS REPLAY; DISPOSALS NO LONGER EXIST. `observe` and `dispose` are retired (#327), and
-// with them the label-matching that resolved a disposal to its target — a mechanism that once
-// attached 39 of 60 disposals by accident of ordering because 15 labels were reused across lens
-// seats. A finding is now addressed by COALESCENCE alone: its label named in a gap's found_by.
-//
-// What must still hold is that every finding lands on the board with its identity intact, since
-// the credit join is keyed on exactly that.
-func TestBoardStateReplaysFindingsWithTheirLabels(t *testing.T) {
-	runDir := newRun(t)
-	lens := "red-lens-evidence"
-	writeShard(t, runDir, []*Event{
-		recordtest.At(t, lens, lens+":finding:F-f0000001", &recordpb.Finding{Id: proto.String("F-f0000001"), Text: proto.String("first")}),
-		recordtest.At(t, lens, lens+":finding:F-f0000002", &recordpb.Finding{Id: proto.String("F-f0000002"), Text: proto.String("second")}),
-	})
-	b, err := FamilyOf(mustRun(t, runDir))
-	if err != nil {
-		t.Fatal(err)
-	}
-	obs := ObservationsOf(b.Events)
-	if len(obs) != 2 {
-		t.Fatalf("both findings must replay onto the board, got %d", len(obs))
-	}
-	for _, want := range []string{"F-f0000001", "F-f0000002"} {
-		found := false
-		for _, o := range obs {
-			if o.Finding.GetId() == want {
-				found = true
-			}
-		}
-		if !found {
-			t.Errorf("finding %s lost its id in replay — found_by credit is keyed on it", want)
-		}
-	}
-}
-
 // THE GRADE ENUM IS ENFORCED BY THE TYPE NOW, and this test says what it used to catch.
 //
 // It drove `validate` with `severity=catastrophic` and `severity=true`, asserting a refusal that
@@ -350,7 +315,7 @@ func validateContractCases() []validateContract {
 		// The message must name the flag the PARSER accepts. It named --gap-id for as
 		// long as that flag existed and kept naming it after the rename, because the
 		// spelling was derived from the payload key rather than stated.
-		{"a motion ruling missing every field", recordpb.EventType_EVENT_TYPE_MOTION_RULE, &recordpb.MotionRule{}, "requires --id"},
+		{"a motion ruling missing every field", recordpb.EventType_EVENT_TYPE_MOTION_RULE, &recordpb.MotionRule{}, "--id is required"},
 		// AN UNKNOWN VERB IS UNREPRESENTABLE: the type is an enum and the body is a message, so there
 		// is no "no-such-verb" to pass. The arm that ignored it is gone with the string.
 	}
@@ -381,7 +346,7 @@ func TestValidateVerbContracts(t *testing.T) {
 	}
 }
 
-// docketRunDir is a run in which G1 exists AND motion M1 has been docketed against it, so a
+// docketRunDir is a run in which G1 exists AND docketing D1 stands on it, so a
 // bench ruling's references both resolve and the test can be about the missing FIELD rather than
 // the missing gap or the missing filing. The gap is minted on an ingested report, so a bench sitting
 // can be delivered its passage (docketBench).
@@ -392,22 +357,22 @@ func TestValidateVerbContracts(t *testing.T) {
 func docketRunDir(t *testing.T) string {
 	t.Helper()
 	runDir := newRun(t)
-	withReport(t, mustRun(t, runDir))
-	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, "", ""); err != nil {
+	run := withReport(t, mustRun(t, runDir))
+	// The cast seats the bench, the evidence lens mints the gap (its assignee), the dispatch writes
+	// docketing D1 on it, and the chair's bench row naming it convenes the bench's next sitting as the
+	// docket sitting that holds D1 (benchHeld) — so a test's `sit(judge)` is the sitting that rules it.
+	mustAppend(t, Identity{Run: run, SeatID: HarnessSeat}, castBody([]string{evLens, "red-chair", "blue-respond", "judge"}, nil))
+	if _, _, err := RegisterSeat(Identity{Run: run, SeatID: "red-chair"}, "", ""); err != nil {
 		t.Fatal(err)
 	}
 	id := NewID("gap")
-	redID := Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}
-	if _, err := Append(redID, &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), AcceptanceCheck: proto.String("the check runs"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String(id), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("p")}); err != nil {
+	if _, err := Append(sit(t, run, evLens), &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), AcceptanceCheck: proto.String("the check runs"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String(id), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("p")}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Append(redID, &recordpb.Motion{
-		MotionId: proto.String("M1"),
-		Basis:    proto.String("red cannot settle this and puts it to the bench"),
-		Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String(id)}},
-	}); err != nil {
+	if _, err := docketByDispatchAs(t, run, "D1", id, recordpb.DocketingCause_DOCKETING_CAUSE_IMPASSE, ""); err != nil {
 		t.Fatal(err)
 	}
+	mustAppend(t, Identity{Run: run, SeatID: chairSeat}, &recordpb.Dispatch{Pin: proto.Int64(1), SeatId: proto.String(benchSeat), GapIds: []string{id}})
 	return runDir
 }
 
@@ -439,10 +404,11 @@ func TestValidateDocketRulingNamesEachMissingField(t *testing.T) {
 	// requirement, because an empty answer is an answer for `settled`, the one field that allows it.
 	complete := func() *recordpb.MotionRule {
 		return &recordpb.MotionRule{
-			MotionId: proto.String("M1"),
-			Opinion:  proto.String("the ruling's reasoning"),
+			Opinion: proto.String("the ruling's reasoning"),
 			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
-				Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED),
+				DocketingId: proto.String("D1"),
+				SidedWith:   recordpb.SidedWith_SIDED_WITH_AUTHOR.Enum(),
+				Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_NOT_A_DEFECT),
 				Principle:   proto.String("x"),
 				Tension:     proto.String("x"),
 				ReviewFlag:  proto.String("x"),
@@ -455,12 +421,14 @@ func TestValidateDocketRulingNamesEachMissingField(t *testing.T) {
 		field, wantFlag string
 		clear           func(*recordpb.MotionRule)
 	}{
-		// The motion must EXIST and be NAMED CORRECTLY: references are checked at write time, so
-		// motion_id carries the real filed id rather than a placeholder. With a bogus id the
+		// The docketing must EXIST and be NAMED CORRECTLY: references are checked at write time, so
+		// docketing_id carries the real docketing's id rather than a placeholder. With a bogus id the
 		// reference check fires first and this would assert on the wrong refusal.
-		{"motion_id", "--id", func(r *recordpb.MotionRule) { r.MotionId = nil }},
+		{"docketing_id", "--id", func(r *recordpb.MotionRule) { r.GetDocket().DocketingId = nil }},
 		{"opinion", "--reason", func(r *recordpb.MotionRule) { r.Opinion = nil }},
-		{"disposition", "--as", func(r *recordpb.MotionRule) { r.GetDocket().Disposition = nil }},
+		{"the answer", "exactly one of a side of its docketing's pair", func(r *recordpb.MotionRule) {
+			r.GetDocket().SidedWith, r.GetDocket().Disposition, r.GetDocket().Final = nil, nil, nil
+		}},
 		{"principle", "--principle", func(r *recordpb.MotionRule) { r.GetDocket().Principle = nil }},
 		{"tension", "--tension", func(r *recordpb.MotionRule) { r.GetDocket().Tension = nil }},
 		{"review_flag", "--review-flag", func(r *recordpb.MotionRule) { r.GetDocket().ReviewFlag = nil }},
@@ -494,7 +462,7 @@ func TestValidateDocketRulingNamesEachMissingField(t *testing.T) {
 		}
 	})
 
-	if err := validateRun(docketBench(t), "judge", recordpb.EventType_EVENT_TYPE_MOTION_RULE, complete()); err != nil {
+	if err := validateRun(docketBenchSat(t), "judge", recordpb.EventType_EVENT_TYPE_MOTION_RULE, complete()); err != nil {
 		t.Errorf("a complete docket ruling was refused: %v", err)
 	}
 
@@ -503,58 +471,29 @@ func TestValidateDocketRulingNamesEachMissingField(t *testing.T) {
 	// holds the fields an empty value does not satisfy.
 	empty := complete()
 	empty.GetDocket().Settled = proto.String("")
-	if err := validateRun(docketBench(t), "judge", recordpb.EventType_EVENT_TYPE_MOTION_RULE, empty); err != nil {
+	if err := validateRun(docketBenchSat(t), "judge", recordpb.EventType_EVENT_TYPE_MOTION_RULE, empty); err != nil {
 		t.Errorf("a docket ruling with settled present-but-empty was refused: %v", err)
 	}
 }
 
-// Lineage is never dangling: a mint that supersedes an id no mint created is
-// refused, because the supersedes chain is what the whole analysis reads.
-func TestValidateRefusesDanglingLineage(t *testing.T) {
-	runDir := newRun(t)
-	seatID := "red-chair"
-	writeShard(t, runDir, []*Event{
-		recordtest.At(t, seatID, seatID+":mint:G1", &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: recordpb.GapClass_GAP_CLASS_POLICY_WITHOUT_MECHANISM.Enum(), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G1")}),
-	})
-	base := func(supersedes ...string) *recordpb.Mint {
-		return &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
-			GapId: proto.String("G2"), AcceptanceCheck: proto.String("c"),
-			CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
-			Class:     recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Problem: proto.String("p"),
-			Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
-			Impact:     recordtest.P(recordpb.Grade_GRADE_MEDIUM),
-			Supersedes: supersedes,
-		}
-	}
-
-	if err := validateRun(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_MINT, base("G1")); err != nil {
-		t.Errorf("a real ancestor was refused: %v", err)
-	}
-	err := validateRun(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_MINT, base("G1", "G3"))
-	if err == nil {
-		t.Fatal("a dangling ancestor was accepted")
-	}
-	if !strings.Contains(err.Error(), "G3") || !strings.Contains(err.Error(), "dangling lineage refused") {
-		t.Errorf("error must name the dangling id: %v", err)
-	}
-	// An empty lineage is not a dangling one.
-	if err := validateRun(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_MINT, base()); err != nil {
-		t.Errorf("an empty lineage was refused: %v", err)
-	}
+// docketBenchSat is docketRunDir's run with the bench sat in the docket sitting that holds D1, so a
+// ruling validated there is judged on its fields.
+func docketBenchSat(t *testing.T) Run {
+	t.Helper()
+	run := mustRun(t, docketRunDir(t))
+	sit(t, run, "judge")
+	return run
 }
 
 func TestValidateCloseAnchorContract(t *testing.T) {
 	runDir := newRun(t)
 	seatID := evLens
-	// BOTH gaps are minted: G1 is the one being closed, G2 the successor a
-	// repaired_with_regression names. A successor is a reference like any other and is
-	// now checked, so a fixture that names one has to create it. The lens mints them on an
-	// ingested report and sits with its delivery, so each close is answered by the rule it names.
+	// G1 is the gap being closed. The lens mints it on an ingested report and sits with its
+	// delivery, so each close is answered by the rule it names.
 	writeShard(t, runDir, []*Event{
 		recordtest.At(t, HarnessSeat, "harness:ingest", &recordpb.ReportPart{Text: proto.String("# report\n\n## Findings\n\nThe finding stands.\n")}),
 		recordtest.At(t, seatID, seatID+":register", &recordpb.Register{}),
 		recordtest.At(t, seatID, seatID+":mint:G1", &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: recordpb.GapClass_GAP_CLASS_POLICY_WITHOUT_MECHANISM.Enum(), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G1")}),
-		recordtest.At(t, seatID, seatID+":mint:G2", &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: recordpb.GapClass_GAP_CLASS_POLICY_WITHOUT_MECHANISM.Enum(), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G2")}),
 	})
 	deliver(t, mustRun(t, runDir), seatID)
 	anchored := func() *recordpb.Close {
@@ -563,14 +502,6 @@ func TestValidateCloseAnchorContract(t *testing.T) {
 			AnchorTool: proto.String("git show"), AnchorTarget: proto.String("7bc501e:path"),
 			Prose: proto.String("verified against the ref; the claim now holds"),
 		}
-	}
-	withClass := func(c recordpb.Disposition, successor string) *recordpb.Close {
-		a := anchored()
-		a.ClosureClass = c.Enum()
-		if successor != "" {
-			a.Successor = proto.String(successor)
-		}
-		return a
 	}
 	cases := []struct {
 		name    string
@@ -594,8 +525,6 @@ func TestValidateCloseAnchorContract(t *testing.T) {
 		// exactly what anchored_closures_pct exists to detect. The genuine case (close
 		// with an anchor, then restate) is covered in required_test.go.
 		{"--carried-from cannot invent an earlier closure", &recordpb.Close{GapId: proto.String("G1"), Prose: proto.String("verified"), CarriedFrom: proto.String("2")}, "no closure of it exists in the record"},
-		{"closed_with_regression needs a successor", withClass(recordpb.Disposition_DISPOSITION_REPAIRED_WITH_REGRESSION, ""), "requires --superseded-by"},
-		{"closed_with_regression with a successor", withClass(recordpb.Disposition_DISPOSITION_REPAIRED_WITH_REGRESSION, "G2"), ""},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -635,12 +564,12 @@ func TestTheKeyLabelIsTheFirstFieldTheBodyCarries(t *testing.T) {
 		want string
 	}{
 		{"gap_id is the first label consulted", &recordpb.Close{GapId: proto.String("G1")}, "G1"},
-		{"a finding's id when there is no gap_id", &recordpb.Finding{Id: proto.String("F-f0000001")}, "F-f0000001"},
+		{"an anchor's id when there is no gap_id", &recordpb.Anchor{Id: proto.String("C-f0000001")}, "C-f0000001"},
 		{"a citation reading keys on its anchor", &recordpb.Verify{Anchor: proto.String("C-1"), Url: proto.String("https://x")}, "C-1"},
 		// A reading of a source the lens found is identified by its url AND its sentence, two fields:
 		// it takes the ordinal, and requireNotARetriedReading holds the pair to one per sitting.
 		{"url keys nothing", &recordpb.Verify{Url: proto.String("https://x"), Claim: proto.String("A sentence.")}, ""},
-		{"an empty label is not a label", &recordpb.Finding{Id: proto.String("")}, ""},
+		{"an empty label is not a label", &recordpb.Anchor{Id: proto.String("")}, ""},
 		{"no label at all", &recordpb.Log{}, ""},
 	} {
 		t.Run(c.name, func(t *testing.T) {
@@ -668,51 +597,6 @@ func TestSingletonVerbsAreDeclaredForTheVerbsThatAreOnce(t *testing.T) {
 	// gone, so the exception is gone with it and a re-dispatch gets `#2` from the ordinary rule.
 	if singleton[recordpb.EventType_EVENT_TYPE_REGISTER] {
 		t.Error("register is declared a singleton — a re-dispatched seat would collide with its own first registration and could not record at all")
-	}
-}
-
-// A FINDING ID NAMES ONE FINDING OVER THE WHOLE RUN. A seat sitting again that records under an id
-// it already spent is repeating an act, not filing a new finding, and another lens recording under
-// it would make one name two findings — every found_by credit on it a coin flip. `finding.id` is
-// UNIQUE, so either repeat is a refused write rather than a second row; a fresh id lands.
-func TestAFindingIDIsRefusedASecondTimeAndAFreshOneLands(t *testing.T) {
-	runDir := recordtest.TmpRun(t)
-	id := Identity{Run: mustRun(t, runDir), SeatID: "red-lens-evidence"}
-	if _, _, err := RegisterSeat(id, "", ""); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := Append(id, &recordpb.Finding{Id: proto.String("F-f0000001"), Text: proto.String("x")}); err != nil {
-		t.Fatal(err)
-	}
-	// A second sitting of the same seat.
-	if _, _, err := RegisterSeat(id, "", ""); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := Append(id, &recordpb.Finding{Id: proto.String("F-f0000001"), Text: proto.String("y")}); err == nil {
-		t.Fatal("F-f0000001 landed twice for one lens — a finding id is run-unique, and the second is a repeated act")
-	}
-	other := Identity{Run: mustRun(t, runDir), SeatID: "red-lens-logic"}
-	if _, _, err := RegisterSeat(other, "", ""); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := Append(other, &recordpb.Finding{Id: proto.String("F-f0000001"), Text: proto.String("z")}); err == nil {
-		t.Fatal("F-f0000001 landed for a second lens — one id now names two findings")
-	}
-	if _, err := Append(id, &recordpb.Finding{Id: proto.String("F-f0000002"), Text: proto.String("y")}); err != nil {
-		t.Fatalf("a fresh id was refused in the later sitting: %v", err)
-	}
-	m, err := MergedEvents(mustRun(t, runDir))
-	if err != nil {
-		t.Fatal(err)
-	}
-	n := 0
-	for _, e := range m.Events {
-		if e.GetType() == recordpb.EventType_EVENT_TYPE_FINDING {
-			n++
-		}
-	}
-	if n != 2 {
-		t.Errorf("%d findings on the record, want 2 (F-f0000001 once, F-f0000002 once)", n)
 	}
 }
 
@@ -905,10 +789,11 @@ func TestACarryIsExemptFromTheClosureArgument(t *testing.T) {
 func TestTheBenchStatesItsRuleItsTensionAndItsReviewFlag(t *testing.T) {
 	full := func() *recordpb.MotionRule {
 		return &recordpb.MotionRule{
-			MotionId: proto.String("M1"),
-			Opinion:  proto.String("the repair holds at the leaf"),
+			Opinion: proto.String("the repair holds at the leaf"),
 			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
-				Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED),
+				DocketingId: proto.String("D1"),
+				SidedWith:   recordpb.SidedWith_SIDED_WITH_AUTHOR.Enum(),
+				Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_NOT_A_DEFECT),
 				Principle:   proto.String("a claim rests on its weakest citation"),
 				Tension:     proto.String("correctness vs economy"),
 				ReviewFlag:  proto.String("no human review needed"),
@@ -948,61 +833,10 @@ func TestTheBenchStatesItsRuleItsTensionAndItsReviewFlag(t *testing.T) {
 	})
 }
 
-// A GRADE MOTION MUST ASK FOR A CHANGE.
+// EVERY GRADE AXIS IS READABLE, or a reader of the one that is not silently misreads it.
 //
-// Proposing the grade already on the board contests nothing, and the ruling it produces is
-// unreadable: `rejected` on a no-op and `rejected` on the merits are the same word, in the one
-// exchange built to make that distinction legible. Measured 2026-08-22 — with severity already
-// `high`, `--dimension severity --proposed high` filed cleanly.
-func TestAGradeMotionThatMovesNothingIsRefused(t *testing.T) {
-	runDir := newRun(t)
-	for _, s := range []string{"red-chair", "blue-respond"} {
-		if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: s}, "", ""); err != nil {
-			t.Fatal(err)
-		}
-	}
-	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"),
-		GapId: proto.String("G1"), AcceptanceCheck: proto.String("the check runs"),
-		Class: recordpb.GapClass_GAP_CLASS_RISK_COVERAGE_OMISSION.Enum(), Problem: proto.String("p"), RequiredFix: proto.String("f"),
-		CheckKind:  recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
-		Severity:   recordtest.P(recordpb.Grade_GRADE_HIGH),
-		Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
-	}); err != nil {
-		t.Fatal(err)
-	}
-
-	file := func(dim recordpb.GradeDimension, proposed recordpb.Grade) error {
-		return validateRun(mustRun(t, runDir), "blue-respond", recordpb.EventType_EVENT_TYPE_MOTION, &recordpb.Motion{
-			MotionId: proto.String("M1"),
-			Basis:    proto.String("the grade overstates it"),
-			Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{
-				GapId: proto.String("G1"), Dimension: &dim, Proposed: &proposed,
-			}},
-		})
-	}
-
-	// The no-op: severity is already high.
-	err := file(recordpb.GradeDimension_GRADE_DIMENSION_SEVERITY, recordpb.Grade_GRADE_HIGH)
-	if err == nil {
-		t.Error("a motion proposing the grade already on the board was accepted — the ruling on it cannot be told from a ruling on the merits")
-	} else if !strings.Contains(err.Error(), "already") {
-		t.Errorf("the refusal does not say the grade is already that value, so a seat cannot see what is wrong: %v", err)
-	}
-
-	// A REAL ask on the same axis still files.
-	if err := file(recordpb.GradeDimension_GRADE_DIMENSION_SEVERITY, recordpb.Grade_GRADE_LOW); err != nil {
-		t.Errorf("a motion asking for an actual change was refused: %v", err)
-	}
-	// And the check is PER AXIS: `high` is a real move on an axis that is `medium`.
-	if err := file(recordpb.GradeDimension_GRADE_DIMENSION_IMPACT, recordpb.Grade_GRADE_HIGH); err != nil {
-		t.Errorf("the no-op check is reading the wrong axis — impact is medium, so proposing high is a change: %v", err)
-	}
-}
-
-// EVERY GRADE AXIS IS READABLE, or the no-op check silently stops working on the one that is not.
-//
-// GradeAt's zero differs from any real proposal, so an unhandled dimension would accept every
-// motion on that axis while reporting nothing. The second return exists to make that loud; this
+// GradeAt's zero differs from every real grade, so an unhandled dimension would misread every
+// grade on that axis while reporting nothing. The second return exists to make that loud; this
 // asserts the enum and the switch have not drifted apart.
 func TestEveryGradeDimensionCanBeReadFromAGap(t *testing.T) {
 	g := &Gap{}
@@ -1014,7 +848,7 @@ func TestEveryGradeDimensionCanBeReadFromAGap(t *testing.T) {
 			continue
 		}
 		if _, ok := g.GradeAt(d); !ok {
-			t.Errorf("Gap.GradeAt cannot read %q — the no-op-motion check would accept every motion on that axis and say nothing", recordpb.Word(d))
+			t.Errorf("Gap.GradeAt cannot read %q — a reader of that axis would misread every grade on it and say nothing", recordpb.Word(d))
 		}
 		checked++
 	}

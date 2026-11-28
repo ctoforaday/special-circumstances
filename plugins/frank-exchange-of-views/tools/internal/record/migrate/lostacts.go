@@ -55,8 +55,9 @@ func (l lostGaps) noteLoss(q recordsql.Querier, body proto.Message, oldID int64,
 	return nil
 }
 
-// dependsOn is the lost act a refused body depends on: a lost gap it names, or a lost gap about an
-// id it names (an inquiry's gaps). ok is false where it names none.
+// dependsOn is the lost act a refused body depends on: a lost gap it names, a lost gap about an id it
+// names (an inquiry's gaps), or the lost gap a docketing it names put before the bench (a ruling of a
+// docketing whose ending close was lost). ok is false where it names none.
 func (l lostGaps) dependsOn(q recordsql.Querier, body proto.Message) (string, lostAct, bool, error) {
 	if len(l) == 0 {
 		return "", lostAct{}, false, nil
@@ -65,9 +66,9 @@ func (l lostGaps) dependsOn(q recordsql.Querier, body proto.Message) (string, lo
 		if a, lost := l[id]; lost {
 			return id, a, true, nil
 		}
-		rows, err := q.Query(`SELECT "gap_id" FROM "mint" WHERE "about_ref" = ?`, id)
+		rows, err := q.Query(`SELECT "gap_id" FROM "mint" WHERE "about_ref" = ?1 UNION SELECT "gap_id" FROM "docketing" WHERE "docketing_id" = ?1`, id)
 		if err != nil {
-			return "", lostAct{}, false, fmt.Errorf("asking which gaps are about %s: %w", id, err)
+			return "", lostAct{}, false, fmt.Errorf("asking which gaps are about %s or put before the bench by it: %w", id, err)
 		}
 		var about []string
 		for rows.Next() {

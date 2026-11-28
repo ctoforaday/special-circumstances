@@ -62,13 +62,6 @@ func (s *shapeSource) mint(id, quote string) {
 		Likelihood: recordpb.Grade_GRADE_MEDIUM.Enum(), Impact: recordpb.Grade_GRADE_MEDIUM.Enum()})
 }
 
-func (s *shapeSource) finding(id, quote string) {
-	s.t.Helper()
-	s.add(shapeLens, &recordpb.Finding{Id: proto.String(id),
-		Location: proto.String(quote), Text: proto.String("t")})
-	s.anchor(shapeLens, id, quote)
-}
-
 // anchor seeds an Anchor the source placed itself, past the live write: the archive spells an id as
 // its era did, and the live write refuses an anchor for an id no anchor kind claims.
 func (s *shapeSource) anchor(seat, id, quote string) {
@@ -165,7 +158,8 @@ func TestGapTranslationRefusesWhatItDoesNotRewrite(t *testing.T) {
 			s.edit("on their own.). ", "on their own.)", true)
 		}},
 		{"a placement whose location names its section", "anchor", "migration rewrites no stored location", func(s *shapeSource) {
-			s.finding("f-0000aaa1", `§ H: "Costs rose sharply in Q1."`)
+			s.mint("G1", "Costs rose sharply in Q1.")
+			s.anchor(shapeLens, "G1", `§ H: "Costs rose sharply in Q1."`)
 		}},
 		{"a citation whose location names its section", "cite", "migration rewrites no stored location", func(s *shapeSource) {
 			s.cite("c-0000aaa1", `§ H: "Costs rose sharply in Q1."`)
@@ -240,11 +234,11 @@ func TestGapTranslationRewritesEveryShape(t *testing.T) {
 			s.mint("G1", "Costs rose sharply in Q1.")
 			s.edit("Costs rose sharply in Q1.", "Costs rose modestly in Q1.", false)
 		}, "Costs rose modestly in Q1<!--gap:G1-->. Volume fell.", "abutting"},
-		{"(a) with a finding anchor already in the run", func(s *shapeSource) {
-			s.finding("f-0000aaa1", "Costs rose sharply in Q1.")
+		{"(a) with a citation anchor already in the run", func(s *shapeSource) {
+			s.cite("c-0000aaa1", "Costs rose sharply in Q1.")
 			s.mint("G1", "Costs rose sharply in Q1.")
-			s.edit("Costs rose sharply in Q1<!--fx:f-0000aaa1-->.", "Costs rose modestly in Q1<!--fx:f-0000aaa1-->.", false)
-		}, "Costs rose modestly in Q1<!--gap:G1--><!--fx:f-0000aaa1-->. Volume fell.", "abutting"},
+			s.edit("Costs rose sharply in Q1<!--cite:c-0000aaa1-->.", "Costs rose modestly in Q1<!--cite:c-0000aaa1-->.", false)
+		}, "Costs rose modestly in Q1<!--gap:G1--><!--cite:c-0000aaa1-->. Volume fell.", "abutting"},
 		{"(c) a drop inside the span, its sentence kept", func(s *shapeSource) {
 			s.mint("G1", "rose sharply")
 			s.edit("Costs rose sharply in Q1.", "Costs rose sharply in Q1. Analysts disagree.", false)
@@ -258,11 +252,11 @@ func TestGapTranslationRewritesEveryShape(t *testing.T) {
 			s.edit("Volume fell.", "", false)
 		}, "Costs rose sharply in Q1.", "bare"},
 		{"(e) the cut idiom, then its retire", func(s *shapeSource) {
-			s.finding("f-0000aaa1", "Water is wet.")
+			s.cite("c-0000aaa1", "Water is wet.")
 			s.mint("G1", "Water is wet.")
-			s.edit("Water is wet<!--fx:f-0000aaa1-->.", "<!--fx:f-0000aaa1-->", false)
+			s.edit("Water is wet<!--cite:c-0000aaa1-->.", "<!--cite:c-0000aaa1-->", false)
 			s.add(shapeBlue, &recordpb.Retire{Claim: proto.String("Water is wet."), Reason: proto.String("refuted"),
-				Anchors: []string{"f-0000aaa1"}})
+				Anchors: []string{"c-0000aaa1"}})
 		}, "- Fire is hot.", "bare"},
 		{"(g) the fallback passes over a heading to the first prose sentence", func(s *shapeSource) {
 			s.mint("G1", "Costs rose sharply in Q1.")
@@ -292,8 +286,9 @@ func TestGapTranslationRewritesEveryShape(t *testing.T) {
 			if c.shape == "unplaced" && (strings.Contains(md, anchor.Token(m.IDs["G1"])) || !slices.Contains(m.GapAnchors.NeverPlaced, m.IDs["G1"])) {
 				t.Errorf("a gap no prose sentence carries stands in the render or goes unnamed: %+v\n%s", m.GapAnchors, md)
 			}
-			// A CUT TAKES WHAT IT LEAVES ON NO WORDS (translations 2 and 4): the gap's marker the
-			// pure cut bared, and in (e) the finding anchor its claim retire took, which folds into it.
+			// A CUT TAKES WHAT IT LEAVES ON NO WORDS (P12b translations 2 and 4): the gap's marker the
+			// pure cut bared, and in (e) the citation's anchor its claim retire took, which folds into
+			// it, first in the retire's order (F18).
 			var cut []string
 			for _, e := range got {
 				cut = append(cut, e.GetRemovedAnchors()...)
@@ -304,18 +299,18 @@ func TestGapTranslationRewritesEveryShape(t *testing.T) {
 					t.Errorf("the cut lists %v, want its gap's marker", cut)
 				}
 			case "(e)":
-				if !slices.Equal(cut, []string{m.IDs["f-0000aaa1"], m.IDs["G1"]}) {
-					t.Errorf("the cut lists %v, want the finding its retire took, then its gap's marker", cut)
+				if !slices.Equal(cut, []string{"C-0000aaa1", m.IDs["G1"]}) {
+					t.Errorf("the cut lists %v, want the citation its retire took, then its gap's marker", cut)
 				}
 			}
 			if strings.HasPrefix(c.name, "(e)") {
 				// The cut takes the gap's marker with the finding, and the render matches the same
 				// stream's without the mint.
 				without := newShapeSource(t, base)
-				without.finding("f-0000aaa1", "Water is wet.")
-				without.edit("Water is wet<!--fx:f-0000aaa1-->.", "<!--fx:f-0000aaa1-->", false)
+				without.cite("c-0000aaa1", "Water is wet.")
+				without.edit("Water is wet<!--cite:c-0000aaa1-->.", "<!--cite:c-0000aaa1-->", false)
 				without.add(shapeBlue, &recordpb.Retire{Claim: proto.String("Water is wet."), Reason: proto.String("refuted"),
-					Anchors: []string{"f-0000aaa1"}})
+					Anchors: []string{"c-0000aaa1"}})
 				_, plain, _, _ := without.migrated()
 				if skeleton(md) != skeleton(plain) {
 					t.Errorf("the skeleton moved:\n with the gap %q\n without      %q", md, plain)

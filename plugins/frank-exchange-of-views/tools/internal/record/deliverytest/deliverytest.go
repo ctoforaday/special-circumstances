@@ -1,7 +1,7 @@
 // Package deliverytest completes a seat's delivery of report text for a fixture, as the delivery
 // writer does: the cut from the record as it stands, then the report_read the writer appends when it
 // hands the cut's last item (record.RecordDelivery). An act that stands only on delivered text — a
-// close, a spot-check, a ruling on a motion about gaps — is then judged on a sitting that holds its
+// close, a spot-check — is then judged on a sitting that holds its
 // delivery, which is the only state the live write accepts it in.
 //
 // It hands no item text: what reaches a seat's context is the writer's business, tested in
@@ -60,11 +60,11 @@ func DeliverIfOwed(t testing.TB, run record.Run, seatID string) {
 	}
 }
 
-// StandsOnDeliveredText is whether body is an act the delivered-text rule judges: a close, a
-// spot-check or a motion ruling (record.DeliveredTextRefusal decides which of those it refuses).
+// StandsOnDeliveredText is whether body is an act the delivered-text rule judges: a close or a
+// spot-check (record.DeliveredTextRefusal decides which of those it refuses).
 func StandsOnDeliveredText(body proto.Message) bool {
 	switch body.(type) {
-	case *recordpb.Close, *recordpb.SpotCheck, *recordpb.MotionRule:
+	case *recordpb.Close, *recordpb.SpotCheck:
 		return true
 	}
 	return false

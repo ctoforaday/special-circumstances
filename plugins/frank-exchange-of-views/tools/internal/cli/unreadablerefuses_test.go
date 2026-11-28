@@ -15,13 +15,6 @@ import (
 // some later read's refusal. A guard whose read a planted fault cannot reach — the verb read the
 // same table whole before it — is held by its package's own test with the read injected.
 
-func dropTable(t *testing.T, runDir, table string) {
-	t.Helper()
-	if _, err := openRunDB(t, runDir).Exec(`DROP TABLE "` + table + `"`); err != nil {
-		t.Fatalf("drop %s: %v", table, err)
-	}
-}
-
 func wantUnreadableRefusal(t *testing.T, err error, what string) {
 	t.Helper()
 	if err == nil {
@@ -38,9 +31,10 @@ func TestACloseOverAnUnreadableDemandIsRefused(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nSeven is prime.\n")
 	mintComputation(t, runDir, "G1")
-	// The demand is unmet, so the guard asks which anchors it reaches (demand_reach, over the stored
-	// demand lineage).
-	dropTable(t, runDir, "demand_lineage")
+	// The demand is unmet, so the guard asks which anchors it reaches (demand_reach).
+	if _, err := openRunDB(t, runDir).Exec(`DROP VIEW "demand_reach"`); err != nil {
+		t.Fatalf("drop demand_reach: %v", err)
+	}
 	_, err := runAt(t, "close", "--run", runDir, "--seat-id", lensSeat,
 		"--id", "G1", "--as", "repaired", "--verified-by", "L1", "--verified-with", "read",
 		"--verified-against", "blue/report.md", "--reason", "read it")

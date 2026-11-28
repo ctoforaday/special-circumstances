@@ -78,7 +78,7 @@ func TestMarkdownSubsetRenders(t *testing.T) {
 	}
 }
 
-// HTML IN THE SOURCE IS ESCAPED, not executed. A seat's prose is model output and a finding's
+// HTML IN THE SOURCE IS ESCAPED, not executed. A seat's prose is model output and a gap's
 // text is quoted from a repository; either can contain a tag, and a report that renders it is
 // a report that can be written into.
 func TestMarkupInProseIsEscaped(t *testing.T) {
@@ -160,18 +160,16 @@ func TestCitationsAreNumberedByFirstUse(t *testing.T) {
 	}
 }
 
-// EVERY ID THE DOCUMENTS QUOTE LINKS TO ITS DEFINITION: a gap's, a motion's and a finding's.
+// EVERY ID THE DOCUMENTS QUOTE LINKS TO ITS DEFINITION: a gap's and a motion's.
 //
 // An id idToken does not read is silent in exactly the way that matters: an unlinked id looks the
 // same as an id nobody else mentioned, so the report renders clean while every join to the docket is
 // gone. Both halves are asserted because they fail separately — `define` must register the anchor,
 // and `linkText` must find it — in a heading and in a list item, which define by separate paths.
-// The finding is defined as the documents print it, with its area after the id.
 func TestEveryQuotedIDLinksToItsDefinition(t *testing.T) {
 	for _, tc := range []struct{ id, definedAs string }{
 		{"G-5e10a3c2", "G-5e10a3c2 — eviction races the reader"},
 		{"M-0000aaa1", "M-0000aaa1 — a petition to reopen"},
-		{"F-7cdcd115", "F-7cdcd115 (dark-side) — what the lens found"},
 	} {
 		for form, md := range map[string]string{"heading": "### " + tc.definedAs + "\n\nsomething\n", "list item": "- " + tc.definedAs + "\n"} {
 			t.Run(tc.id+" in a "+form, func(t *testing.T) {

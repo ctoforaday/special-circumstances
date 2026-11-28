@@ -70,7 +70,6 @@ func TestTheAdjudicationVocabulariesHaveExactlyOneSourceEach(t *testing.T) {
 	}{
 		{"petition", "class", recordpb.PetitionClass(0).Descriptor()},
 		{"petition", "binds", recordpb.RulingBinds(0).Descriptor()},
-		{"grade", "dimension", recordpb.GradeDimension(0).Descriptor()},
 	} {
 		for _, v := range MotionFields[tc.subject][tc.key] {
 			if _, ok := recordpb.BySpelling(tc.ed, v.Name); !ok {
@@ -96,32 +95,6 @@ func TestTheAdjudicationVocabulariesHaveExactlyOneSourceEach(t *testing.T) {
 	if len(MotionVerdicts["petition"]) == 0 {
 		t.Error("MotionVerdicts lost the petition rulings")
 	}
-	// The four grade axes, likewise, and what each means: the menu a grade motion's filer reads is
-	// GradeDimension's own words and sentences, in its order.
-	dims := MotionFields["grade"]["dimension"]
-	if got := strings.Join(Names(dims), "|"); got != "severity|likelihood|impact|complexity" {
-		t.Errorf("the grade dimensions moved or changed: %q — the ruling is matched to the filing on (gap, dimension), so a change here silently unpairs asks from answers", got)
-	}
-	for _, v := range dims {
-		d, ok := GradeDimensionOf(v.Name)
-		if !ok {
-			t.Errorf("the dimension menu offers %q, which is not a GradeDimension", v.Name)
-			continue
-		}
-		// ONE DEFINITION OF EACH AXIS, and the menu opens with it. The complexity axis carries a
-		// second fact there and nowhere else — why it is the one to contest — which is a fact
-		// about a motion: the page a lens grades from prints the definition alone.
-		want := AxisMeans(d)
-		if d == recordpb.GradeDimension_GRADE_DIMENSION_COMPLEXITY {
-			if strings.Contains(want, "contest") {
-				t.Errorf("the complexity axis's definition carries the motion's contest clause, so every page that grades on it prints it: %q", want)
-			}
-			want += " — the axis to contest when the fix is worth more than the defect, which is what makes defect_accepted arguable"
-		}
-		if v.Means != want {
-			t.Errorf("the dimension menu says %q means %q, want %q", v.Name, v.Means, want)
-		}
-	}
 }
 
 // THE TWO CLOSURE SETS ARE CLOSED NOW (#342), and this test is the inverse of the one it
@@ -137,11 +110,9 @@ func TestBothClosureSetsShareOneVocabulary(t *testing.T) {
 	if len(closeSet) != 1 {
 		t.Fatal("`merge close` must declare exactly one closed set")
 	}
-	// THE BENCH'S SET IS KEYED ON (SUBJECT, RULING) NOW, so it is read from the motion table
-	// rather than from EnumFields — `bench opinion` was its own event type with its own entry,
-	// and the disposition is a docket motion's ruling. Read through the same accessor the CLI's
-	// help and the write check use, so a set this test agrees with is the set a seat is offered.
-	benchSet := MotionVerdictEnum("docket").Values
+	// THE BENCH'S SET IS THE DOCKET RULING'S DISPOSITION: the bench chooses a side and the word is
+	// the side's statement, so the set is read off the ruling's field rather than a menu.
+	benchSet := evsOf((&recordpb.DocketRuling{}).ProtoReflect().Descriptor().Fields().ByName("disposition").Enum())
 	if len(benchSet) == 0 {
 		t.Fatal("the bench's docket vocabulary is empty — an empty set would pass every check below without comparing anything")
 	}
@@ -281,16 +252,21 @@ func TestEveryMotionVerdictCarriesTheSchemasMeaning(t *testing.T) {
 	for i := 0; i < od.Fields().Len(); i++ {
 		fd := od.Fields().Get(i)
 		subject := string(fd.Name())
-		// EVERY ARM HAS A SET, the docket's included: the write's refusal of an unrecognized ruling
-		// offers MotionVerdicts[subject] back, and a subject with no set there offers an empty list.
+		// EVERY ARM BUT THE DOCKET'S HAS A SET: the write's refusal of an unrecognized ruling offers
+		// MotionVerdicts[subject] back, and a subject with no set there offers an empty list. The
+		// docket's word is the side's statement, so no menu offers it.
 		vs, ok := MotionVerdicts[subject]
+		if subject == "docket" {
+			if ok {
+				t.Errorf("MotionVerdicts offers a menu for %q, whose ruling word is the side's statement", subject)
+			}
+			continue
+		}
 		if !ok || len(vs) == 0 {
 			t.Errorf("MotionRule rules on %q and MotionVerdicts carries no set for it", subject)
 			continue
 		}
 		if fd.Kind() != protoreflect.EnumKind {
-			// `docket` is a message, and its disposition is the shared Disposition set, which
-			// TestBothClosureSetsShareOneVocabulary already holds to the descriptor.
 			continue
 		}
 		ed := fd.Enum()
@@ -324,17 +300,23 @@ func TestEveryMotionVerdictCarriesTheSchemasMeaning(t *testing.T) {
 	}
 }
 
-// narrowedBy names the ONE set that lists fewer words than its enum carries, and the facet that
-// says why: red closes a gap with a Disposition that `closes`, and `remanded` is declared not to.
+// narrowedBy names the sets that list fewer words than their enum carries, and the facet that says
+// why: red closes a gap with a Disposition that `closes`, blue's closing states one for a ruling to
+// write, and `remanded` is declared not to close.
 // A narrowing that no facet declares is a hand-restated set, and the coverage check above refuses it.
 var narrowedBy = map[[2]string]func(t *testing.T, vd protoreflect.EnumValueDescriptor) bool{
-	{"close", "closure_class"}: func(t *testing.T, vd protoreflect.EnumValueDescriptor) bool {
-		closes, declared, err := recordpb.Facet(vd, "closes")
-		if err != nil || !declared {
-			t.Fatalf("Disposition %s declares no `closes` facet: %v", vd.Name(), err)
-		}
-		return !closes
-	},
+	{"close", "closure_class"}:   notAClosure,
+	{"closing", "closure_class"}: notAClosure,
+}
+
+// notAClosure is the `closes` facet's narrowing: a word that closes no gap is no closure_class red
+// closes with or blue states for a ruling to write.
+func notAClosure(t *testing.T, vd protoreflect.EnumValueDescriptor) bool {
+	closes, declared, err := recordpb.Facet(vd, "closes")
+	if err != nil || !declared {
+		t.Fatalf("Disposition %s declares no `closes` facet: %v", vd.Name(), err)
+	}
+	return !closes
 }
 
 // tableCarries answers whether the table lists this schema value, under the schema's spelling or
@@ -390,7 +372,7 @@ func schemaValue(ed protoreflect.EnumDescriptor, word string) (protoreflect.Enum
 // Measured 2026-08-22 on the sqlite-schema run: the board said open:0 while assembly-screen
 // reported a source red had found AGAINST still cited in the shipped report. Two gates, one run,
 // contradicting each other in English — because "closed" answers whether the DISPUTE ended, and
-// three of the six classes end the dispute while leaving a live defect in the artifact.
+// two of the five closing classes end the dispute while leaving a live defect in the artifact.
 func TestArtifactStateSeparatesTheDisputeFromTheDefect(t *testing.T) {
 	for _, c := range []struct {
 		class string
@@ -400,11 +382,10 @@ func TestArtifactStateSeparatesTheDisputeFromTheDefect(t *testing.T) {
 		{"not_a_defect", ArtifactNoDefect},
 		{"defect_accepted", ArtifactDefectLive},
 		{"defect_owed_elsewhere", ArtifactDefectLive},
-		{"repaired_with_regression", ArtifactDefectLive},
 	} {
 		got, ok := ArtifactStateOf(c.class)
 		if !ok {
-			t.Errorf("%s: ArtifactStateOf reported it cannot answer, but only amends_prior may", c.class)
+			t.Errorf("%s: ArtifactStateOf reported it cannot answer", c.class)
 			continue
 		}
 		if got != c.want {
@@ -412,20 +393,13 @@ func TestArtifactStateSeparatesTheDisputeFromTheDefect(t *testing.T) {
 		}
 	}
 
-	// THE THREE THAT SHIP A LIVE DEFECT must not be readable as repaired. This is the assertion
+	// THE TWO THAT SHIP A LIVE DEFECT must not be readable as repaired. This is the assertion
 	// the board could not make before, and the one the run needed.
-	for _, class := range []string{"defect_accepted", "defect_owed_elsewhere", "repaired_with_regression"} {
+	for _, class := range []string{"defect_accepted", "defect_owed_elsewhere"} {
 		if got, _ := ArtifactStateOf(class); got == ArtifactRepaired || got == ArtifactNoDefect {
 			t.Errorf("%s reads as %s — a settled dispute is being reported as a sound artifact, "+
 				"which is how a board says open:0 while the report ships a defect red found against", class, got)
 		}
-	}
-
-	// AMENDS_PRIOR REFUSES TO ANSWER rather than guessing. It is defined relative to an earlier
-	// ruling, so a table row for it would be a fabricated value wearing a derived one's authority.
-	if _, ok := ArtifactStateOf("amends_prior"); ok {
-		t.Error("amends_prior answered from the class alone — it inherits from the ruling it amends, " +
-			"and a plausible answer here is worse than an honest refusal")
 	}
 
 	// A WORD OUTSIDE THE VOCABULARY REPORTS ITSELF. No record can carry one — the schema's CHECK

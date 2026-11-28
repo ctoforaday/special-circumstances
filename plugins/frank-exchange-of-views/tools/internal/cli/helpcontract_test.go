@@ -26,7 +26,7 @@ import (
 // outside it (enum_help_test.go); where a refusal offers a list, that list must carry meanings
 // (refusalteaches_test.go).
 //
-// The measured cost of an unchecked claim is not hypothetical. `lens finding --location` promised
+// The measured cost of an unchecked claim is not hypothetical. A lens verb's `--location` promised
 // "a section heading plus a QUOTED sentence" and the tool matched the WHOLE string literally
 // against the report, so every seat that obeyed the help was refused — four separators tried in
 // one sitting, ten consecutive failures, and the sitting spent on the matcher rather than the
@@ -361,8 +361,8 @@ func seatRunForContracts(t *testing.T) string {
 		"--question", "a seeded question", "--hypothesis", "it would settle something"); err != nil {
 		t.Fatalf("seed inquiry: %v", err)
 	}
-	if _, err := runAt(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond",
-		"--id", "G1", "--dimension", "severity", "--proposed", "low",
+	if _, err := runAt(t, "motion", "petition", "file", "--run", runDir, "--seat-id", "red-lens-evidence",
+		"--class", "safety", "--relief", "halt before the next round",
 		"--reason", "the motion a probe's --id names"); err != nil {
 		t.Fatalf("seed motion: %v", err)
 	}

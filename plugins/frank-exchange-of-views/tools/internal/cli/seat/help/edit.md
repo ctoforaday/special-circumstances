@@ -6,11 +6,18 @@ change the report — the only path into report.md, and how every repair lands
 
 A raw write or a shell edit of the report is denied.
 
-TAKING RED'S FIX AS IT STANDS. Where red prescribed concrete replacement text on a gap, you can
-apply that text instead of retyping it. Your argument for the change is still required.
+TAKING RED'S FIX AS IT STANDS. Where the gap's raiser states concrete replacement text — its mint's
+prescription, or the pair its closing states at a docketing — accepting G applies that text instead
+of your retyping it, and the edit answers G, so you name no gap it answers. Your argument for the change
+is still required. Under a docketing on G it is your concession: it ends the docketing and your own
+proposal on the gap with no ruling. Under grade movement it is refused — no party concedes that
+question. A closing of the raiser's that states no text withdraws what it offered, and the accept is
+then refused.
 
 Retyping it is the same act only if every byte matches: a stray space or a re-wrapped line records
-that you did NOT take red's text, and costs you the estoppel that stops red re-opening its own words. The estoppel lasts while your verbatim application is the latest edit of that sentence: rewording it afterwards makes the text yours, and red audits it normally; applying red's text again binds red again.
+that you did NOT take red's text, and costs you the estoppel that stops the prescribing lens re-opening its own words. The estoppel lasts while your verbatim application is the latest edit of that sentence: rewording it afterwards makes the text yours, and red audits it normally; applying red's text again binds red again.
+
+A REWORD OR A CUT ENDS A BENCH RULING'S BAR. A ruling for either side leaves a tombstone on its gap, which refuses a mint of the gap's class on its sentence and every proposal on the gap: your edit that rewords that sentence, or the sentence of a citation or computation a ruled gap is about, ends it, and red audits the sentence as it now stands. A cut that takes the sentence, and the gap's token with it, ends it too.
 
 A LENS'S READING THAT FINDS A SOURCE AGAINST A SENTENCE IS THAT LENS'S DEBT, which holds the PASS until the lens mints the gap on it or reads the sentence again. Your edit of the sentence a citation backs, or your retire of the citation, discharges the debt on that citation. Of a sentence a source the lens found was read against, an edit that REWORDS it leaves the debt standing — the lens reads the sentence as it now stands — and one that removes the sentence, or applies red's text verbatim, discharges it.
 
@@ -27,7 +34,7 @@ A RUN AT A SENTENCE'S END DOES NOT SAY WHICH PART OF THE SENTENCE EACH ANCHOR MA
 
 Either way the record lists each anchor whose sentence your rewrite changed. A citation or computation among them is reopened — unchecked again: its owning lens owes a check of it as it now stands and is readied for one, a check by any lens from a sitting opened after your rewrite clears it, and a PASS waits until one does. A cut lists the anchors it takes as removed, none of them as reopened: each leaves the report with its check, and nothing is owed of it.
 
-NO ANCHOR STANDS BARE. A rewrite that would leave an anchor of any kind with no prose before it in its sentence is refused, whether your quote holds it or not, naming the anchor: keep words on that sentence, or cut it whole, which takes the anchor with it. A cut that would take a citation a computation still in the report applies is refused, naming the computation: retire the computation by its own anchor first, computing it again citing another source if the report still needs it, or take it in the same cut; then cut again. A cut of an open gap's own marker hands that gap to its lens, which judges the report as it stands.
+NO ANCHOR STANDS BARE. A rewrite that would leave an anchor of any kind with no prose before it in its sentence is refused, whether your quote holds it or not, naming the anchor: keep words on that sentence, or cut it whole, which takes the anchor with it. A cut that would take a citation a computation still in the report applies is refused, naming the computation: retire the computation by its own anchor first, computing it again citing another source if the report still needs it, or take it in the same cut; then cut again. A cut of an open gap's own marker hands that gap to its raiser, which judges the report as it stands.
 
 Quote enough context that the span matches exactly ONE place, or the edit is refused as ambiguous rather than applied to the wrong site.
 
@@ -44,3 +51,5 @@ NO SECTION THE TOOL COMPOSES. Assembly composes these itself, from the record: {
 A SECTION MOVES IN ONE EDIT. Quote the section together with everything that stands between it and its place, as `show report` prints them, and write the same text as the replacement with the section where it belongs: every anchor in the span stays on its sentence and no sentence changes, so nothing is reopened. Taking a section out in one edit to write it back in a second loses every anchor the section holds: the first edit is a cut, which takes them out of the report, and no edit places one.
 
 WHAT MAY BE IN THE REPORT: research prose for a reader of the SUBJECT, and the markers this tool places — nothing else. No provenance or attribution tags, no notes to another seat, no argument about the run, no narration of how the report was made. A fact that LIMITS THE CONCLUSION stays, re-voiced as a limit on the answer rather than a story about the attempt. Operational facts go to `log`, arguments to `closing`, or to `position` where your seat files one.
+
+A STATEMENT STANDING ON A GAP HOLDS UNTIL ITS RULING. While a docketing or a proposal stands on a gap, the text the gap's lens states in its closing there, is what the bench applies when it sides with it: an edit after which it no longer applies to the report is refused, naming that docketing or proposal, and nothing is recorded. An edit that leaves each of them applying lands.

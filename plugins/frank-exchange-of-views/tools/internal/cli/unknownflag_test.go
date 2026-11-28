@@ -70,10 +70,9 @@ func TestTheSuggestionIsNotMadeForAFlagTheVerbDoesNotHave(t *testing.T) {
 // A FLAG CARRIED FROM A SIBLING VERB IS ANSWERED FROM THE TREE, IN A FEW LINES.
 //
 // Measured on the 2026-10-09 smoke: blue typed `retire --key` four times in one batch, having used
-// `--key` on fourteen edits, and a lens typed `finding --problem` twice, having used `--problem`
-// on its mints. Each refusal was the verb's whole page — 3 506 bytes per
-// retire, 9 029 for the two findings — and none said the one thing the seat had wrong: the flag
-// is a real one, on the verbs beside this one.
+// `--key` on fourteen edits. Each refusal was the verb's whole page — 3 506 bytes per
+// retire — and none said the one thing the seat had wrong: the flag is a real one, on the verbs
+// beside this one.
 //
 // The refusal says which verbs on the ASKING SEAT's surface take the flag, what this verb takes,
 // and where the page is. It is the same text in both forms, under 1 KB, and it accepts nothing:
@@ -93,17 +92,17 @@ func TestAnUnknownFlagIsAnsweredFromTheSeatsOwnTree(t *testing.T) {
 			args: []string{"retire", "--key", "R1", "--anchor", "C-0000abcd", "--reason", "r"},
 			verb: "retire", role: "blue", writes: "retire",
 			says: []string{"unknown flag: --key", "On this surface `cite`, `compute` and `edit` take it.",
-				"This verb's flags: --anchor, --answers, --reason.", "`" + InvokedAs() + " retire --help`"},
-			silent: []string{"`finding`", "`mint`"}}, // the lens's verbs take a handle too, and are not blue's
+				"This verb's flags: --accept, --anchor, --answers, --reason.", "`" + InvokedAs() + " retire --help`"},
+			silent: []string{"`mint`"}}, // the lens's verbs take a handle too, and are not blue's
 		{name: "the neighbour's problem flag", seat: "red-lens-evidence",
-			args: []string{"finding", "--quote", "§1 first — a finding sits in sec 1 here.", "--severity", "low", "--likelihood", "low", "--impact", "low", "--reason", "r", "--problem", "p"},
-			verb: "finding", role: "lens", writes: "finding",
-			says: []string{"unknown flag: --problem", "On this surface `mint` takes it.",
-				"This verb's flags: --about, --about-kind, --impact, --key, --likelihood, --quote, --reason, --severity.", "`" + InvokedAs() + " finding --help`"}},
+			args: []string{"regrade", "--id", "G-00000001", "--severity", "low", "--reason", "r", "--problem", "p"},
+			verb: "regrade", role: "lens", writes: "regrade",
+			says: []string{"unknown flag: --problem", "On this surface `amend`, `closing` and `mint` take it.",
+				"This verb's flags: --accept, --answers, --complexity, --id, --impact, --likelihood, --reason, --severity.", "`" + InvokedAs() + " regrade --help`"}},
 		{name: "a flag nothing takes", seat: "red-lens-evidence",
 			args: []string{"close", "--nonesuch", "x"},
 			verb: "close", role: "lens", writes: "close",
-			says: []string{"unknown flag: --nonesuch", "no verb on this surface takes it", "This verb's flags: --anchor, --as, --id,", "`" + InvokedAs() + " close --help`"}},
+			says: []string{"unknown flag: --nonesuch", "no verb on this surface takes it", "This verb's flags: --accept, --anchor, --as, --id,", "`" + InvokedAs() + " close --help`"}},
 		{name: "the operator's surface", seat: "operator",
 			args: []string{"graph", "--nonesuch", "x"},
 			verb: "graph", role: "",
@@ -158,17 +157,17 @@ func TestAnUnknownFlagIsAnsweredFromTheSeatsOwnTree(t *testing.T) {
 }
 
 // A VERB'S FLAG TYPED BEFORE THE VERB IS NAMED AS THAT, and the call is refused, not reordered. On
-// the #1565 smoke an adversary lens typed `--key adv-f-tldr finding …` five times in one call; the
+// the #1565 smoke an adversary lens typed `--key adv-f-tldr` before its verb five times in one call; the
 // command name is read at the first word that is no flag's, so "adv-f-tldr" was the command, and each
 // refusal said "no command named adv-f-tldr exists … there is no seat to switch to" above the whole
 // surface's help — naming neither the flag nor the word it had taken as the name.
 func TestAVerbsFlagBeforeTheVerbIsNamedAndRefused(t *testing.T) {
 	runDir := seatRun(t)
 	registerLensOnce(t, runDir)
-	before := countType(t, runDir, recordpb.EventType_EVENT_TYPE_FINDING)
+	before := countType(t, runDir, recordpb.EventType_EVENT_TYPE_MINT)
 
-	out, err := run(t, "--run", runDir, "--seat-id", lensSeat, "--key", "adv-f-tldr", "finding",
-		"--quote", "x", "--reason", "y")
+	out, err := run(t, "--run", runDir, "--seat-id", lensSeat, "--key", "adv-f-tldr", "mint",
+		"--quote", "x", "--problem", "y")
 	if err == nil {
 		t.Fatal("a verb's flag before the verb was accepted — the tool chose which verb it belonged to")
 	}
@@ -176,7 +175,7 @@ func TestAVerbsFlagBeforeTheVerbIsNamedAndRefused(t *testing.T) {
 	for _, want := range []string{
 		"--key came before the verb",
 		`"adv-f-tldr", was read as the command name`,
-		"`finding`", // a verb on this surface that takes --key, read from the tree
+		"`mint`", // a verb on this surface that takes --key, read from the tree
 		"Nothing ran.",
 	} {
 		if !strings.Contains(msg, want) {
@@ -186,8 +185,8 @@ func TestAVerbsFlagBeforeTheVerbIsNamedAndRefused(t *testing.T) {
 	if strings.Contains(msg, "no seat to switch to") || strings.Contains(msg, "Usage:") {
 		t.Errorf("the refusal still answers as an unknown command, or prints the whole surface:\n%s", msg)
 	}
-	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_FINDING); n != before {
-		t.Errorf("a refused call recorded a finding (%d -> %d)", before, n)
+	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_MINT); n != before {
+		t.Errorf("a refused call recorded a mint (%d -> %d)", before, n)
 	}
 
 	// A WORD AFTER A ROOT FLAG'S VALUE IS STILL A COMMAND NAME, and an unknown one is still told so.

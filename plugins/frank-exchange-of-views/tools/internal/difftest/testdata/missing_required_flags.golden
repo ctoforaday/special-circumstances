@@ -66,7 +66,7 @@ Available Commands:
 
 Command groups — each holds commands THIS page does not list:
   inquest     READ THE RECORD YOURSELF — what each side argued, what was contested and how it was ruled, and how the numbers moved. You rule between two parties; you take neither one's account of them
-  motion      file and rule on a motion — grade (the chair rules), petition (the bench rules), docket (the bench rules), position (the bench rules). One mechanism, one id.
+  motion      file and rule on a motion — petition (the bench rules), docket (the bench rules), position (the bench rules). One mechanism, one id.
   show        read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
@@ -88,7 +88,7 @@ Use "feov-record [command] --help" for more information about a command.
 -- inquiries
 # Inquiries — RENDERED PROJECTION (source of truth: the record, records/record.db)
 
-_No inquiries recorded. On a run past epoch 0 that is itself a finding: the exploration
+_No inquiries recorded. On a run past epoch 0 that is itself a defect: the exploration
 either did not happen or was not written down, and a report with no roads-not-taken is
 indistinguishable from one that never looked._
 

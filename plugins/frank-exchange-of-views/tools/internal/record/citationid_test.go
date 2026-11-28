@@ -12,7 +12,7 @@ import (
 // idLetters is the letter each kind's id begins with, written out here and nowhere read from the
 // table that spells it: a letter that moves in the table fails this file by name.
 var idLetters = map[string]string{
-	"finding": "F", "citation": "C", "computation": "K", "gap": "G", "inquiry": "Q", "motion": "M",
+	"citation": "C", "computation": "K", "gap": "G", "inquiry": "Q", "motion": "M",
 	"position": "A",
 }
 
@@ -36,7 +36,7 @@ func TestNewID_Unguessable(t *testing.T) {
 	//
 	// THE DRAW COUNT IS THE FALSE-FAILURE RATE. For the real generator, 4 random bytes, a collision
 	// is the birthday bound: 64·63/2 = 2016 pairs over 2³² values ≈ 4.7e-7 per kind, ≈ 3.3e-6 per
-	// run across the seven kinds — about 1 in 300,000. At 1000 draws it is n²/2N ≈ 1.2e-4 per
+	// run across the six kinds — about 1 in 350,000. At 1000 draws it is n²/2N ≈ 1.2e-4 per
 	// kind, about 1 in 1,200 runs of this suite.
 	const draws = 64
 	for kind := range idLetters {

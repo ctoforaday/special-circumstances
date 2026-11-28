@@ -4,7 +4,7 @@
 // type: an identity, a typed body message, and a `body` oneof whose arm must agree with the
 // EventType beside it. Written out at each of the ~45 fixture sites, that agreement is a fact
 // stated twice, and the second copy is the one a hurried edit gets wrong — a fixture whose Type
-// says `finding` while its body is a Mint tests a state the record cannot hold.
+// says `cite` while its body is a Mint tests a state the record cannot hold.
 //
 // So the type is DERIVED from the body here, by the same recordpb.SetBody the production write
 // path uses. A fixture cannot express the disagreement, which is the point.

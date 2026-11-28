@@ -9,12 +9,13 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
 )
 
-// A RETIRE TAKES THE ANCHOR, AND A LINE OF SYMBOLS IS NOT A HUSK, through the real verbs. A finding
-// quoted on a table row stands on that row; blue retires it, naming the anchor, and the anchor leaves
-// while the row stays word for word — a row of marks or the delimiter row included, though neither
-// holds a letter or a digit. Blue then cuts the cell's claim down to a dash, corrects the row of marks
-// and realigns the delimiter row (no anchor rides on any of them: none may stand on no words), and
-// the table is what the edits wrote, in the report's text and in the report that ships.
+// A RETIRE TAKES THE ANCHOR, AND A LINE OF SYMBOLS IS NOT A HUSK, through the real verbs. A gap
+// quoted on a table row stands on that row; its lens closes it, blue retires its marker, naming the
+// anchor (an open gap's marker is refused, F14), and the anchor leaves while the row stays word for
+// word — a row of marks or the delimiter row included, though neither holds a letter or a digit.
+// Blue then cuts the cell's claim down to a dash, corrects the row of marks and realigns the
+// delimiter row (no anchor rides on any of them: none may stand on no words), and the table is what
+// the edits wrote, in the report's text and in the report that ships.
 func TestARetireLeavesARowOfSymbolsWhereItStands(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, "# On 91\n\n## TL;DR\n\n91 is 7 x 13.\n\n## Checks\n\n| Check | Result |\n| --- | --- |\n| Seven divides it | ✓ |\n| ✓ | ✗ |\n\nAfter.\n")
@@ -28,17 +29,19 @@ func TestARetireLeavesARowOfSymbolsWhereItStands(t *testing.T) {
 		{"| --- | --- |", "|:---|---:|", "|:---|---:|"},
 	} {
 		key := string(rune('1' + i))
-		if out, err := run(t, "finding", "--run", runDir, "--seat-id", lensSeat, "--key", "F"+key, "--quote", step.quote,
-			"--reason", "the row is questioned", "--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
-			t.Fatalf("finding on %q: %v\n%s", step.quote, err, out)
+		if _, err := mintQuote(t, runDir, "G"+key, step.quote); err != nil {
+			t.Fatalf("mint on %q: %v", step.quote, err)
 		}
-		m := regexp.MustCompile(regexp.QuoteMeta(step.quote) + `(<!--fx:(F-[0-9a-f]{8})-->)`).FindStringSubmatch(readReport(t, runDir))
+		m := regexp.MustCompile(regexp.QuoteMeta(step.quote) + `(<!--gap:(G-[0-9a-f]{8})-->)`).FindStringSubmatch(readReport(t, runDir))
 		if m == nil {
-			t.Fatalf("no finding anchor after %q:\n%s", step.quote, readReport(t, runDir))
+			t.Fatalf("no gap anchor after %q:\n%s", step.quote, readReport(t, runDir))
 		}
 		line := readReport(t, runDir)
 		line = line[strings.LastIndex(line[:strings.Index(line, m[1])], "\n")+1:]
 		line = strings.Replace(line[:strings.Index(line, "\n")], m[1], "", 1)
+		if err := lensClose(t, runDir, lensSeat, m[2], "not_a_defect"); err != nil {
+			t.Fatalf("closing %s: %v", m[2], err)
+		}
 		out, err := run(t, "retire", "--run", runDir, "--seat-id", blueSeat, "--reason", "refuted", "--anchor", m[2])
 		if err != nil || !strings.Contains(out, m[2]) {
 			t.Fatalf("retire naming %s on %q: %v\n%s", m[2], step.quote, err, out)

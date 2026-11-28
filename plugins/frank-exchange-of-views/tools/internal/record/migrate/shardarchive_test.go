@@ -3,7 +3,6 @@ package migrate_test
 import (
 	"regexp"
 	"slices"
-	"strings"
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
@@ -26,13 +25,13 @@ func TestShardEraArchivesMigrate(t *testing.T) {
 		if len(res.Refusals) != 0 {
 			t.Fatalf("refusals: %+v", res.Refusals)
 		}
-		// 2 opinions -> 2 docket pairs; friction -> log; the era's inquiry -> inquiry; its
+		// 2 opinions -> no event, stated (EventSchema 80); friction -> log; the era's inquiry -> inquiry; its
 		// review -> no event, as an inquiry review translates.
 		//
 		// friction_none CONTRIBUTES NOTHING. It was the explicit empty form, and the type that
 		// carried it is retired: clean is derived from a bracketed sitting that filed nothing, so
 		// the old rows carry forward as an absence rather than as entries nobody can act on.
-		if res.Out["motion"] != res.In["motion"]+res.In["opinion"] ||
+		if res.Out["motion"] != res.In["motion"] || len(res.Dockets.Opinions) != res.In["opinion"] ||
 			res.Out["inquiry"] != res.In["line_of_inquiry"] ||
 			res.In["inquiry_support"] == 0 || res.Out["inquiry_support"] != 0 || res.Out["inquiry_review"] != 0 ||
 			res.Out["log"] != res.In["friction"] {
@@ -95,8 +94,8 @@ func assertVerifies(t *testing.T, dst record.Run, carried ...string) {
 }
 
 // assertRoundless is roundless §III.A.5's criterion on a migrated record: it speaks the live
-// vocabulary and nothing else. No seat id carries a round or a lens number, every gap id and
-// finding id is in the one id shape, and no reference keeps an archived spelling.
+// vocabulary and nothing else. No seat id carries a round or a lens number, every gap id is in the
+// one id shape, and no reference keeps an archived spelling.
 func assertRoundless(t *testing.T, fam record.Family) {
 	t.Helper()
 	old := regexp.MustCompile(`-r\d+(-|$)|-L\d+$`)
@@ -108,14 +107,6 @@ func assertRoundless(t *testing.T, fam record.Family) {
 			if !regexp.MustCompile(`^G-[0-9a-f]{8}$`).MatchString(m.GetGapId()) {
 				t.Errorf("mint %q is not a gap id", m.GetGapId())
 			}
-			for _, s := range append(append([]string{}, m.GetSupersedes()...), m.GetFoundBy()...) {
-				if strings.HasPrefix(s, "R") && strings.Contains(s, "-") || regexp.MustCompile(`^L\d+-F`).MatchString(s) {
-					t.Errorf("mint %s still references archived id %q", m.GetGapId(), s)
-				}
-			}
-		}
-		if f, ok := recordpb.BodyAs[*recordpb.Finding](e); ok && !regexp.MustCompile(`^F-[0-9a-f]{8}$`).MatchString(f.GetId()) {
-			t.Errorf("finding %q is not a finding id", f.GetId())
 		}
 	}
 }

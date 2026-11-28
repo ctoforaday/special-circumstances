@@ -19,8 +19,9 @@ import (
 // historical report while every unit test stays green; this pins the render of every tarball that
 // holds a base, every committed archive read (bundle-store/ included). The removes of a cut's
 // removed_anchors (reportproj.RemoveAnchorAt) are pinned here on the archives whose cuts migrate fills:
-// the claim retires folded into their cuts (wave-a, m28, m32, m35, m37, 1883) and the cuts no retire
-// followed (b3, b6, b9, m19).
+// the claim retires folded into their cuts (wave-a, m28, m37, 1883) and the cuts no retire followed
+// (b3, b6, b9). m19's, m32's and m35's cuts took only finding anchors, which the findings fold never
+// places, so they take nothing.
 //
 // One golden line per run: `<run> <rendered|no-base> <raw> <normalized> <skeleton> <markers per
 // kind>`.
@@ -65,9 +66,9 @@ func TestEveryArchivedRunRenders(t *testing.T) {
 }
 
 // renderToken is an anchor token of any kind a render can hold.
-var renderToken = regexp.MustCompile(`<!--(fx|cite|computation|gap):([FCKG]-[0-9a-f]{8})-->`)
+var renderToken = regexp.MustCompile(`<!--(cite|computation|gap):([CKG]-[0-9a-f]{8})-->`)
 
-var renderKinds = map[string]string{"fx": "finding", "cite": "citation", "computation": "computation", "gap": "gap"}
+var renderKinds = map[string]string{"cite": "citation", "computation": "computation", "gap": "gap"}
 
 func digest(s string) string { return fmt.Sprintf("%x", sha256.Sum256([]byte(s))) }
 
@@ -120,5 +121,5 @@ func markerCounts(md string) string {
 			bare++
 		}
 	}
-	return fmt.Sprintf("finding=%d citation=%d computation=%d gap=%d bare-gap=%d", n["finding"], n["citation"], n["computation"], n["gap"], bare)
+	return fmt.Sprintf("citation=%d computation=%d gap=%d bare-gap=%d", n["citation"], n["computation"], n["gap"], bare)
 }

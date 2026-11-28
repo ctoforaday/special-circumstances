@@ -17,21 +17,21 @@ import (
 // the bench (event 462) on a board with no material gap open.
 const m23Archive = "2026-10-13_is-91-prime-m23.tar.gz"
 
-// m23SourceSentence is the quote of m23's event 392, a reading of a source the evidence lens found,
+// m23SourceSentence is the quote of m23's event 338, a reading of a source the evidence lens found,
 // `--as refutes`. It is the SOURCE's sentence: no state of m23's report holds it.
 const m23SourceSentence = "91 is not a prime number. It is a composite number."
 
 // M23'S ARCHIVED READING OF A SOURCE THE LENS FOUND HOLDS NOTHING, AND THIS BINARY REFUSES IT LIVE.
 //
 // The lens read a source that contradicts the report and quoted the source, not the report. The
-// archive records it (event 392), and the run ended UNVERIFIED by the bench's assertion. A reading
+// archive records it (event 338), and the run ended UNVERIFIED by the bench's assertion. A reading
 // holds nothing; the gap a lens mints on it holds the PASS. Migrate mints no gap for an archived
 // reading (its grades would be fabricated), and a reading of a source the lens found names no
 // anchor for the ledger to hold — so the migrated reading holds nothing. That loss is accepted and
 // stated (gblock, 2026-10-30, GAP 2): the recorded outcome does not move, and the whole deliveries its
 // lenses owe still refuse a PASS at its end.
 //
-// LIVE, the same reading on the record as it stood before event 392 — with the gap flags a refuting
+// LIVE, the same reading on the record as it stood before event 338 — with the gap flags a refuting
 // reading now needs — is refused, because its quote is not the report's sentence, and records nothing.
 func TestM23sArchivedCorroborationHoldsNothing(t *testing.T) {
 	to := recordtest.TmpRun(t)
@@ -50,8 +50,8 @@ func TestM23sArchivedCorroborationHoldsNothing(t *testing.T) {
 	// THE ACTS THE DELIVERED-TEXT RULE REFUSES, AND THE CLAIM RETIRE THAT CARRIES NO ANCHOR, ARE WRITTEN
 	// AS NO EVENT and listed in the manifest's lost_acts, so the count is the translation's, less each of
 	// them — read off the result, never typed.
-	if want := 504 - len(res.LostActs); len(fam.Events) != want {
-		t.Fatalf("the migrated m23 holds %d events, want %d — 504 (the archive's 476, less its one coining, the 9 receipts blue filed, the 5 positions blue filed and the 7 inquiry reviews and rulings the chair recorded, and the 6 reproduces carried to a second computation on their script, and 44 admissions, one at the close of each sitting of a seat whose work arrives as items) less the %d lost acts (the claim retire at 224, which carries no anchor, among them)", len(fam.Events), want, len(res.LostActs))
+	if want := 439 - len(res.LostActs); len(fam.Events) != want {
+		t.Fatalf("the migrated m23 holds %d events, want %d — 439 (the archive's 476, less its one coining, its 38 findings and the 27 anchors placing them, the 9 receipts blue filed, the 5 positions blue filed and the 7 inquiry reviews and rulings the chair recorded, and the 6 reproduces carried to a second computation on their script, and 44 admissions, one at the close of each sitting of a seat whose work arrives as items) less the %d lost acts (the claim retire at 224, which carries no anchor, among them)", len(fam.Events), want, len(res.LostActs))
 	}
 	// The reading is archive event 392; every lost act before it, the claim retire at 224 among them,
 	// moves it one place earlier.
@@ -67,12 +67,12 @@ func TestM23sArchivedCorroborationHoldsNothing(t *testing.T) {
 			at = i
 		}
 	}
-	if at != 391-lostBefore {
-		t.Fatalf("the reading quoting the source's sentence is event %d of the migrated m23, want %d (392 less the %d lost acts before it, the claim retire at 224 among them)", at+1, 392-lostBefore, lostBefore)
+	if at != 337-lostBefore {
+		t.Fatalf("the reading quoting the source's sentence is event %d of the migrated m23, want %d (338 less the %d lost acts before it, the claim retire at 224 among them)", at+1, 338-lostBefore, lostBefore)
 	}
 	was, _ := recordpb.BodyAs[*recordpb.Verify](fam.Events[at])
 	if was.GetOutcome() != recordpb.SourceOutcome_SOURCE_OUTCOME_REFUTES || fam.Events[at].GetSeatId() != "red-lens-evidence" || was.GetAnchor() != "" {
-		t.Fatalf("archive event 392 is %s by %s on anchor %q, want the evidence lens's refutes of a source it found", was.GetOutcome(), fam.Events[at].GetSeatId(), was.GetAnchor())
+		t.Fatalf("archive event 338 is %s by %s on anchor %q, want the evidence lens's refutes of a source it found", was.GetOutcome(), fam.Events[at].GetSeatId(), was.GetAnchor())
 	}
 	blockers, err := record.PassBlockers(dst)
 	if err != nil {
@@ -81,7 +81,7 @@ func TestM23sArchivedCorroborationHoldsNothing(t *testing.T) {
 	owed := 0
 	for _, b := range blockers {
 		switch {
-		case b.Subject == "392" || b.Detail == m23SourceSentence:
+		case b.Subject == "338" || b.Detail == m23SourceSentence:
 			t.Errorf("the migrated m23 holds a blocker on the archived reading: %+v", b)
 		case b.Kind == record.BlockerFailedCheck:
 			t.Errorf("the migrated m23 holds a failed check (%s, %s) — no reading of it was of a citation", b.Subject, b.CheckState())
@@ -106,7 +106,7 @@ func TestM23sArchivedCorroborationHoldsNothing(t *testing.T) {
 		t.Errorf("the migrated m23's outcome is %v, want the UNVERIFIED its bench recorded", outcome.GetVerdict())
 	}
 
-	// LIVE: the record as it stood before event 392 — the migrated archive's first 391 events replayed into
+	// LIVE: the record as it stood before event 338 — the migrated archive's first 337 events replayed into
 	// a run of this binary's making, beside the archive's inputs — and the reading the lens made, as a
 	// seat runs it now.
 	dir := recordtest.RequireArchive(t, m23Archive)
@@ -124,11 +124,11 @@ func TestM23sArchivedCorroborationHoldsNothing(t *testing.T) {
 		"--url", was.GetUrl(), "--title", was.GetTitle(), "--quote", m23SourceSentence,
 		"--as", "refutes", "--confidence", recordpb.Word(was.GetConfidence()), "--reason", was.GetText())
 	if err == nil {
-		t.Fatal("this binary records m23's event 392: a refuting reading quoting the source's sentence")
+		t.Fatal("this binary records m23's event 338: a refuting reading quoting the source's sentence")
 	}
 	for _, want := range []string{"--quote was not found in report.md", "REPORT's sentence", "the sentence it contradicts", "--reason"} {
 		if !strings.Contains(err.Error(), want) {
-			t.Errorf("the refusal of m23's event 392 does not say %q: %v", want, err)
+			t.Errorf("the refusal of m23's event 338 does not say %q: %v", want, err)
 		}
 	}
 	if after := counts(); after != before {

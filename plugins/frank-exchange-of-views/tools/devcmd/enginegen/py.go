@@ -108,7 +108,6 @@ func renderPyVocabulary(v vocabulary) ([]byte, error) {
 	}
 	var b strings.Builder
 	writePyJSON(&b, "GRADE", map[string]any{"type": "string", "enum": v.grades})
-	writePyJSON(&b, "DISPUTE_DIMENSION", map[string]any{"type": "string", "enum": v.dimensions})
 	writePyJSON(&b, "RUN_OUTCOME", map[string]any{"type": "string", "enum": v.outcomes})
 	writePyJSON(&b, "BENCH_HEARINGS", v.benchHearings)
 	writePyJSON(&b, "GAP_ID", map[string]any{"type": "string", "pattern": "^" + anchor.IDPattern("gap") + "$"})

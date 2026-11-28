@@ -72,7 +72,7 @@ through edits. The engine's version, compatible with a **read-only red**:
 rewrite carries the markers of its span, a cut takes them with their sentence). Turn boundaries, not concurrent writes to one file. Round-0 blue is multi-lane, but
 that is *before* red cites anything.
 
-**Built as the anchor layer** (`finding-markers.md`): an anchor of every kind is placed by the tool at
+**Built as the anchor layer** ([anchor-lifecycle.md](anchor-lifecycle.md)): an anchor of every kind is placed by the tool at
 the end of its quote, carried by every rewrite, and leaves by a retire or with its sentence in a cut.
 
 ## Two complementary anchor sources

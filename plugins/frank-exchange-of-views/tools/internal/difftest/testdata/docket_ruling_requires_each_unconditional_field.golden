@@ -31,45 +31,28 @@ exit 0
 stdout:
 minted GAP001
   acceptance check RECORDED as: x
-  (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
+  (read it back — a shell may have rewritten it before this tool saw it; your amend restates it at your next sitting)
 1 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
   · the whole report arrives on your work list this sitting, one item after each of your tool calls, and your envelope waits until all of it has been delivered to you. A lens is delivered the whole report at its first sitting and once more at its next — its full re-read — and at every other sitting the changes since its pin and its own gaps' passages; the PASS is refused while a lens that has sat still owes either whole delivery
 
-$ motion docket file --run {RUN} --seat-id red-chair --id GAP001 --reason contested, and not red's to close
+$ dispatch next --run {RUN} --seat-id red-chair
 exit 0
 stdout:
-motion MOTION001 filed (docket)
-NOTHING HERE IS YOURS TO CLEAR (9 item(s) open to you).
-ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (7) — the board's state, not your debt; a PASS is not in view while any of it stands:
-  · gap GAP001 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
+dispatch against head 3:
+  red-lens-evidence — audits the report (its state is in the reasons below)
+  blue-respond — GAP001
+  · red-lens-evidence: never sat — audits the report at head 3
+  · GAP001: open, material, 0 exchange(s) (0 stalled) — below its limits; blue is ready on it, and red-lens-evidence is not until blue has acted on it since the lens's last act there
+  · blue-respond: the question is split into no question part — ready, to split it
+  · red-lens-evidence owes its first whole delivery of the report — ready at an unmoved head until it has been delivered
+  · red-lens-evidence owes its first whole delivery of the report — ready at any head, PASS is not permitted until it has been delivered
+  · the question this run was asked is split into no question part on the record, so nothing states which parts of it the report answers — PASS is not permitted until blue splits it
+NOTHING HERE IS YOURS TO CLEAR (6 item(s) open to you).
+ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (4) — the board's state, not your debt; a PASS is not in view while any of it stands:
+  · gap GAP001 is open and material — PASS is refused while it is; its assignee, red-lens-evidence, closes it
   · lens red-lens-evidence is ready — PASS is refused while it is
-  · gap GAP001 is docketed for the bench (motion MOTION001) and the closing argument of red-lens-evidence on it is not on the record — the bench rules the gap once each party has filed its closing, and waits for this one; PASS is refused until the bench rules
-  · gap GAP001 is docketed for the bench (motion MOTION001) and the closing argument of blue-respond on it is not on the record — the bench rules the gap once each party has filed its closing, and waits for this one; PASS is refused until the bench rules
-  · motion MOTION001 (docket, ruled by the bench seat) was filed and never ruled — PASS is refused while it stands
   · lens red-lens-evidence owes its first whole delivery of the report: the whole report arrives on its work list at its next sitting — PASS is refused until all of it has been delivered
   · the question this run was asked is split into no question part on the record, so nothing states which parts of it the report answers — PASS is refused until blue's `question split` splits it
-
-$ register --run {RUN} --seat-id red-lens-evidence
-exit 0
-stdout:
-registered red-lens-evidence (dispatch 2 — a previous dispatch of this seat is on the record)
-
-YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent to this seat. You are registered and your events are recorded; what is missing is the binding that lets a LATER call resolve who you are without being told.
-
-TWO CONSEQUENCES:
-  PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
-  REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
-2 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
-  · the whole report arrives on your work list this sitting, one item after each of your tool calls, and your envelope waits until all of it has been delivered to you. A lens is delivered the whole report at its first sitting and once more at its next — its full re-read — and at every other sitting the changes since its pin and its own gaps' passages; the PASS is refused while a lens that has sat still owes either whole delivery
-  · gap GAP001 is docketed for the bench (motion MOTION001) and the closing argument of red-lens-evidence on it is not on the record, and red-lens-evidence has sat since the docketing without filing it — the bench rules on the record as it stands; PASS is refused until the bench rules
-
-drive: red-lens-evidence reads its delivery
-
-$ closing --run {RUN} --seat-id red-lens-evidence --id GAP001 --reason the lens's closing
-exit 0
-stdout:
-closing filed for GAP001
-ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
 $ register --run {RUN} --seat-id blue-respond
 exit 0
@@ -81,9 +64,37 @@ YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent 
 TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
-2 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
+1 STILL TO CLEAR before you may end your turn (of 1 item(s) open to you):
   · the question this run was asked is split into no question part on the record, so nothing states which parts of it the report answers — split it before your sitting ends: one `question split` for each part of the question a reader would ask answered, in the subject's terms. A part not split out is a part nothing holds the report to, and the PASS is refused while the question has none
-  · gap GAP001 is docketed for the bench (motion MOTION001) and the closing argument of blue-respond on it is not on the record, and blue-respond has sat since the docketing without filing it — the bench rules on the record as it stands; PASS is refused until the bench rules
+
+$ register --run {RUN} --seat-id blue-respond
+exit 0
+stdout:
+registered blue-respond (dispatch 2 — a previous dispatch of this seat is on the record)
+
+YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent to this seat. You are registered and your events are recorded; what is missing is the binding that lets a LATER call resolve who you are without being told.
+
+TWO CONSEQUENCES:
+  PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
+  REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
+1 STILL TO CLEAR before you may end your turn (of 1 item(s) open to you):
+  · the question this run was asked is split into no question part on the record, so nothing states which parts of it the report answers — split it before your sitting ends: one `question split` for each part of the question a reader would ask answered, in the subject's terms. A part not split out is a part nothing holds the report to, and the PASS is refused while the question has none
+
+$ motion docket file close --run {RUN} --seat-id blue-respond --id GAP001 --as repaired --verified-by blue-respond --verified-with the report read --verified-against report.md#S2 --reason repaired, and the bench should say so
+exit 0
+stdout:
+motion MOTION001 filed (docket, proposing a close)
+2 STILL TO CLEAR before you may end your turn (of 3 item(s) open to you):
+  · the question this run was asked is split into no question part on the record, so nothing states which parts of it the report answers — split it before your sitting ends: one `question split` for each part of the question a reader would ask answered, in the subject's terms. A part not split out is a part nothing holds the report to, and the PASS is refused while the question has none
+  · gap GAP001 is before the bench (proposal MOTION001 in its assignee's window) and the closing argument of blue-respond on it is not on the record — the bench rules the gap once each party has filed its closing, and waits for this one; PASS is refused until the bench rules
+
+$ closing --run {RUN} --seat-id red-lens-evidence --id GAP001 --reason the lens's closing
+exit 0
+stdout:
+closing filed for GAP001
+2 STILL TO CLEAR before you may end your turn (of 4 item(s) open to you):
+  · the whole report arrives on your work list this sitting, one item after each of your tool calls, and your envelope waits until all of it has been delivered to you. A lens is delivered the whole report at its first sitting and once more at its next — its full re-read — and at every other sitting the changes since its pin and its own gaps' passages; the PASS is refused while a lens that has sat still owes either whole delivery
+  · you were dispatched against report head 3 and no sitting of yours has opened since — this sitting is not on the record, and dispatch readies you again until it is; register for this sitting
 
 $ closing --run {RUN} --seat-id blue-respond --id GAP001 --reason blue's closing
 exit 0
@@ -91,6 +102,32 @@ stdout:
 closing filed for GAP001
 1 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
   · the question this run was asked is split into no question part on the record, so nothing states which parts of it the report answers — split it before your sitting ends: one `question split` for each part of the question a reader would ask answered, in the subject's terms. A part not split out is a part nothing holds the report to, and the PASS is refused while the question has none
+
+$ register --run {RUN} --seat-id red-lens-evidence
+exit 0
+stdout:
+registered red-lens-evidence (dispatch 2 — a previous dispatch of this seat is on the record)
+
+YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent to this seat. You are registered and your events are recorded; what is missing is the binding that lets a LATER call resolve who you are without being told.
+
+TWO CONSEQUENCES:
+  PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
+  REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
+1 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
+  · the whole report arrives on your work list this sitting, one item after each of your tool calls, and your envelope waits until all of it has been delivered to you. A lens is delivered the whole report at its first sitting and once more at its next — its full re-read — and at every other sitting the changes since its pin and its own gaps' passages; the PASS is refused while a lens that has sat still owes either whole delivery
+
+$ register --run {RUN} --seat-id red-lens-evidence
+exit 0
+stdout:
+registered red-lens-evidence (dispatch 3 — a previous dispatch of this seat is on the record)
+
+YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent to this seat. You are registered and your events are recorded; what is missing is the binding that lets a LATER call resolve who you are without being told.
+
+TWO CONSEQUENCES:
+  PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
+  REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
+1 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
+  · the whole report arrives on your work list this sitting, one item after each of your tool calls, and your envelope waits until all of it has been delivered to you. A lens is delivered the whole report at its first sitting and once more at its next — its full re-read — and at every other sitting the changes since its pin and its own gaps' passages; the PASS is refused while a lens that has sat still owes either whole delivery
 
 $ register --run {RUN} --seat-id red-chair
 exit 0
@@ -104,10 +141,10 @@ TWO CONSEQUENCES:
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
 NOTHING HERE IS YOURS TO CLEAR (6 item(s) open to you).
 ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (5) — the board's state, not your debt; a PASS is not in view while any of it stands:
-  · gap GAP001 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
+  · gap GAP001 is open and material — PASS is refused while it is; its assignee, red-lens-evidence, closes it
   · lens red-lens-evidence is ready — PASS is refused while it is
-  · motion MOTION001 (docket, ruled by the bench seat) was filed and never ruled — PASS is refused while it stands
-  · lens red-lens-evidence owes its full re-read, the whole report once more: the whole report arrives on its work list at its next sitting — PASS is refused until all of it has been delivered
+  · motion MOTION001 (docket, a proposal its assignee red-lens-evidence may accept in its window) was filed and never ruled — PASS is refused while it stands
+  · lens red-lens-evidence owes its first whole delivery of the report: the whole report arrives on its work list at its next sitting — PASS is refused until all of it has been delivered
   · the question this run was asked is split into no question part on the record, so nothing states which parts of it the report answers — PASS is refused until blue's `question split` splits it
 
 $ dispatch next --run {RUN} --seat-id red-chair
@@ -115,20 +152,21 @@ exit 0
 stdout:
 dispatch against head 3:
   red-lens-evidence — audits the report (its state is in the reasons below)
-  judge — GAP001
   blue-respond — audits the report (its state is in the reasons below)
-  · red-lens-evidence: never sat — audits the report at head 3
-  · GAP001: docketed and unruled — the bench is ready, no party's closing being awaited
+  judge — GAP001
+  docketed GAP001 for the bench
+  · red-lens-evidence: no sitting it sat through holds a complete delivery of report text, behind head 3 — audits the report (1 sitting(s) in a row with no fresh material mint, close, reading, computation check or inquiry check; it retires at 3 owing nothing, and it owes whole_report_owed red-lens-evidence)
   · blue-respond: the question is split into no question part — ready, to split it
-  · red-lens-evidence owes its full re-read, the whole report once more — ready at an unmoved head until it has been delivered
-  · red-lens-evidence owes its full re-read, the whole report once more — ready at any head, PASS is not permitted until it has been delivered
+  · red-lens-evidence owes its first whole delivery of the report — ready at an unmoved head until it has been delivered
+  · GAP001: docketed and unruled — the bench is ready, no party's closing being awaited
+  · red-lens-evidence owes its first whole delivery of the report — ready at any head, PASS is not permitted until it has been delivered
   · the question this run was asked is split into no question part on the record, so nothing states which parts of it the report answers — PASS is not permitted until blue splits it
 NOTHING HERE IS YOURS TO CLEAR (7 item(s) open to you).
 ALSO HOLDING THE PASS, AND ANOTHER SEAT'S TO CLEAR (5) — the board's state, not your debt; a PASS is not in view while any of it stands:
-  · gap GAP001 is open and material — PASS is refused while it is; its minter, red-lens-evidence, closes it
+  · gap GAP001 is open and material — PASS is refused while it is; its assignee, red-lens-evidence, closes it
   · lens red-lens-evidence is ready — PASS is refused while it is
-  · motion MOTION001 (docket, ruled by the bench seat) was filed and never ruled — PASS is refused while it stands
-  · lens red-lens-evidence owes its full re-read, the whole report once more: the whole report arrives on its work list at its next sitting — PASS is refused until all of it has been delivered
+  · gap GAP001 is docketed for the bench (docketing DOCKETING001, proposal) and the bench has not ruled it — PASS is refused while it stands
+  · lens red-lens-evidence owes its first whole delivery of the report: the whole report arrives on its work list at its next sitting — PASS is refused until all of it has been delivered
   · the question this run was asked is split into no question part on the record, so nothing states which parts of it the report answers — PASS is refused until blue's `question split` splits it
 
 $ register --run {RUN} --seat-id judge --occasion docket
@@ -141,46 +179,43 @@ YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent 
 TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
-2 STILL TO CLEAR before you may end your turn (of 3 item(s) open to you):
-  · the passage of gap GAP001, which a motion this sitting is convened to rule is about, arrives on your work list this sitting, one item after each of your tool calls; a ruling on a motion about it stands only once it has been delivered, and your envelope waits until it has
-  · motion MOTION001 (docket, ruled by the bench seat) is unruled, the gavel is yours and this sitting is convened to rule it — the run cannot end in a verdict while it stands
+1 STILL TO CLEAR before you may end your turn (of 2 item(s) open to you):
+  · docketing DOCKETING001 puts gap GAP001 before the bench (proposal): blue-respond proposes to close GAP001, and its assignee red-lens-evidence did not accept it in its window; the bench owes a ruling. The proposal's basis: repaired, and the bench should say so — the gavel is yours and this sitting is convened to rule it; the run cannot end in a verdict while it stands
 
-drive: judge reads its delivery
-
-$ motion docket rule --run {RUN} --seat-id judge --id MOTION001 --as repaired --reason r --principle p --tension t
+$ motion docket rule --run {RUN} --seat-id judge --id DOCKETING001 --for-author --reason r --principle p --tension t
 exit 2
 stderr:
 feov-record: motion docket rule: requires --review-flag (what a human should look at again — or, where nothing needs a human, what on the record already settles it)
 
-$ motion docket rule --run {RUN} --seat-id judge --id MOTION001 --as repaired --reason r --principle p --review-flag none --settled s
+$ motion docket rule --run {RUN} --seat-id judge --id DOCKETING001 --for-author --reason r --principle p --review-flag none --settled s
 exit 2
 stderr:
 feov-record: motion docket rule: requires --tension (the values that pulled against each other — or, where none did, the ruling's weakest point: what a party would argue against the rule you applied)
 
-$ motion docket rule --run {RUN} --seat-id judge --id MOTION001 --as repaired --reason r --tension t --review-flag none --settled s
+$ motion docket rule --run {RUN} --seat-id judge --id DOCKETING001 --for-author --reason r --tension t --review-flag none --settled s
 exit 2
 stderr:
 feov-record: motion docket rule: requires --principle (the rule the bench applied, stated so a later sitting can apply the same one)
 
-$ motion docket rule --run {RUN} --seat-id judge --id MOTION001 --as repaired --reason r --principle p --tension t --review-flag none --settled s
+$ motion docket rule --run {RUN} --seat-id judge --id DOCKETING001 --for-author --reason r --principle p --tension t --review-flag none --settled s
 exit 2
 stderr:
-feov-record: motion docket rule: requires --reopens-on (what would change this outcome) or --final (nothing would). A ruling that says neither leaves the losing party unable to tell a settled question from an unanswered one, which is the difference between a new motion on new grounds and a wasted sitting
+feov-record: motion docket rule: requires --reopens-on (what would change this outcome) or --final (nothing would). A ruling that says neither leaves the losing party unable to tell a settled question from an unanswered one
 
-$ motion docket rule --run {RUN} --seat-id judge --id MOTION001 --as repaired --reason r --principle p --tension "" --review-flag none --settled s --final
+$ motion docket rule --run {RUN} --seat-id judge --id DOCKETING001 --for-author --reason r --principle p --tension "" --review-flag none --settled s --final
 exit 2
 stderr:
 feov-record: motion docket rule: requires --tension to say something (the values that pulled against each other — or, where none did, the ruling's weakest point: what a party would argue against the rule you applied)
 
-$ motion docket rule --run {RUN} --seat-id judge --id MOTION001 --as remanded --reason r --principle p --tension t --review-flag none --settled s --final
+$ motion docket rule --run {RUN} --seat-id judge --id DOCKETING001 --remand --reason r --principle p --tension t --review-flag none --settled s --final
 exit 2
 stderr:
-feov-record: motion docket rule: --as remanded requires --direction, and never --reopens-on or --final: --direction is the research the remand's one more exchange owes blue and the minting lens, and --reopens-on and --final say what would reopen a closed gap — a remand closes nothing
+feov-record: motion docket rule: a remand requires --direction, and never --reopens-on or --final: --direction is the research the remand's one more exchange owes blue and the assignee, and --reopens-on and --final say what would reopen a closed gap — a remand closes nothing
 
-$ motion docket rule --run {RUN} --seat-id judge --id MOTION001 --as repaired --reason r --principle p --tension t --review-flag none --settled s --final --direction a reproduction on the shipped binary
+$ motion docket rule --run {RUN} --seat-id judge --id DOCKETING001 --for-author --reason r --principle p --tension t --review-flag none --settled s --final --direction a reproduction on the shipped binary
 exit 2
 stderr:
-feov-record: motion docket rule: --direction is the research a remand's one more exchange owes, and --as repaired closes the gap and sends no exchange; what would reopen it is --reopens-on, or --final for nothing
+feov-record: motion docket rule: --direction is the research a remand's one more exchange owes, and a ruling that is no remand sends no exchange; what would reopen a gap it closes is --reopens-on, or --final for nothing
 
 ═══ EVENTS ═══
 {"cast":{"lane_seat_ids":["blue-lane-1"],"seat_ids":["red-lens-evidence","red-chair","blue-lane-1","blue-synthesize","blue-respond","frontier","judge"]},"key":"harness:setup:cast","seat_id":"harness","ts":0,"type":"EVENT_TYPE_CAST"}
@@ -189,32 +224,36 @@ feov-record: motion docket rule: --direction is the research a remand's one more
 {"key":"red-chair:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-chair","ts":3,"type":"EVENT_TYPE_REGISTER"}
 {"key":"red-lens-evidence:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-lens-evidence","ts":4,"type":"EVENT_TYPE_REGISTER"}
 {"key":"red-lens-evidence:mint:GAP001","mint":{"about_kind":"ABOUT_KIND_SECTION","about_ref":"Findings","acceptance_check":"x","check_kind":"CHECK_KIND_DOCUMENT","class":"GAP_CLASS_SPEC_UNDERSPECIFICATION","class_material":"CLASS_MATERIAL_BY_GRADE","fix_basis":"proposed","gap_id":"GAP001","impact":"GRADE_MEDIUM","likelihood":"GRADE_MEDIUM","location":"","mint_key":"","problem":"docketed","required_fix":"","severity":"GRADE_MEDIUM"},"seat_id":"red-lens-evidence","ts":5,"type":"EVENT_TYPE_MINT"}
-{"key":"red-chair:motion:#1","motion":{"basis":"contested, and not red's to close","docket":{"gap_id":"GAP001"},"motion_id":"MOTION001"},"seat_id":"red-chair","ts":6,"type":"EVENT_TYPE_MOTION"}
-{"key":"red-lens-evidence:register:#2","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-lens-evidence","ts":7,"type":"EVENT_TYPE_REGISTER"}
-{"key":"red-lens-evidence:report_read:#1","report_read":{"head":"3"},"seat_id":"red-lens-evidence","ts":8,"type":"EVENT_TYPE_REPORT_READ"}
-{"closing":{"gap_id":"GAP001","text":"the lens's closing"},"key":"red-lens-evidence:closing:#2:GAP001","seat_id":"red-lens-evidence","ts":9,"type":"EVENT_TYPE_CLOSING"}
-{"key":"blue-respond:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-respond","ts":10,"type":"EVENT_TYPE_REGISTER"}
-{"closing":{"gap_id":"GAP001","text":"blue's closing"},"key":"blue-respond:closing:#1:GAP001","seat_id":"blue-respond","ts":11,"type":"EVENT_TYPE_CLOSING"}
-{"key":"red-chair:register:#2","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-chair","ts":12,"type":"EVENT_TYPE_REGISTER"}
-{"dispatch":{"pin":"3","seat_id":"red-lens-evidence"},"key":"red-chair:dispatch:#1","seat_id":"red-chair","ts":13,"type":"EVENT_TYPE_DISPATCH"}
-{"dispatch":{"gap_ids":["GAP001"],"pin":"3","seat_id":"judge"},"key":"red-chair:dispatch:#2","seat_id":"red-chair","ts":14,"type":"EVENT_TYPE_DISPATCH"}
-{"dispatch":{"pin":"3","seat_id":"blue-respond"},"key":"red-chair:dispatch:#3","seat_id":"red-chair","ts":15,"type":"EVENT_TYPE_DISPATCH"}
-{"key":"red-chair:plan:#1","plan":{"printed":"{\"key\":\"PLANKEY001\",\"head\":3,\"parties\":[{\"seat_id\":\"red-lens-evidence\",\"gap_ids\":[]},{\"seat_id\":\"judge\",\"gap_ids\":[\"GAP001\"]},{\"seat_id\":\"blue-respond\",\"gap_ids\":[]}],\"docket\":[],\"remand_owed\":[],\"exchanges\":[{\"gap_id\":\"GAP001\",\"count\":0,\"unresolved\":0}],\"pass_permitted\":false,\"stale_areas\":[],\"ceiling\":false,\"max_epochs\":0,\"epoch\":2,\"final_sitting\":false,\"epoch_limit_reached\":false,\"blockers\":[{\"kind\":\"material_gap\",\"subject\":\"GAP001\",\"owner\":\"red-lens-evidence\"},{\"kind\":\"lens_ready\",\"subject\":\"red-lens-evidence\",\"owner\":\"red-lens-evidence\"},{\"kind\":\"unruled_motion\",\"subject\":\"MOTION001\",\"owner\":\"judge\"},{\"kind\":\"whole_report_owed\",\"subject\":\"red-lens-evidence\",\"owner\":\"red-lens-evidence\"},{\"kind\":\"question_unsplit\",\"subject\":\"\",\"owner\":\"blue-respond\"}],\"why\":[\"red-lens-evidence: never sat — audits the report at head 3\",\"GAP001: docketed and unruled — the bench is ready, no party's closing being awaited\",\"blue-respond: the question is split into no question part — ready, to split it\",\"red-lens-evidence owes its full re-read, the whole report once more — ready at an unmoved head until it has been delivered\",\"red-lens-evidence owes its full re-read, the whole report once more — ready at any head, PASS is not permitted until it has been delivered\",\"the question this run was asked is split into no question part on the record, so nothing states which parts of it the report answers — PASS is not permitted until blue splits it\"]}"},"seat_id":"red-chair","ts":16,"type":"EVENT_TYPE_PLAN"}
-{"key":"judge:register:#1","register":{"occasion":"OCCASION_DOCKET","run_via":"flag","tool_version":"REVISION"},"seat_id":"judge","ts":17,"type":"EVENT_TYPE_REGISTER"}
-{"key":"judge:report_read:#1","report_read":{"head":"3"},"seat_id":"judge","ts":18,"type":"EVENT_TYPE_REPORT_READ"}
-{"key":"judge:log:#1","log":{"source":"LOG_SOURCE_TOOL","text":"refused `motion docket rule` with --as --id --principle --reason --tension: requires --review-flag (what a human should look at again — or, where nothing needs a human, what on the record already settles it)","type":"LOG_TYPE_REFUSAL"},"seat_id":"judge","ts":19,"type":"EVENT_TYPE_LOG"}
-{"key":"judge:log:#2","log":{"source":"LOG_SOURCE_TOOL","text":"refused `motion docket rule` with --as --id --principle --reason --review-flag --settled: requires --tension (the values that pulled against each other — or, where none did, the ruling's weakest point: what a party would argue against the rule you applied)","type":"LOG_TYPE_REFUSAL"},"seat_id":"judge","ts":20,"type":"EVENT_TYPE_LOG"}
-{"key":"judge:log:#3","log":{"source":"LOG_SOURCE_TOOL","text":"refused `motion docket rule` with --as --id --reason --review-flag --settled --tension: requires --principle (the rule the bench applied, stated so a later sitting can apply the same one)","type":"LOG_TYPE_REFUSAL"},"seat_id":"judge","ts":21,"type":"EVENT_TYPE_LOG"}
-{"key":"judge:log:#4","log":{"source":"LOG_SOURCE_TOOL","text":"refused `motion docket rule` with --as --id --principle --reason --review-flag --settled --tension: requires --reopens-on (what would change this outcome) or --final (nothing would). A ruling that says neither leaves the losing party unable to tell a settled question from an unanswered one, which is the difference between a new motion on new grounds and a wasted sitting","type":"LOG_TYPE_REFUSAL"},"seat_id":"judge","ts":22,"type":"EVENT_TYPE_LOG"}
-{"key":"judge:log:#5","log":{"source":"LOG_SOURCE_TOOL","text":"refused `motion docket rule` with --as --final --id --principle --reason --review-flag --settled --tension: requires --tension to say something (the values that pulled against each other — or, where none did, the ruling's weakest point: what a party would argue against the rule you applied)","type":"LOG_TYPE_REFUSAL"},"seat_id":"judge","ts":23,"type":"EVENT_TYPE_LOG"}
-{"key":"judge:log:#6","log":{"source":"LOG_SOURCE_TOOL","text":"refused `motion docket rule` with --as --final --id --principle --reason --review-flag --settled --tension: --as remanded requires --direction, and never --reopens-on or --final: --direction is the research the remand's one more exchange owes blue and the minting lens, and --reopens-on and --final say what would reopen a closed gap — a remand closes nothing","type":"LOG_TYPE_REFUSAL"},"seat_id":"judge","ts":24,"type":"EVENT_TYPE_LOG"}
-{"key":"judge:log:#7","log":{"source":"LOG_SOURCE_TOOL","text":"refused `motion docket rule` with --as --direction --final --id --principle --reason --review-flag --settled --tension: --direction is the research a remand's one more exchange owes, and --as repaired closes the gap and sends no exchange; what would reopen it is --reopens-on, or --final for nothing","type":"LOG_TYPE_REFUSAL"},"seat_id":"judge","ts":25,"type":"EVENT_TYPE_LOG"}
+{"dispatch":{"pin":"3","seat_id":"red-lens-evidence"},"key":"red-chair:dispatch:#1","seat_id":"red-chair","ts":6,"type":"EVENT_TYPE_DISPATCH"}
+{"dispatch":{"gap_ids":["GAP001"],"pin":"3","seat_id":"blue-respond"},"key":"red-chair:dispatch:#2","seat_id":"red-chair","ts":7,"type":"EVENT_TYPE_DISPATCH"}
+{"key":"red-chair:plan:#1","plan":{"printed":"{\"key\":\"PLANKEY001\",\"head\":3,\"parties\":[{\"seat_id\":\"red-lens-evidence\",\"gap_ids\":[]},{\"seat_id\":\"blue-respond\",\"gap_ids\":[\"GAP001\"]}],\"docket\":[],\"remand_owed\":[],\"exchanges\":[{\"gap_id\":\"GAP001\",\"count\":0,\"unresolved\":0}],\"pass_permitted\":false,\"stale_areas\":[],\"ceiling\":false,\"max_epochs\":0,\"epoch\":1,\"final_sitting\":false,\"epoch_limit_reached\":false,\"blockers\":[{\"kind\":\"material_gap\",\"subject\":\"GAP001\",\"owner\":\"red-lens-evidence\"},{\"kind\":\"lens_ready\",\"subject\":\"red-lens-evidence\",\"owner\":\"red-lens-evidence\"},{\"kind\":\"whole_report_owed\",\"subject\":\"red-lens-evidence\",\"owner\":\"red-lens-evidence\"},{\"kind\":\"question_unsplit\",\"subject\":\"\",\"owner\":\"blue-respond\"}],\"why\":[\"red-lens-evidence: never sat — audits the report at head 3\",\"GAP001: open, material, 0 exchange(s) (0 stalled) — below its limits; blue is ready on it, and red-lens-evidence is not until blue has acted on it since the lens's last act there\",\"blue-respond: the question is split into no question part — ready, to split it\",\"red-lens-evidence owes its first whole delivery of the report — ready at an unmoved head until it has been delivered\",\"red-lens-evidence owes its first whole delivery of the report — ready at any head, PASS is not permitted until it has been delivered\",\"the question this run was asked is split into no question part on the record, so nothing states which parts of it the report answers — PASS is not permitted until blue splits it\"]}"},"seat_id":"red-chair","ts":8,"type":"EVENT_TYPE_PLAN"}
+{"key":"blue-respond:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-respond","ts":9,"type":"EVENT_TYPE_REGISTER"}
+{"key":"blue-respond:register:#2","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-respond","ts":10,"type":"EVENT_TYPE_REGISTER"}
+{"key":"blue-respond:motion:#1","motion":{"basis":"repaired, and the bench should say so","close":{"anchor_seat":"blue-respond","anchor_target":"report.md#S2","anchor_tool":"the report read","closure_class":"DISPOSITION_REPAIRED","gap_id":"GAP001","prose":"repaired, and the bench should say so"},"docket":{"gap_id":"GAP001"},"motion_id":"MOTION001"},"seat_id":"blue-respond","ts":11,"type":"EVENT_TYPE_MOTION"}
+{"closing":{"gap_id":"GAP001","text":"the lens's closing"},"key":"red-lens-evidence:closing:#1:GAP001","seat_id":"red-lens-evidence","ts":12,"type":"EVENT_TYPE_CLOSING"}
+{"closing":{"gap_id":"GAP001","text":"blue's closing"},"key":"blue-respond:closing:#2:GAP001","seat_id":"blue-respond","ts":13,"type":"EVENT_TYPE_CLOSING"}
+{"key":"red-lens-evidence:register:#2","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-lens-evidence","ts":14,"type":"EVENT_TYPE_REGISTER"}
+{"key":"red-lens-evidence:register:#3","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-lens-evidence","ts":15,"type":"EVENT_TYPE_REGISTER"}
+{"key":"red-chair:register:#2","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-chair","ts":16,"type":"EVENT_TYPE_REGISTER"}
+{"docketing":{"basis":"blue-respond proposes to close GAP001, and its assignee red-lens-evidence did not accept it in its window; the bench owes a ruling. The proposal's basis: repaired, and the bench should say so","cause":"DOCKETING_CAUSE_PROPOSAL","docketing_id":"DOCKETING001","gap_id":"GAP001","motion_id":"MOTION001"},"key":"red-chair:docketing:#1","seat_id":"red-chair","ts":17,"type":"EVENT_TYPE_DOCKETING"}
+{"dispatch":{"pin":"3","seat_id":"red-lens-evidence"},"key":"red-chair:dispatch:#3","seat_id":"red-chair","ts":18,"type":"EVENT_TYPE_DISPATCH"}
+{"dispatch":{"pin":"3","seat_id":"blue-respond"},"key":"red-chair:dispatch:#4","seat_id":"red-chair","ts":19,"type":"EVENT_TYPE_DISPATCH"}
+{"dispatch":{"gap_ids":["GAP001"],"pin":"3","seat_id":"judge"},"key":"red-chair:dispatch:#5","seat_id":"red-chair","ts":20,"type":"EVENT_TYPE_DISPATCH"}
+{"key":"red-chair:plan:#2","plan":{"printed":"{\"key\":\"PLANKEY002\",\"head\":3,\"parties\":[{\"seat_id\":\"red-lens-evidence\",\"gap_ids\":[]},{\"seat_id\":\"blue-respond\",\"gap_ids\":[]},{\"seat_id\":\"judge\",\"gap_ids\":[\"GAP001\"]}],\"docket\":[\"GAP001\"],\"remand_owed\":[],\"exchanges\":[{\"gap_id\":\"GAP001\",\"count\":1,\"unresolved\":0}],\"pass_permitted\":false,\"stale_areas\":[],\"ceiling\":false,\"max_epochs\":0,\"epoch\":2,\"final_sitting\":false,\"epoch_limit_reached\":false,\"blockers\":[{\"kind\":\"material_gap\",\"subject\":\"GAP001\",\"owner\":\"red-lens-evidence\"},{\"kind\":\"lens_ready\",\"subject\":\"red-lens-evidence\",\"owner\":\"red-lens-evidence\"},{\"kind\":\"docketed\",\"subject\":\"GAP001\",\"owner\":\"judge\"},{\"kind\":\"whole_report_owed\",\"subject\":\"red-lens-evidence\",\"owner\":\"red-lens-evidence\"},{\"kind\":\"question_unsplit\",\"subject\":\"\",\"owner\":\"blue-respond\"}],\"why\":[\"red-lens-evidence: no sitting it sat through holds a complete delivery of report text, behind head 3 — audits the report (1 sitting(s) in a row with no fresh material mint, close, reading, computation check or inquiry check; it retires at 3 owing nothing, and it owes whole_report_owed red-lens-evidence)\",\"blue-respond: the question is split into no question part — ready, to split it\",\"red-lens-evidence owes its first whole delivery of the report — ready at an unmoved head until it has been delivered\",\"GAP001: docketed and unruled — the bench is ready, no party's closing being awaited\",\"red-lens-evidence owes its first whole delivery of the report — ready at any head, PASS is not permitted until it has been delivered\",\"the question this run was asked is split into no question part on the record, so nothing states which parts of it the report answers — PASS is not permitted until blue splits it\"]}"},"seat_id":"red-chair","ts":21,"type":"EVENT_TYPE_PLAN"}
+{"key":"judge:register:#1","register":{"occasion":"OCCASION_DOCKET","run_via":"flag","tool_version":"REVISION"},"seat_id":"judge","ts":22,"type":"EVENT_TYPE_REGISTER"}
+{"key":"judge:log:#1","log":{"source":"LOG_SOURCE_TOOL","text":"refused `motion docket rule` with --for-author --id --principle --reason --tension: requires --review-flag (what a human should look at again — or, where nothing needs a human, what on the record already settles it)","type":"LOG_TYPE_REFUSAL"},"seat_id":"judge","ts":23,"type":"EVENT_TYPE_LOG"}
+{"key":"judge:log:#2","log":{"source":"LOG_SOURCE_TOOL","text":"refused `motion docket rule` with --for-author --id --principle --reason --review-flag --settled: requires --tension (the values that pulled against each other — or, where none did, the ruling's weakest point: what a party would argue against the rule you applied)","type":"LOG_TYPE_REFUSAL"},"seat_id":"judge","ts":24,"type":"EVENT_TYPE_LOG"}
+{"key":"judge:log:#3","log":{"source":"LOG_SOURCE_TOOL","text":"refused `motion docket rule` with --for-author --id --reason --review-flag --settled --tension: requires --principle (the rule the bench applied, stated so a later sitting can apply the same one)","type":"LOG_TYPE_REFUSAL"},"seat_id":"judge","ts":25,"type":"EVENT_TYPE_LOG"}
+{"key":"judge:log:#4","log":{"source":"LOG_SOURCE_TOOL","text":"refused `motion docket rule` with --for-author --id --principle --reason --review-flag --settled --tension: requires --reopens-on (what would change this outcome) or --final (nothing would). A ruling that says neither leaves the losing party unable to tell a settled question from an unanswered one","type":"LOG_TYPE_REFUSAL"},"seat_id":"judge","ts":26,"type":"EVENT_TYPE_LOG"}
+{"key":"judge:log:#5","log":{"source":"LOG_SOURCE_TOOL","text":"refused `motion docket rule` with --final --for-author --id --principle --reason --review-flag --settled --tension: requires --tension to say something (the values that pulled against each other — or, where none did, the ruling's weakest point: what a party would argue against the rule you applied)","type":"LOG_TYPE_REFUSAL"},"seat_id":"judge","ts":27,"type":"EVENT_TYPE_LOG"}
+{"key":"judge:log:#6","log":{"source":"LOG_SOURCE_TOOL","text":"refused `motion docket rule` with --final --id --principle --reason --remand --review-flag --settled --tension: a remand requires --direction, and never --reopens-on or --final: --direction is the research the remand's one more exchange owes blue and the assignee, and --reopens-on and --final say what would reopen a closed gap — a remand closes nothing","type":"LOG_TYPE_REFUSAL"},"seat_id":"judge","ts":28,"type":"EVENT_TYPE_LOG"}
+{"key":"judge:log:#7","log":{"source":"LOG_SOURCE_TOOL","text":"refused `motion docket rule` with --direction --final --for-author --id --principle --reason --review-flag --settled --tension: --direction is the research a remand's one more exchange owes, and a ruling that is no remand sends no exchange; what would reopen a gap it closes is --reopens-on, or --final for nothing","type":"LOG_TYPE_REFUSAL"},"seat_id":"judge","ts":29,"type":"EVENT_TYPE_LOG"}
 
 ═══ RENDERS ═══
 -- inquiries
 # Inquiries — RENDERED PROJECTION (source of truth: the record, records/record.db)
 
-_No inquiries recorded. On a run past epoch 0 that is itself a finding: the exploration
+_No inquiries recorded. On a run past epoch 0 that is itself a defect: the exploration
 either did not happen or was not written down, and a report with no roads-not-taken is
 indistinguishable from one that never looked._
 

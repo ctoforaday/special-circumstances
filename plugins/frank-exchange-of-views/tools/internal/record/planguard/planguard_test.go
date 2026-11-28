@@ -33,7 +33,7 @@ func TestGrowthSetIsDerivedFromTheSchema(t *testing.T) {
 	// derivation SUBTRACTS the bounded vocabularies rather than enumerating what grows. A
 	// repeated-field child is the shape most easily dropped by a derivation that walked only
 	// top-level messages.
-	for _, want := range []string{"events", "mint", "close", "cite", "mint_supersedes", "mint_found_by"} {
+	for _, want := range []string{"events", "mint", "close", "cite", "close_anchors"} {
 		if !set[want] {
 			t.Errorf("the derived growth set is missing %q", want)
 		}
@@ -80,7 +80,7 @@ func TestConstrainedScanSeparatesMissingIndexesFromDesignCosts(t *testing.T) {
 		{"whole-table count", `SELECT (SELECT count(*) FROM "verify")`, "SCAN verify", false},
 		{"last row by rowid", `SELECT "verdict" FROM "outcome" ORDER BY "event_id" DESC LIMIT 1`, "SCAN outcome", false},
 		{"covering index walk", `SELECT DISTINCT "type" FROM "events" ORDER BY "type"`, "SCAN events USING COVERING INDEX events_type", false},
-		{"autoindex walk", `SELECT "event_id" FROM "mint_supersedes" ORDER BY "event_id"`, "SCAN mint_supersedes USING INDEX sqlite_autoindex_mint_supersedes_1", false},
+		{"autoindex walk", `SELECT "event_id" FROM "close_anchors" ORDER BY "event_id"`, "SCAN close_anchors USING INDEX sqlite_autoindex_close_anchors_1", false},
 		{"filtered scan of an enum vocabulary", `SELECT "value" FROM "enum_grade" WHERE "value" > ?`, "SCAN enum_grade", false},
 
 		{"filtered scan is the defect", `SELECT "gap_id" FROM "mint" WHERE "gap_id" = ?`, "SCAN mint", true},

@@ -25,6 +25,9 @@ func seedReferents(t *testing.T, runDir string) {
 	// blue's cite has always been held to. Without this the reading was refused for quoting a sentence
 	// that existed nowhere, which reads as the verb being broken rather than as the fixture being a
 	// placeholder.
+	// The cast names the lane the cases file from: an exchange — a dispatch row — is admitted only
+	// against a cast, and a seat outside it cannot register.
+	seedCastWith(t, runDir, "blue-lane-1")
 	seedBlueReport(t, runDir)
 	// THE LENS MINTS (plans/roundless.md §III.B.3). The chair sits first so the epoch is 1, then
 	// `lensSeat` mints — and is the seat that closes G2 below, because the originator closes.
@@ -44,11 +47,13 @@ func seedReferents(t *testing.T, runDir string) {
 	// M1 and M2: the motions the ruling cases answer. A rule names the motion it answers, so
 	// the filing has to exist before the ruling can be tested at all — which is the join the
 	// collapse exists to make, and the reason these are seeded rather than assumed.
-	if _, err := runAt(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond",
-		"--id", "G1", "--dimension", "severity", "--proposed", "low",
-		"--reason", "the seeded grade motion this fixture answers"); err != nil {
-		t.Fatal(err)
-	}
+	// M1 proposes a close of G1 once G1 has had its one exchange, D1 dockets it, and the bench is
+	// convened on G1: the bench answers the docketing its docket sitting holds.
+	g1 := handleText(t, runDir, "G1")
+	exchangeOn(t, runDir, g1)
+	m1 := proposeClose(t, runDir, "blue-respond", "G1", "not_a_defect", "the seeded docket motion this fixture answers")
+	docketNow(t, runDir, g1, recordpb.DocketingCause_DOCKETING_CAUSE_PROPOSAL, m1)
+	conveneBench(t, runDir, g1)
 	if _, err := run(t, "motion", "petition", "file", "--run", runDir, "--seat-id", "blue-respond",
 		"--class", "safety", "--relief", "the relief sought",
 		"--reason", "the seeded petition this fixture answers"); err != nil {
@@ -64,6 +69,8 @@ func seedReferents(t *testing.T, runDir string) {
 		"--verified-against", "./x", "--reason", "closed so the archive is not empty"); err != nil {
 		t.Fatal(err)
 	}
+	// G3, open, has had its one exchange: the filing case proposes an act on it.
+	exchangeOn(t, runDir, handleText(t, runDir, "G3"))
 	// The lens seat has sat: it registered and minted above, so `petition-rule --petitioner`
 	// finds a seat that recorded something in the run without a seeded `log` for presence.
 }
@@ -75,7 +82,7 @@ func TestVerbPayloads(t *testing.T) {
 		role string
 		// path is the command path when it is not <role> <second word of name>. The default
 		// recovers the verb from the TEST NAME, which is a fact composed into a string and
-		// split apart again — it works only for a two-level tree, and `motion grade file` is
+		// split apart again — it works only for a two-level tree, and `motion petition file` is
 		// three. Rather than re-derive a deeper path from a longer name, the cases that need
 		// one say so.
 		path   []string
@@ -117,26 +124,27 @@ func TestVerbPayloads(t *testing.T) {
 			says: "source Example B (https://example.test/b) REFUTES the claim",
 		},
 		{
-			name: "motion grade rule records the chair's answer",
-			path: []string{"motion", "grade", "rule"}, seatID: "red-chair",
-			args: []string{"--id", "M1", "--as", "rejected", "--reason", "the evidence does not reach it"},
-			typ:  recordpb.EventType_EVENT_TYPE_MOTION_RULE,
-			// THE RULING IS A ONEOF ARM, not a `ruling` field: `grade` carries GradeRuling,
+			name: "motion docket rule records the bench's ruling",
+			path: []string{"motion", "docket", "rule"}, seatID: "judge",
+			args: []string{"--id", "D1", "--remand", "--principle", "correctness", "--tension", "thoroughness against ceremony",
+				"--review-flag", "no — the ruling is mechanical", "--settled", "the proposition this ruling bars",
+				"--direction", "a reproduction on the shipped binary", "--reason", "the evidence does not reach it"},
+			typ: recordpb.EventType_EVENT_TYPE_MOTION_RULE,
+			// THE RULING IS A ONEOF ARM, not a `ruling` field: `docket` carries DocketRuling,
 			// `petition` PetitionRuling, each subject its own. That separation is what
-			// makes a ruling from the wrong subject's vocabulary unrepresentable, and it is why
-			// the old key could never match. The ruler's argument is `opinion`.
-			want: map[string]string{"motion_id": "M1", "grade": "rejected",
+			// makes a ruling from the wrong subject's vocabulary unrepresentable. The ruler's
+			// argument is `opinion`.
+			want: map[string]string{"motion_id": "M1", "disposition": "remanded",
 				"opinion": "the evidence does not reach it"},
-			says: "motion M1 ruled rejected",
+			says: "docketing D1 ruled remanded",
 		},
 		{
-			name: "motion grade file contests a grade through the accounted channel",
-			path: []string{"motion", "grade", "file"}, seatID: "blue-lane-1",
-			args: []string{"--id", "G1", "--dimension", "severity", "--proposed", "low", "--reason", "§4 says otherwise"},
+			name: "motion docket file regrade proposes an act on a gap",
+			path: []string{"motion", "docket", "file", "regrade"}, seatID: "blue-respond",
+			args: []string{"--id", "G3", "--severity", "low", "--reason", "§4 says otherwise"},
 			typ:  recordpb.EventType_EVENT_TYPE_MOTION,
-			want: map[string]string{"gap_id": "G1", "dimension": "severity",
-				"proposed": "low", "basis": "§4 says otherwise"},
-			says: "filed (grade)",
+			want: map[string]string{"gap_id": "G3", "basis": "§4 says otherwise"},
+			says: "filed (docket, proposing a regrade)",
 		},
 		// blue retire's payload (the anchor, the sentence it stood on, the reason) is asserted per kind by
 		// TestRetireIsAnchorOnlyForEveryKind, over a run holding an anchor to retire.
@@ -360,7 +368,7 @@ func TestSpotCheckIsASingleton(t *testing.T) {
 func TestRegradeMovesOnlyThePassedGrades(t *testing.T) {
 	t.Parallel()
 	runDir := newRun(t)
-	// The lens that minted the gap is the one that regrades it — the originator closes.
+	// The gap's assignee is the one that regrades it — the assignee closes.
 	seatID := lensSeat
 	registerChairOnce(t, runDir)
 	registerLensOnce(t, runDir)
@@ -429,9 +437,7 @@ func TestProseVerbsFillTheirProseField(t *testing.T) {
 				restore()
 			}
 			runDir := seeded
-			if tc.verb == "closing" {
-				docketFile(t, runDir, "blue-respond", "G1", "the bench's to settle") // a closing argues a docketing
-			}
+			// A closing argues a docketing: the seeded M1 stands on G1.
 			args := append([]string{tc.verb, "--run", runDir, "--seat-id", tc.seatID,
 				"--reason", body}, tc.extra...)
 			if _, err := runAt(t, args...); err != nil {

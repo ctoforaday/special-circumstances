@@ -20,7 +20,7 @@ import (
 // passing a verdict over an unanswered ask. Six of the ten scenarios below were ACCEPTED by the
 // tool when first tried, and four of those six reached the rendered report.
 //
-// The sharpest was `motion grade rule --id M1` on a PETITION motion. It was accepted: the subject
+// The sharpest was a ruling of a PETITION motion under another subgroup. It was accepted: the subject
 // came from the seat's POSITION IN THE COMMAND TREE rather than from the motion, so the caller
 // chose both the gavel and the verdict vocabulary by picking a subgroup. The report rendered
 // "petition (safety) … ruled accepted" — a verdict that is not in the petition set at all. That is
@@ -52,6 +52,9 @@ type adversarialCase struct {
 	// setup runs in order and MUST all succeed — a scenario whose setup silently failed asserts
 	// its refusal against an empty board, which passes for the wrong reason.
 	setup []seatStep
+	// proposed is the docket proposal filed once setup has run and gap G1 has had its one exchange
+	// (exchangeOn): a proposal is admitted from there, and no CLI step stages an exchange.
+	proposed []seatStep
 	// act is the hostile move.
 	act seatStep
 	// refused is what the message must contain. Empty means the act must be ACCEPTED.
@@ -66,9 +69,9 @@ func adversarialCases() []adversarialCase {
 		"--fix", "f", "--check", "c", "--check-kind", "document",
 		"--severity", "high", "--likelihood", "high", "--impact", "high", "--complexity", "low",
 		"--reason", "the board needs something to argue about"}
-	fileGrade := seatStep{"motion", "grade", "file", "--seat-id", "blue-respond",
-		"--id", "G1", "--dimension", "severity", "--proposed", "low",
-		"--reason", "the consequence is bounded by the caller's own validation"}
+	fileDocket := append(seatStep{"motion", "docket", "file", "close", "--seat-id", "blue-respond",
+		"--id", "G1", "--reason", "the consequence is bounded by the caller's own validation; the bench should decide the gap"},
+		closeFlags("not_a_defect")...)
 	filePetition := seatStep{"motion", "petition", "file", "--seat-id", "red-lens-evidence",
 		"--class", "safety", "--relief", "halt before the next round",
 		"--reason", "continuing would require asserting a consent gate that does not exist"}
@@ -77,29 +80,30 @@ func adversarialCases() []adversarialCase {
 
 	return []adversarialCase{
 		{
-			name:    "a petition cannot be ruled through the grade subgroup",
+			name:    "a petition cannot be ruled through the docket subgroup",
 			setup:   []seatStep{filePetition},
-			act:     seatStep{"motion", "grade", "rule", "--seat-id", "red-chair", "--id", "M1", "--as", "accepted", "--reason", "ruling a petition as if it were a grade"},
-			refused: "was filed as a petition motion and you are ruling it as a grade",
+			act:     seatStep{"motion", "docket", "rule", "--seat-id", "judge", "--id", "M1", "--for-author", "--reason", "ruling a petition as if it were a docket motion"},
+			refused: "a docketing id is D-",
 			guards: "THE ONE THAT WAS ACCEPTED AND REACHED THE REPORT. The subject came from the " +
-				"command tree, so the caller chose the gavel (the chair answering what only the " +
-				"bench may answer) AND the verdict set (`accepted`, not a petition ruling at all).",
+				"command tree, so the caller chose the gavel AND the answer set. A docket ruling " +
+				"names a docketing, so a petition's id is refused by its shape before any answer is read.",
 		},
 		{
 			name:    "the wrong subgroup is named before the verb's own refusals",
 			setup:   []seatStep{filePetition},
-			act:     seatStep{"motion", "grade", "rule", "--seat-id", "red-chair", "--id", "M1", "--as", "accepted", "--reason", ""},
-			refused: "was filed as a petition motion and you are ruling it as a grade",
+			act:     seatStep{"motion", "docket", "rule", "--seat-id", "judge", "--id", "M1", "--for-author", "--reason", ""},
+			refused: "a docketing id is D-",
 			guards: "ORDER IS THE MESSAGE. The verb refuses an unreasoned ruling itself, before the " +
 				"write; asked first, that would send the chair to write a reason for a ruling it " +
 				"cannot make. The subject is established before anything phrased in its terms.",
 		},
 		{
-			name:    "a grade motion cannot be ruled through the petition subgroup",
-			setup:   []seatStep{mint, fileGrade},
-			act:     seatStep{"motion", "petition", "rule", "--seat-id", "judge", "--id", "M1", "--as", "granted", "--relief", "Restate the section as the bench orders.", "--binds", "blue", "--reason", "the bench takes the chair's docket"},
-			refused: "was filed as a grade motion and you are ruling it as a petition",
-			guards:  "The same hole from the other side — the bench reaching a grade the chair owns.",
+			name:     "a docket motion cannot be ruled through the petition subgroup",
+			setup:    []seatStep{mint},
+			proposed: []seatStep{fileDocket},
+			act:      seatStep{"motion", "petition", "rule", "--seat-id", "judge", "--id", "M1", "--as", "granted", "--relief", "Restate the section as the bench orders.", "--binds", "blue", "--reason", "the bench takes the chair's docket"},
+			refused:  "was filed as a docket motion and you are ruling it as a petition",
+			guards:   "The same hole from the other side — a docket motion answered with a petition's verdicts.",
 		},
 		{
 			name:    "a motion is answered once",
@@ -111,16 +115,9 @@ func adversarialCases() []adversarialCase {
 				"The ruler's own answer to a wrong ruling is a new act, which keeps both.",
 		},
 		{
-			name:  "a seat that disagrees with a grade ruling puts the gap before the bench",
-			setup: []seatStep{mint, fileGrade, {"motion", "grade", "rule", "--seat-id", "red-chair", "--id", "M1", "--as", "rejected", "--reason", "the evidence does not reach it"}},
-			act:   seatStep{"motion", "docket", "file", "--seat-id", "blue-respond", "--id", "G1", "--reason", "the ruling reads past the caller's validation; the bench should decide the gap"},
-			guards: "The positive case beside the refusal above: the docket motion is the " +
-				"SUPPORTED move against a ruling, and a suite that only tested refusals would let it rot.",
-		},
-		{
 			name:    "a ruling is not appealed, and the refusal says what the subject holds",
-			setup:   []seatStep{mint, fileGrade, {"motion", "grade", "rule", "--seat-id", "red-chair", "--id", "M1", "--as", "rejected", "--reason", "the evidence does not reach it"}},
-			act:     seatStep{"motion", "grade", "appeal", "--seat-id", "blue-respond", "--id", "M1", "--reason", "pressing a ruling"},
+			setup:   []seatStep{filePetition, {"motion", "petition", "rule", "--seat-id", "judge", "--id", "M1", "--as", "denied", "--reason", "the record shows the gate"}},
+			act:     seatStep{"motion", "petition", "appeal", "--seat-id", "red-lens-evidence", "--id", "M1", "--reason", "pressing a ruling"},
 			refused: "has no `appeal` verb — it has file",
 			guards: "It answered `unknown flag: --id`, which sends a seat looking at its flags for " +
 				"a problem that is not there. A motion is filed and ruled and the ruling stands — " +
@@ -128,10 +125,10 @@ func adversarialCases() []adversarialCase {
 		},
 		{
 			name:    "PASS is refused while a motion is unanswered",
-			setup:   []seatStep{mint, fileGrade, {"close", "--seat-id", "red-lens-evidence", "--id", "G1", "--as", "repaired", "--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x", "--reason", "closed on the merits"}},
+			setup:   []seatStep{mint, filePetition, {"close", "--seat-id", "red-lens-evidence", "--id", "G1", "--as", "repaired", "--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x", "--reason", "closed on the merits"}},
 			act:     seatStep{"verdict", "--seat-id", "red-chair"},
 			refused: "filed and never ruled",
-			guards: "A probe walked a run to `verdict PASS` AND `outcome VERIFIED` with a grade " +
+			guards: "A probe walked a run to `verdict PASS` AND `outcome VERIFIED` with a " +
 				"motion never ruled. The gate counted open GAPS only. PASS claims nothing is left " +
 				"open, and an unanswered ask is exactly that.",
 		},
@@ -139,7 +136,7 @@ func adversarialCases() []adversarialCase {
 			name: "PASS is allowed once every motion is answered",
 			// The lens closes G1 at its next sitting, its full re-read, delivered before the close: a
 			// PASS waits on both whole deliveries.
-			setup: []seatStep{mint, fileGrade, {"motion", "grade", "rule", "--seat-id", "red-chair", "--id", "M1", "--as", "rejected", "--reason", "the grade stands"}, {"register", "--seat-id", "red-lens-evidence"}, {"close", "--seat-id", "red-lens-evidence", "--id", "G1", "--as", "repaired", "--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x", "--reason", "closed on the merits"}},
+			setup: []seatStep{mint, filePetition, {"motion", "petition", "rule", "--seat-id", "judge", "--id", "M1", "--as", "denied", "--reason", "the record shows the gate"}, {"register", "--seat-id", "red-lens-evidence"}, {"close", "--seat-id", "red-lens-evidence", "--id", "G1", "--as", "repaired", "--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x", "--reason", "closed on the merits"}},
 			act:   seatStep{"verdict", "--seat-id", "red-chair"},
 			guards: "The gate above must not become unpassable. A check that no legitimate run can " +
 				"satisfy is removed by the first person it blocks.",
@@ -169,39 +166,6 @@ func adversarialCases() []adversarialCase {
 				"learns, and it leaves any check of the old fate stale rather than being refused by it.",
 		},
 		{
-			name:    "a grade motion names a gap that exists",
-			act:     seatStep{"motion", "grade", "file", "--seat-id", "blue-respond", "--id", "G2", "--dimension", "severity", "--proposed", "low", "--reason", "contesting a gap nobody minted"},
-			refused: "no mint event created",
-			guards: "Lost outright when the verb was replaced: `blue dispute` checked it and the " +
-				"additive `motion grade file` did not, which nothing could see while both were live.",
-		},
-		{
-			name:    "a grade motion is refused on a gap already disposed of",
-			setup:   []seatStep{mint, {"close", "--seat-id", "red-lens-evidence", "--id", "G1", "--as", "repaired", "--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x", "--reason", "closed on the merits"}},
-			act:     seatStep{"motion", "grade", "file", "--seat-id", "blue-respond", "--id", "G1", "--dimension", "severity", "--proposed", "low", "--reason", "contesting a settled grade"},
-			refused: "disposition has already been made",
-			guards:  "The other check lost in the replacement.",
-		},
-		{
-			name:    "a dimension outside the four is refused",
-			setup:   []seatStep{mint},
-			act:     seatStep{"motion", "grade", "file", "--seat-id", "blue-respond", "--id", "G1", "--dimension", "vibes", "--proposed", "low", "--reason", "contesting an axis that does not exist"},
-			refused: "--dimension takes one of severity|likelihood|impact|complexity",
-			guards: "The ruling is matched to the filing on (gap, dimension), so an axis outside the " +
-				"four is a motion filed against nothing. `blue dispute` enum-checked it; the " +
-				"replacement took any string until the old verb was deleted and the two compared. " +
-				"The refusal now happens at PARSE rather than at the write — strictly earlier, and " +
-				"it arrives with the menu, so a seat is told what the four axes are FOR.",
-		},
-		{
-			name:    "a non-grade --proposed is refused at parse",
-			setup:   []seatStep{mint},
-			act:     seatStep{"motion", "grade", "file", "--seat-id", "blue-respond", "--id", "G1", "--dimension", "severity", "--proposed", "quite-bad", "--reason", "proposing a grade that is not one"},
-			refused: "quite-bad",
-			guards: "`--proposed` is a pflag.Value, so this fails BEFORE any RunE runs and the help " +
-				"and the refusal come from one list. The replacement registered it as a bare string.",
-		},
-		{
 			name: "a petition class outside the four is refused",
 			act:  seatStep{"motion", "petition", "file", "--seat-id", "red-lens-evidence", "--class", "aesthetic", "--relief", "halt", "--reason", "petitioning on a standard nobody wrote"},
 			// THE ORDER IS THE SCHEMA'S, and this expectation used to carry a different one — from
@@ -216,10 +180,11 @@ func adversarialCases() []adversarialCase {
 				"four classes and what each is for — the seat learns the vocabulary from the refusal.",
 		},
 		{
-			name:    "the gavel holds even with the right subject",
-			setup:   []seatStep{mint, fileGrade},
-			act:     seatStep{"motion", "grade", "rule", "--seat-id", "blue-respond", "--id", "M1", "--as", "accepted", "--reason", "ruling my own motion"},
-			refused: "is ruled by the chair",
+			name:     "the gavel holds even with the right subject",
+			setup:    []seatStep{mint},
+			proposed: []seatStep{fileDocket},
+			act:      seatStep{"motion", "docket", "rule", "--seat-id", "blue-respond", "--id", "M1", "--for-author", "--reason", "ruling my own motion"},
+			refused:  "is ruled by the bench",
 			guards: "Filed by any seat, ruled by one. The asymmetry IS the mechanism, and blue " +
 				"answering its own ask would make the exchange a monologue.",
 		},
@@ -242,6 +207,15 @@ func TestAHostileSeatIsRefused(t *testing.T) {
 				args := byHandle(t, runDir, append(append([]string{}, step...), "--run", runDir))
 				if _, err := run(t, args...); err != nil {
 					t.Fatalf("setup step %d (%v) failed: %v\n\nA scenario whose setup fails asserts its outcome against a board that was never built, which passes for the wrong reason.", i, step, err)
+				}
+			}
+			if len(tc.proposed) > 0 {
+				exchangeOn(t, runDir, handleText(t, runDir, "G1"))
+			}
+			for i, step := range tc.proposed {
+				args := byHandle(t, runDir, append(append([]string{}, step...), "--run", runDir))
+				if _, err := run(t, args...); err != nil {
+					t.Fatalf("proposal %d (%v) failed: %v\n\nA scenario whose setup fails asserts its outcome against a board that was never built, which passes for the wrong reason.", i, step, err)
 				}
 			}
 

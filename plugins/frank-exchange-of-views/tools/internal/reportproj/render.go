@@ -20,7 +20,7 @@ import (
 //   - a blue edit → a splice (old→new), located by bluedoc.LocateUniqueReplacing, or by
 //                   bluedoc.LocateLiteral when the event recorded exact_span (spliceMut).
 //   - an Anchor   → the marker of the act it names, spliced at the end of its quote (insertMut).
-//                   Every placing verb — cite, compute, finding, mint, and a reading that
+//                   Every placing verb — cite, compute, mint, and a reading that
 //                   mints its gap — appends one after its own event, which is metadata and
 //                   inserts nothing.
 //   - a retire    → the one anchor it names, taken off a sentence that stays word for word
@@ -90,7 +90,7 @@ func Render(text string, ops []Op) (string, error) {
 }
 
 // mutation is one recorded text change, applied to the running report during replay: a part's
-// append, a splice (blue edit), a marker insertion (cite/compute/finding) or an anchor's removal, a
+// append, a splice (blue edit), a marker insertion (cite/compute/mint) or an anchor's removal, a
 // retire's or one a cut lists in removed_anchors. Each
 // locates against the running text exactly as the verb did, and is loud when it cannot.
 type mutation interface {
@@ -133,7 +133,7 @@ type insertMut struct{ location, marker string }
 func (m insertMut) apply(text string) (string, error) {
 	// TORN-ANCHOR ADOPTION, REPLAYED. The verbs adopt an orphan marker rather than splice a
 	// rival; if two events ever name the same marker (a crash-retry that appended twice), replay
-	// must place it ONCE. Keyed on the exact marker token, so two findings on one sentence — two
+	// must place it ONCE. Keyed on the exact marker token, so two gaps on one sentence — two
 	// distinct tokens — both still insert.
 	if strings.Contains(text, m.marker) {
 		return text, nil

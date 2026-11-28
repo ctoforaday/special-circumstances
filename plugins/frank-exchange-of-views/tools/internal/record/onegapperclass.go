@@ -3,17 +3,19 @@ package record
 import (
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportheading"
 )
 
 // requireOneGapPerClassAndSubject refuses a mint where an OPEN gap of the same class already stands
 // on the same subject: two defects of one class on one subject are one gap (ruled by gblock
-// 2026-10-28). The second lens's point is a finding about the gap that stands.
+// 2026-10-28). The refusal names the refused seat's road from the gap that stands (oneGapRefusal).
 //
 // THE SUBJECT IS READ FROM FIELDS THE RECORD HOLDS AS IDENTITIES, never from the problem's words:
 //   - a quote gap's subject is the sentence its anchor sits in (gapSentenceIn), the sentence the
@@ -23,7 +25,7 @@ import (
 //   - an anchor gap's subject is the anchor it names (about_kind anchor, about_ref), for EVERY class
 //     (ruled by gblock 2026-11-06, F5 (a)) — with one exception, the gap a seat's own owed unread or
 //     unsound check obliges (answersOwnFailedCheckAt): refused here, the lens would owe a gap the
-//     record turns away, and a finding does not answer the check. The exception admits that gap over
+//     record turns away. The exception admits that gap over
 //     any open gap of its class, in either form below.
 //
 // A GAP ABOUT CITATION C AND A GAP QUOTING THE SENTENCE THAT HOLDS C ARE ONE SUBJECT per class (ruled
@@ -35,16 +37,12 @@ import (
 // gap about either; a gap about one citation is not refused by an open gap about the other. A
 // computation's token pairs with nothing: a gap about a computation is the computation ruling's.
 //
-// A section or a gap named by --about is not such a subject: a section holds many sentences, and a
-// gap about a gap is a dispute the record answers in its own terms. The rule does not apply there.
+// A section is not such a subject: a section holds many sentences. The rule does not apply there.
 //
 // MEASURED (universe-m35): the parallel first-wave lenses minted five pairs, each pair 25 s to 2 min
 // apart, each second minter having read the board before its sibling minted. Four of the five are
 // one class on one subject. The check runs in the mint's own transaction, which takes the write lock
 // at BEGIN (`_txlock=immediate`), so the second of two concurrent mints reads the first.
-//
-// WHAT THE RECORD PROVES IS ANOTHER RELATION IS ADMITTED: a gap the mint names in --supersedes does
-// not block it, since a successor states its ancestor's subject by design.
 //
 // A closed gap does not block: a defect that recurs after its gap closed is a new gap.
 //
@@ -55,10 +53,21 @@ import (
 // did.
 func requireOneGapPerClassAndSubject(w writeView, seatID string, m *recordpb.Mint) error {
 	quote := strings.TrimSpace(m.GetLocation())
-	inquiry, about, part := "", "", ""
+	inquiry, about, part, section, onGap := "", "", "", "", ""
 	switch m.GetAboutKind() {
 	case recordpb.AboutKind_ABOUT_KIND_INQUIRY:
 		inquiry = m.GetAboutRef()
+	// A SECTION AND A GAP ARE SUBJECTS ONLY OF A RULING'S TOMBSTONE (§III.B6): a section holds many
+	// sentences, so two open gaps of a class on it are two defects; a ruling on one bars its class on
+	// the section, keyed by the heading every reader of headings uses, to every minter. A section
+	// assembly composes takes no bar (#1942). A gap on a gap is barred by a ruling on a gap of its
+	// class about the same gap, keyed on that gap's id.
+	case recordpb.AboutKind_ABOUT_KIND_SECTION:
+		if !composedSection(m.GetAboutRef()) {
+			section = reportheading.HeadingKey(m.GetAboutRef())
+		}
+	case recordpb.AboutKind_ABOUT_KIND_GAP:
+		onGap = m.GetAboutRef()
 	// A GAP ABOUT A QUESTION PART IS ONE PER CLASS AND PART; one about the question as a whole names no
 	// part, and two of them may be about two parts the record does not hold, so the rule reads none.
 	case recordpb.AboutKind_ABOUT_KIND_QUESTION:
@@ -66,32 +75,20 @@ func requireOneGapPerClassAndSubject(w writeView, seatID string, m *recordpb.Min
 	case recordpb.AboutKind_ABOUT_KIND_ANCHOR:
 		about = m.GetAboutRef()
 	}
-	if quote == "" && inquiry == "" && about == "" && part == "" {
+	if quote == "" && inquiry == "" && about == "" && part == "" && section == "" && onGap == "" {
 		return nil
 	}
 	held, err := openGapsOfClassAt(w.q, m.GetClass())
 	if err != nil {
 		return fmt.Errorf("the board's open gaps could not be read, so whether one of class %s already stands on this subject cannot be told: %w", recordpb.Word(m.GetClass()), err)
 	}
-	held = slices.DeleteFunc(held, func(g heldGap) bool { return slices.Contains(m.GetSupersedes(), g.id) })
+	if held, err = withRuledGapsOfClassAt(w.q, held, m.GetClass()); err != nil {
+		return fmt.Errorf("the record's ruling tombstones could not be read, so whether a ruling on a gap of class %s stands on this subject cannot be told: %w", recordpb.Word(m.GetClass()), err)
+	}
 	if len(held) == 0 {
 		return nil
 	}
-	if inquiry != "" {
-		for _, g := range held {
-			if g.about(recordpb.AboutKind_ABOUT_KIND_INQUIRY, inquiry) {
-				return oneGapRefusal(m, g, "inquiry "+inquiry)
-			}
-		}
-	}
-	if part != "" {
-		for _, g := range held {
-			if g.about(recordpb.AboutKind_ABOUT_KIND_QUESTION, part) {
-				return oneGapRefusal(m, g, "question part "+part)
-			}
-		}
-	}
-	// The exception, read once and only where an anchor-side arm finds a gap standing.
+	// The exception, read once and only where an arm finds a gap standing that it admits over.
 	exempt, asked := false, false
 	obliged := func() (bool, error) {
 		if !asked {
@@ -103,6 +100,44 @@ func requireOneGapPerClassAndSubject(w writeView, seatID string, m *recordpb.Min
 		}
 		return exempt, nil
 	}
+	// refuse is the refusal of g on subject, but where g stands only by a ruling's tombstone and the
+	// mint is the seat's owed failed check, which no tombstone refuses.
+	refuse := func(g heldGap, subject string) error {
+		if g.ruling != nil {
+			if ok, err := obliged(); err != nil || ok {
+				return err
+			}
+		}
+		return oneGapRefusal(w, seatID, m, g, subject)
+	}
+	if inquiry != "" {
+		for _, g := range held {
+			if g.about(recordpb.AboutKind_ABOUT_KIND_INQUIRY, inquiry) {
+				return refuse(g, "inquiry "+inquiry)
+			}
+		}
+	}
+	if section != "" {
+		for _, g := range held {
+			if g.ruling != nil && g.aboutKind == recordpb.Word(recordpb.AboutKind_ABOUT_KIND_SECTION) && reportheading.HeadingKey(g.aboutRef) == section {
+				return refuse(g, "section "+strconv.Quote(m.GetAboutRef()))
+			}
+		}
+	}
+	if onGap != "" {
+		for _, g := range held {
+			if g.ruling != nil && g.about(recordpb.AboutKind_ABOUT_KIND_GAP, onGap) {
+				return refuse(g, "gap "+onGap)
+			}
+		}
+	}
+	if part != "" {
+		for _, g := range held {
+			if g.about(recordpb.AboutKind_ABOUT_KIND_QUESTION, part) {
+				return refuse(g, "question part "+part)
+			}
+		}
+	}
 	if about != "" {
 		// The anchor arm.
 		for _, g := range held {
@@ -112,7 +147,7 @@ func requireOneGapPerClassAndSubject(w writeView, seatID string, m *recordpb.Min
 			if ok, err := obliged(); err != nil || ok {
 				return err
 			}
-			return oneGapRefusal(m, g, EvidenceNoun(about)+" "+about)
+			return oneGapRefusal(w, seatID, m, g, EvidenceNoun(about)+" "+about)
 		}
 		// The cross-arm, about over quote: an open quote gap of the class in the citation's sentence.
 		if anchor.Kind(about) == "citation" {
@@ -130,7 +165,7 @@ func requireOneGapPerClassAndSubject(w writeView, seatID string, m *recordpb.Min
 						if ok, err := obliged(); err != nil || ok {
 							return err
 						}
-						return oneGapRefusal(m, g, "the sentence "+sentenceWords(report, at)+", which holds citation "+about)
+						return oneGapRefusal(w, seatID, m, g, "the sentence "+sentenceWords(report, at)+", which holds citation "+about)
 					}
 				}
 			}
@@ -151,7 +186,7 @@ func requireOneGapPerClassAndSubject(w writeView, seatID string, m *recordpb.Min
 			continue
 		}
 		if sp, ok := gapSentenceIn(ms.placed, ms.spans, g.id); ok && sp == ms.at {
-			return oneGapRefusal(m, g, "the sentence "+sentenceWords(ms.placed, ms.at))
+			return refuse(g, "the sentence "+sentenceWords(ms.placed, ms.at))
 		}
 	}
 	// The cross-arm, quote over about: an open gap of the class about a citation the sentence holds.
@@ -161,7 +196,7 @@ func requireOneGapPerClassAndSubject(w writeView, seatID string, m *recordpb.Min
 		}
 		for _, g := range held {
 			if g.about(recordpb.AboutKind_ABOUT_KIND_ANCHOR, c) {
-				return oneGapRefusal(m, g, "citation "+c+", which the sentence "+sentenceWords(ms.placed, ms.at)+" holds")
+				return refuse(g, "citation "+c+", which the sentence "+sentenceWords(ms.placed, ms.at)+" holds")
 			}
 		}
 	}
@@ -171,9 +206,12 @@ func requireOneGapPerClassAndSubject(w writeView, seatID string, m *recordpb.Min
 // heldGap is an open gap as the one-gap rule names it: its id, who minted it, what it says is wrong,
 // and its subject columns — what it is about, and the quote it was placed by.
 type heldGap struct {
-	id, mintedBy, problem string
+	id, assignee, problem string
 	aboutKind, aboutRef   string
 	location              string
+	// ruling is the standing ruling tombstone on the gap, nil for none: a closed gap of the class is
+	// held by it alone, an open one by its openness and it (#1695 §III.B12, double jeopardy).
+	ruling *RulingTombstone
 }
 
 // about reports whether g is about ref of kind.
@@ -187,7 +225,7 @@ func openGapsOfClassAt(q recordsql.Querier, class recordpb.GapClass) ([]heldGap,
 	if noRecord(q) {
 		return nil, nil
 	}
-	rows, err := q.Query(`SELECT "gap_id", COALESCE("minted_by", ''), COALESCE("problem", ''),
+	rows, err := q.Query(`SELECT "gap_id", COALESCE("minted_by", ''), COALESCE("current_problem", ''),
 	           COALESCE("about_kind", ''), COALESCE("about_ref", ''), COALESCE("location", '')
 	           FROM "gap" WHERE "open" AND "class" = ? ORDER BY "minted_seq"`, recordpb.Word(class))
 	if err != nil {
@@ -197,7 +235,7 @@ func openGapsOfClassAt(q recordsql.Querier, class recordpb.GapClass) ([]heldGap,
 	var out []heldGap
 	for rows.Next() {
 		var g heldGap
-		if err := rows.Scan(&g.id, &g.mintedBy, &g.problem, &g.aboutKind, &g.aboutRef, &g.location); err != nil {
+		if err := rows.Scan(&g.id, &g.assignee, &g.problem, &g.aboutKind, &g.aboutRef, &g.location); err != nil {
 			return nil, err
 		}
 		out = append(out, g)
@@ -205,10 +243,56 @@ func openGapsOfClassAt(q recordsql.Querier, class recordpb.GapClass) ([]heldGap,
 	return out, rows.Err()
 }
 
-// oneGapRefusal names the open gap that holds the subject and the act the point is owed as.
-func oneGapRefusal(m *recordpb.Mint, g heldGap, subject string) error {
+// withRuledGapsOfClassAt is held with every gap of class a standing ruling tombstone stands on: an
+// open one already held is marked with it, a closed one joins the set by its own subject columns.
+func withRuledGapsOfClassAt(q recordsql.Querier, held []heldGap, class recordpb.GapClass) ([]heldGap, error) {
+	ruled, err := rulingTombstonesAt(q, ``)
+	if err != nil {
+		return nil, err
+	}
+	for i := range ruled {
+		t := &ruled[i]
+		if k := slices.IndexFunc(held, func(g heldGap) bool { return g.id == t.Gap }); k >= 0 {
+			held[k].ruling = t
+			continue
+		}
+		g := heldGap{id: t.Gap, ruling: t}
+		found, err := queryRowAt(q, []any{&g.problem, &g.aboutKind, &g.aboutRef, &g.location},
+			`SELECT COALESCE((SELECT a."result_problem" FROM "amend" a WHERE a."gap_id" = m."gap_id" ORDER BY a."event_id" DESC LIMIT 1), m."problem"),
+			        COALESCE(m."about_kind", ''), COALESCE(m."about_ref", ''), COALESCE(m."location", '') FROM "mint" m WHERE m."gap_id" = ? AND m."class" = ?`,
+			t.Gap, recordpb.Word(class))
+		if err != nil {
+			return nil, err
+		}
+		if found {
+			held = append(held, g)
+		}
+	}
+	return held, nil
+}
+
+// oneGapRefusal names the open gap g that holds the subject, and the refused seat's road from there.
+// The road turns on whose gap g is: the seat's own gap is restated by amending it and reweighed by
+// regrading it; another seat's gap already carries a point that agrees with it, and what the seat sees
+// wrong in it — its printed wording or its grades — is the seat's gap on g, which g's raiser answers
+// (plans/findings-fold.md §III.A2).
+func oneGapRefusal(w writeView, seatID string, m *recordpb.Mint, g heldGap, subject string) error {
+	if t := g.ruling; t != nil {
+		return feov.Errorf(feov.Conflict,
+			"the bench ruled gap %s %s on docketing %s (event %d); its tombstone stands on %s, so a gap of class %s there relitigates it. "+
+				"%s ends it; blue's evidence belongs in the exchange before the bench rules. Nothing was written",
+			t.Gap, t.Word, t.Docketing, t.Event, subject, recordpb.Word(m.GetClass()), capitalized(tombstoneEnds(g.aboutKind, g.aboutRef)))
+	}
+	if g.assignee == seatID {
+		return feov.Errorf(feov.Conflict,
+			"gap %s is yours and is open on %s with class %s: %q. Two defects of one class on one subject are one gap. "+
+				"To restate it, amend it (`amend --id %s`); to reweigh it, regrade it (`regrade --id %s`). Nothing was written",
+			g.id, subject, recordpb.Word(m.GetClass()), g.problem, g.id, g.id)
+	}
 	return feov.Errorf(feov.Conflict,
-		"gap %s, minted by %s, is open on %s with class %s: %q. Two defects of one class on one subject are one gap, so nothing was written. "+
-			"Record your point as a finding about that gap — `finding --about-kind gap --about %s` — where its minter and blue read it beside the gap",
-		g.id, g.mintedBy, subject, recordpb.Word(m.GetClass()), g.problem, g.id)
+		"gap %s, raised by %s, is open on %s with class %s: %q. Two defects of one class on one subject are one gap. "+
+			"If your point is %s's defect as %s states it, it is on the board: nothing more is recorded. "+
+			"What you see wrong in %s — its problem, fix, check or weight — is a gap of yours about %s, which %s answers. "+
+			"A defect that stands in the report after %s closes is a new gap of yours. Nothing was written",
+		g.id, g.assignee, subject, recordpb.Word(m.GetClass()), g.problem, g.id, g.id, g.id, g.id, g.assignee, g.id)
 }

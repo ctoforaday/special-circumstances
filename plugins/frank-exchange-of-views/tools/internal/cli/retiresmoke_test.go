@@ -18,8 +18,9 @@ import (
 
 // THE SMOKE'S MET GAPS CLOSE THROUGH THE CLI (V1a′.7(a), L1 as widened): on the 2026-10-30 CEILING,
 // migrated, and replayed through the retire of K-bc8ac2b6, the computation lens's close of each gap a
-// retire met — G-342d3cdc (about K-71a99b9a) and G-78817cfa (about K-bc8ac2b6) — is admitted. On the
-// archive both closes were refused and the bench closed them. The prefix ends at that retire and not
+// retire met — G-a0c6ca1e (about K-71a99b9a; its successor G-342d3cdc is its Amend, Translation 7)
+// and G-78817cfa (about K-bc8ac2b6) — is admitted. On the archive both closes were refused and the
+// bench closed them. The prefix ends at that retire and not
 // before the bench's rulings: blue docketed both gaps after it, and a docketed gap is the bench's to
 // dispose of until it rules. record's TestTheSmokesRetiresLeaveNoGapWithoutASeat holds the prefixes'
 // boards and lists.
@@ -48,11 +49,16 @@ func TestTheSmokesMetGapsCloseThroughTheCLI(t *testing.T) {
 		t.Fatal("the archive holds no retire of K-bc8ac2b6")
 	}
 	for _, e := range whole.Events[:through] {
-		if m, ok := recordpb.BodyAs[*recordpb.Motion](e); ok && (m.GetDocket().GetGapId() == "G-342d3cdc" || m.GetDocket().GetGapId() == "G-78817cfa") {
+		if m, ok := recordpb.BodyAs[*recordpb.Motion](e); ok && (m.GetDocket().GetGapId() == "G-a0c6ca1e" || m.GetDocket().GetGapId() == "G-78817cfa") {
 			t.Fatalf("a docket motion on %s precedes the retire at %d", m.GetDocket().GetGapId(), through)
 		}
 	}
-	dir := recordtest.RequireArchive(t, name)
+	// The prefix is seeded into the migrated run, whose inputs are the translated ones the write path
+	// reads (the archive's run-config.json holds keys the run's configuration no longer has).
+	dir := migrated
+	if err := recordsql.CloseUnder(dir); err != nil {
+		t.Fatal(err)
+	}
 	for _, f := range []string{"record.db", "record.db-wal", "record.db-shm"} {
 		if err := os.Remove(filepath.Join(dir, "records", f)); err != nil && !os.IsNotExist(err) {
 			t.Fatal(err)
@@ -71,7 +77,7 @@ func TestTheSmokesMetGapsCloseThroughTheCLI(t *testing.T) {
 	if _, err := run(t, "register", "--run", dir, "--seat-id", lens); err != nil {
 		t.Fatal(err)
 	}
-	for _, g := range []string{"G-342d3cdc", "G-78817cfa"} {
+	for _, g := range []string{"G-a0c6ca1e", "G-78817cfa"} {
 		if err := lensClose(t, dir, lens, g, "moot"); err != nil {
 			t.Errorf("the close of %s, whose demand a retire met, was refused: %v", g, err)
 		}

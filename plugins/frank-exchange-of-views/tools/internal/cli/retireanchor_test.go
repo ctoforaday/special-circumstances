@@ -214,14 +214,6 @@ func markerOfKind(t *testing.T, runDir, kind, sentence string) (id, gap string) 
 		return gapID(out)
 	}
 	switch kind {
-	case "finding":
-		if _, err := run(t, "finding", "--run", runDir, "--seat-id", lensSeat, "--key", "F1", "--quote", sentence,
-			"--reason", "overclaim", "--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
-			t.Fatalf("finding: %v", err)
-		}
-		f := lastBody(t, runDir, &recordpb.Finding{})
-		id = f.GetId()
-		gap = mint("--key", "credits", "--found-by", id, "--about-kind", "section", "--about", "Findings")
 	case "citation":
 		id = citeSentence(t, runDir, sentence, "https://water/1")
 	case "computation":
@@ -293,13 +285,13 @@ func TestAnEditBaringAnAnchorItsQuoteLeftOutIsRefused(t *testing.T) {
 
 // THE BARE REFUSAL NAMES EVERY ANCHOR THE EDIT WOULD LEAVE BARE, carried or left out, in one refusal:
 // a rewrite carrying one of a sentence's two markers to no words names both, and a citation and a
-// finding carried to no words together are both named, nothing recorded either time.
+// gap carried to no words together are both named, nothing recorded either time.
 func TestTheBareRefusalNamesEveryAnchorTheEditBares(t *testing.T) {
 	const words = "Water is wet"
 	runDir := citedRun(t, "https://water/1")
 	registerChairOnce(t, runDir)
 	registerLensOnce(t, runDir)
-	f1, _ := markerOfKind(t, runDir, "finding", words+".")
+	f1 := markClaim(t, runDir, "G2", words+".", otherClass)
 	g, _ := markerOfKind(t, runDir, "gap", words+".")
 	first, second := f1, g
 	if !strings.Contains(readReport(t, runDir), words+anchor.Token(f1)+anchor.Token(g)) {
@@ -318,23 +310,23 @@ func TestTheBareRefusalNamesEveryAnchorTheEditBares(t *testing.T) {
 		t.Error("the refused edit changed the report or the record")
 	}
 
-	// A citation and a finding on one sentence, both carried to no words: both named in one refusal.
+	// A citation and a gap on one sentence, both carried to no words: both named in one refusal.
 	runDir = citedRun(t, "https://water/1")
 	registerChairOnce(t, runDir)
 	registerLensOnce(t, runDir)
 	c := citeSentence(t, runDir, words+".", "https://water/1")
-	f, _ := markerOfKind(t, runDir, "finding", words+".")
+	f, _ := markerOfKind(t, runDir, "gap", words+".")
 	both := anchor.Token(c) + anchor.Token(f)
 	if !strings.Contains(readReport(t, runDir), words+both+".") {
 		both = anchor.Token(f) + anchor.Token(c)
 	}
 	if !strings.Contains(readReport(t, runDir), words+both+".") {
-		t.Fatalf("the sentence does not carry the citation and the finding:\n%s", readReport(t, runDir))
+		t.Fatalf("the sentence does not carry the citation and the gap:\n%s", readReport(t, runDir))
 	}
 	before = readReport(t, runDir)
 	_, err = run(t, "edit", "--run", runDir, "--seat-id", blueSeat, "--quote", words+both+".", "--new", both, "--reason", "gone")
 	if err == nil {
-		t.Fatal("a rewrite baring a citation and a finding was recorded")
+		t.Fatal("a rewrite baring a citation and a gap was recorded")
 	}
 	for _, w := range []string{anchor.Token(c), anchor.Token(f), "standing bare", "keep words on that sentence", "cut it whole"} {
 		if !strings.Contains(err.Error(), w) {
@@ -348,7 +340,7 @@ func TestTheBareRefusalNamesEveryAnchorTheEditBares(t *testing.T) {
 
 // ONE LIFECYCLE: an anchor of every kind leaves the report by a cut of its sentence, which takes it,
 // or by a retire, which takes it off its sentence word for word. Reading the report at it names the act
-// that took it (§III.10c wording site 5); a gap crediting a finding stays open either way; a gap whose own marker its
+// that took it (§III.10c wording site 5); a gap whose own marker its
 // sentence's cut took stays open and reads gone (its raiser's turn), and a gap's own marker is retired
 // only once the gap is closed (F14). A hold on any kind fails its row.
 func TestAnAnchorOfEveryKindLeavesByItsCutOrItsRetire(t *testing.T) {
@@ -681,7 +673,7 @@ func TestRetireOnARunOlderThanRetireAnchorsIsRefusedWithTheCause(t *testing.T) {
 
 // A BULLET CUT WITH ITS MARKER QUOTED TAKES ITS ANCHORS — universe-m19's ev259, ev260 and ev401.
 //
-// Blue quoted an open-question bullet with its "- " and cut it, the bullet carrying two finding
+// Blue quoted an open-question bullet with its "- " and cut it, the bullet carrying two gap
 // anchors. The list marker lies outside every sentence, so it is no part of the claim: the cut takes
 // both anchors, the line goes whole, and no husk — a list marker and punctuation — reaches the report
 // or a reader of the assembled report.
@@ -689,22 +681,18 @@ func TestACutTakesTheAnchorsOfABulletQuotedWithItsMarker(t *testing.T) {
 	runDir := citedRun(t)
 	registerChairOnce(t, runDir)
 	registerLensOnce(t, runDir)
-	for _, key := range []string{"F1", "F2"} {
-		if _, err := run(t, "finding", "--run", runDir, "--seat-id", lensSeat, "--key", key, "--quote", "Water is wet.",
-			"--reason", "unsupported "+key, "--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
-			t.Fatalf("finding: %v", err)
-		}
-	}
-	m := regexp.MustCompile(`- Water is wet((?:<!--fx:F-[0-9a-f]{8}-->){2})\.`).FindStringSubmatch(readReport(t, runDir))
+	markClaim(t, runDir, "G1", "Water is wet.", "spec_underspecification")
+	markClaim(t, runDir, "G2", "Water is wet.", otherClass)
+	m := regexp.MustCompile(`- Water is wet((?:<!--gap:G-[0-9a-f]{8}-->){2})\.`).FindStringSubmatch(readReport(t, runDir))
 	if m == nil {
-		t.Fatalf("the bullet does not hold two finding anchors:\n%s", readReport(t, runDir))
+		t.Fatalf("the bullet does not hold two gap anchors:\n%s", readReport(t, runDir))
 	}
 	if _, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
 		"--quote", "- Water is wet"+m[1]+".", "--new", "", "--reason", "the question is answered"); err != nil {
 		t.Fatalf("the cut of the bullet, its marker quoted: %v", err)
 	}
 	if ev := lastBody(t, runDir, &recordpb.BlueEdit{}); !slices.Equal(ev.GetRemovedAnchors(), anchor.IDs(m[1])) {
-		t.Errorf("the cut took %v, want both finding anchors %v", ev.GetRemovedAnchors(), anchor.IDs(m[1]))
+		t.Errorf("the cut took %v, want both gap anchors %v", ev.GetRemovedAnchors(), anchor.IDs(m[1]))
 	}
 	want := "# Findings\n\nThe sky is blue. The grass is green.\n\n- Fire is hot.\n\nClosing paragraph stays.\n"
 	if rep := readReport(t, runDir); rep != want {
@@ -716,22 +704,28 @@ func TestACutTakesTheAnchorsOfABulletQuotedWithItsMarker(t *testing.T) {
 	}
 }
 
-// findingsOn writes "# Findings" with sentences and a closing plain sentence, then a finding on each
-// sentence per keys (keys[i] lists the finding keys on sentences[i]), and returns the findings' ids in
-// the order written.
-func findingsOn(t *testing.T, sentences []string, keys [][]string) (runDir string, ids []string) {
+// markClaim mints a gap of class on quote and returns its id.
+func markClaim(t *testing.T, runDir, key, quote, class string) string {
+	t.Helper()
+	gap, err := mintQuote(t, runDir, key, quote, "--class", class)
+	if err != nil {
+		t.Fatalf("mint %s: %v", key, err)
+	}
+	return gap
+}
+
+// gapsOn writes "# Findings" with sentences and a closing plain sentence, then a gap on each
+// sentence per keys (keys[i] lists the gap keys on sentences[i], each of its own class on one
+// sentence), and returns the gaps' ids in the order written.
+func gapsOn(t *testing.T, sentences []string, keys [][]string) (runDir string, ids []string) {
 	t.Helper()
 	runDir = newRun(t)
 	writeReport(t, runDir, "# Findings\n\n"+strings.Join(sentences, ". ")+". Plain prose here.\n")
 	registerBlue(t, runDir)
 	registerLensOnce(t, runDir)
 	for i, ks := range keys {
-		for _, key := range ks {
-			if _, err := run(t, "finding", "--run", runDir, "--seat-id", lensSeat, "--key", key, "--quote", sentences[i]+".",
-				"--reason", "unsupported", "--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
-				t.Fatalf("finding %s: %v", key, err)
-			}
-			ids = append(ids, lastBody(t, runDir, &recordpb.Finding{}).GetId())
+		for k, key := range ks {
+			ids = append(ids, markClaim(t, runDir, key, sentences[i]+".", []string{"spec_underspecification", otherClass}[k]))
 		}
 	}
 	return runDir, ids
@@ -751,15 +745,15 @@ func sentenceSpan(t *testing.T, runDir, s string) string {
 }
 
 // ONE EDIT CUTTING CLAIMS TAKES EACH SENTENCE'S OWN ANCHORS (m25 ev247-ev367). Two sentences carry three
-// finding anchors. A cut of the first sentence takes exactly its two anchors and leaves the second's on
+// gap anchors. A cut of the first sentence takes exactly its two anchors and leaves the second's on
 // its sentence; a cut of the second then takes its one. One cut of both takes all three, in reading
 // order. No anchor stands bare after any of them.
 func TestACutTakesTheAnchorsOfEachSentenceItCuts(t *testing.T) {
 	const s1, s2 = "Alpha holds for every input", "Beta holds by the same argument"
-	keys := [][]string{{"F1", "F2"}, {"F3"}}
+	keys := [][]string{{"G1", "G2"}, {"G3"}}
 
 	t.Run("each sentence leaves with its own anchors", func(t *testing.T) {
-		runDir, ids := findingsOn(t, []string{s1, s2}, keys)
+		runDir, ids := gapsOn(t, []string{s1, s2}, keys)
 		f1, f2, f3 := ids[0], ids[1], ids[2]
 		if _, err := cut(t, runDir, sentenceSpan(t, runDir, s1)); err != nil {
 			t.Fatalf("the cut of the first sentence: %v", err)
@@ -783,7 +777,7 @@ func TestACutTakesTheAnchorsOfEachSentenceItCuts(t *testing.T) {
 	})
 
 	t.Run("one cut of both takes all three", func(t *testing.T) {
-		runDir, ids := findingsOn(t, []string{s1, s2}, keys)
+		runDir, ids := gapsOn(t, []string{s1, s2}, keys)
 		rep := readReport(t, runDir)
 		span := rep[strings.Index(rep, s1):strings.Index(rep, " Plain prose")]
 		if _, err := cut(t, runDir, span); err != nil {
@@ -805,15 +799,15 @@ func TestACutTakesTheAnchorsOfEachSentenceItCuts(t *testing.T) {
 }
 
 // WHOLE SENTENCES OF ONE PARAGRAPH LEAVE TOGETHER, AND A QUOTE ACROSS TWO OF THEM IS NO CUT. Three
-// sentences, one finding each: a cut quoting the last two takes both of their anchors and leaves the
+// sentences, one gap each: a cut quoting the last two takes both of their anchors and leaves the
 // first's; a quote that runs from inside one sentence into the next covers neither whole, so it is a
 // rewrite that drops the anchor inside it, refused naming it, with nothing recorded.
 func TestACutTakesARunOfWholeSentences(t *testing.T) {
 	const s1, s2, s3 = "Alpha holds for every input", "Beta holds by the same argument", "Gamma holds in the limit"
-	keys := [][]string{{"F1"}, {"F2"}, {"F3"}}
+	keys := [][]string{{"G1"}, {"G2"}, {"G3"}}
 
 	t.Run("two sentences leave in one cut", func(t *testing.T) {
-		runDir, ids := findingsOn(t, []string{s1, s2, s3}, keys)
+		runDir, ids := gapsOn(t, []string{s1, s2, s3}, keys)
 		f1, f2, f3 := ids[0], ids[1], ids[2]
 		if _, err := cut(t, runDir, sentenceSpan(t, runDir, s2)+" "+sentenceSpan(t, runDir, s3)); err != nil {
 			t.Fatalf("the cut of the last two sentences: %v", err)
@@ -827,7 +821,7 @@ func TestACutTakesARunOfWholeSentences(t *testing.T) {
 	})
 
 	t.Run("a quote across two sentences is no cut", func(t *testing.T) {
-		runDir, ids := findingsOn(t, []string{s1, s2, s3}, keys)
+		runDir, ids := gapsOn(t, []string{s1, s2, s3}, keys)
 		before, edits := readReport(t, runDir), countType(t, runDir, recordpb.EventType_EVENT_TYPE_BLUE_EDIT)
 		_, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat, "--quote", "every input"+anchor.Token(ids[0])+". Beta holds", "--new", "", "--reason", "unsupported")
 		if err == nil || !strings.Contains(err.Error(), ids[0]) {

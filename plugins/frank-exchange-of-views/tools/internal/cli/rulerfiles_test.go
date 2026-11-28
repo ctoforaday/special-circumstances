@@ -41,14 +41,24 @@ func TestNoGavelHolderFilesItsOwnSubject(t *testing.T) {
 		}
 		filers := map[string]bool{}
 		rules := map[string]bool{}
+		accepts := map[string]bool{}
 		roleLeaves(func(role string, path []string, c *cobra.Command) {
 			if filingOf(subject, path, c) {
 				filers[role] = true
 			}
 			if len(path) == 3 && path[0] == "motion" && path[1] == subject && seat.RecordType(c) == "motion_rule" {
+				// A docket proposal's raiser takes it by its own act carrying the motion (accepts),
+				// never a ruling, so no motion verb but `rule` writes a motion_rule.
+				if path[2] == "accept" {
+					accepts[role] = true
+					return
+				}
 				rules[role] = true
 			}
 		})
+		if len(accepts) != 0 {
+			t.Errorf("%s: `accept` is on %v: a proposal is taken by its raiser's own act, never a ruling", subject, accepts)
+		}
 		if filers[ruler] {
 			t.Errorf("%s: the %s seat rules it and holds a verb that files it — a motion its own ruler filed is one no other seat can rule", subject, ruler)
 		}
@@ -71,11 +81,10 @@ func TestARulerFilingItsOwnSubjectIsRefusedAtTheSurface(t *testing.T) {
 		}
 		return drive{t: t, run: runDir}
 	}
-	grade := []string{"motion", "grade", "file", "--id", "G1", "--dimension", "severity", "--proposed", "high", "--reason", "the consequence is larger"}
 	docket := []string{"motion", "docket", "file", "--id", "G1", "--reason", "the bench should decide"}
 	petition := []string{"motion", "petition", "file", "--class", "safety", "--relief", "halt", "--reason", "a consent gate is missing"}
 	docketRule := func(m string) []string {
-		return []string{"motion", "docket", "rule", "--id", m, "--as", "remanded", "--principle", "thoroughness over speed",
+		return []string{"motion", "docket", "rule", "--id", m, "--remand", "--principle", "thoroughness over speed",
 			"--tension", "cost against certainty", "--review-flag", "none", "--settled", "nothing yet", "--direction", "a reproduction", "--reason", "one more exchange"}
 	}
 
@@ -84,12 +93,9 @@ func TestARulerFilingItsOwnSubjectIsRefusedAtTheSurface(t *testing.T) {
 		act          []string
 		wants        []string
 	}{
-		{"the chair files a grade motion", "red-chair", grade,
-			[]string{"a grade motion is ruled by the chair seat", "`file` is not on your surface", "you are red-chair (chair)",
-				"The bench, blue, lane and lens seats file one", "file `motion docket file` on the gap, which the bench rules"}},
 		{"the bench files a docket motion", "judge", docket,
 			[]string{"a docket motion is ruled by the bench seat", "`file` is not on your surface", "you are judge (bench)",
-				"The blue, chair, lane and lens seats file one"}},
+				"The blue and lens seats file one"}},
 		{"the bench files a petition", "judge", petition,
 			[]string{"a petition motion is ruled by the bench seat", "`file` is not on your surface", "you are judge (bench)",
 				"The blue, chair, lane and lens seats file one", "`halt` is yours"}},
@@ -108,30 +114,44 @@ func TestARulerFilingItsOwnSubjectIsRefusedAtTheSurface(t *testing.T) {
 		})
 	}
 
-	t.Run("the chair files a docket motion and the bench rules it", func(t *testing.T) {
+	t.Run("the author files a docket motion and the bench rules it", func(t *testing.T) {
 		d := fresh(t)
-		m := docketFile(t, d.run, "red-chair", "G1", "red cannot settle G1")
-		benchSitsOn(t, d.run, "G1")
-		d.admitted("the bench's ruling", "judge", docketRule(m)...)
+		g := handleText(t, d.run, "G1")
+		m := docketFile(t, d.run, blueSeat, g, "red cannot settle G1")
+		k := docketNow(t, d.run, g, recordpb.DocketingCause_DOCKETING_CAUSE_PROPOSAL, m)
+		conveneBench(t, d.run, g)
+		d.admitted("the bench's ruling", "judge", docketRule(k)...)
 	})
-	for _, filer := range []string{"blue-respond", lensSeat, "judge"} {
-		t.Run("a grade motion filed by "+filer+" is ruled by the chair", func(t *testing.T) {
-			d := fresh(t)
-			m := motionID(t, d.run, append(append([]string{}, grade...), "--seat-id", filer)...)
-			d.admitted("the chair's ruling", "red-chair", "motion", "grade", "rule", "--id", m, "--as", "rejected", "--reason", "the evidence does not reach it")
-		})
-	}
 	for _, filer := range []string{"blue-respond", lensSeat, "red-chair"} {
 		t.Run("a petition filed by "+filer+" is ruled by the bench", func(t *testing.T) {
 			d := fresh(t)
 			m := motionID(t, d.run, append(append([]string{}, petition...), "--seat-id", filer)...)
 			d.admitted("the bench's ruling", "judge", "motion", "petition", "rule", "--id", m, "--as", "denied", "--reason", "no boundary is crossed")
 		})
+		// G1 is the lens's gap: its raiser takes the act itself, and its proposal is refused.
+		if filer == lensSeat {
+			t.Run("a docket motion on its own gap, filed by "+filer+", is refused", func(t *testing.T) {
+				d := fresh(t)
+				g := handleText(t, d.run, "G1")
+				exchangeOn(t, d.run, g)
+				out, err := runAt(t, closeProposalArgs(d.run, filer, g, "not_a_defect", "the bench should decide G1")...)
+				if err == nil || !strings.Contains(err.Error()+out, "you are its raiser") {
+					t.Errorf("the assignee's proposal on its own gap = %v %q, want refused naming its own act", err, out)
+				}
+			})
+			continue
+		}
+		// A docket motion is its gap's author's alone (X6): the chair files none.
+		if filer != blueSeat {
+			continue
+		}
 		t.Run("a docket motion filed by "+filer+" is ruled by the bench", func(t *testing.T) {
 			d := fresh(t)
-			m := docketFile(t, d.run, filer, "G1", "the bench should decide G1")
-			benchSitsOn(t, d.run, "G1")
-			d.admitted("the bench's ruling", "judge", docketRule(m)...)
+			g := handleText(t, d.run, "G1")
+			m := docketFile(t, d.run, filer, g, "the bench should decide G1")
+			k := docketNow(t, d.run, g, recordpb.DocketingCause_DOCKETING_CAUSE_PROPOSAL, m)
+			conveneBench(t, d.run, g)
+			d.admitted("the bench's ruling", "judge", docketRule(k)...)
 		})
 	}
 }

@@ -154,6 +154,10 @@ func TestEveryRequiredFieldIsMarkedInTheHelp(t *testing.T) {
 		// The envelope admission is the harness's: feov-sitting-write records it when the PostToolUse
 		// hook sees the call returning a seat's envelope succeed, keyed to the agent the hook names.
 		"envelope_admitted": "written by feov-sitting-write when the call returning a seat's envelope succeeds; no verb records one",
+		// A tombstone is the tool's own record of what ends a gap's standing; no seat types one.
+		"tombstone": "written by the tool beside the act that ends a gap's standing; no verb records one",
+		// A docketing is the tool putting a gap before the bench; the dispatch writes it.
+		"docketing": "written by the dispatch when it puts a gap before the bench; no verb records one",
 	}
 
 	// THE TYPES COME FROM THE SCHEMA, and requiredness from the annotation on each field — the Go
@@ -185,7 +189,7 @@ func TestEveryRequiredFieldIsMarkedInTheHelp(t *testing.T) {
 					continue
 				}
 				// An arm's field is owed by the verb that fills that arm, and by no other verb
-				// writing the same type: `motion grade rule` owes no docket ruling's principle.
+				// writing the same type: `motion petition rule` owes no docket ruling's principle.
 				if rf.Arm != "" && seat.Arm(c) != rf.Arm {
 					continue
 				}

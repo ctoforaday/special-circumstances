@@ -8,8 +8,8 @@ import (
 )
 
 // The fixture is a report-shaped document (title, TL;DR, sections, footnotes) whose prose is De
-// Bello Gallico — obviously test data — carrying real-shaped immortal anchors: finding-markers
-// (<!--fx:f-…-->) and citation anchors (<!--cite:c-…-->), several sitting mid-sentence and flush
+// Bello Gallico — obviously test data — carrying real-shaped anchors: gap markers
+// (<!--gap:g-…-->) and citation anchors (<!--cite:c-…-->), several sitting mid-sentence and flush
 // against a word, which is the common case (red anchors exactly the sentence blue is asked to
 // repair). It is the standing guard that render/edit reproduces a realistic report byte-for-byte
 // AND never loses a required reference — and a seed for edit fuzzing.
@@ -22,10 +22,10 @@ func loadFixture(t *testing.T) string {
 	return string(b)
 }
 
-var immortalAnchor = regexp.MustCompile(`<!--(?:fx:F|cite:C|computation:P)-[0-9a-f]{8}-->`)
+var immortalAnchor = regexp.MustCompile(`<!--(?:gap:G|cite:C|computation:P)-[0-9a-f]{8}-->`)
 
 // TestFixtureRenderReproducesEditPathAndKeepsEveryAnchor is the committed fidelity guard: a
-// realistic sequence of edits (including one whose span sits flush before a finding-marker)
+// realistic sequence of edits (including one whose span sits flush before a gap marker)
 // reproduces byte-for-byte through Render, VerifyReproduction accepts it, and every immortal
 // anchor present in the base is still present after the replay.
 func TestFixtureRenderReproducesEditPathAndKeepsEveryAnchor(t *testing.T) {
@@ -38,7 +38,7 @@ func TestFixtureRenderReproducesEditPathAndKeepsEveryAnchor(t *testing.T) {
 	steps := []reportproj.Op{
 		// plain edit, no anchor in span
 		{Old: "Horum omnium fortissimi sunt Belgae", New: "Horum omnium fortissimi longe sunt Belgae"},
-		// anchor-ADJACENT: a fragment that stops before the finding-marker without reaching it —
+		// anchor-ADJACENT: a fragment that stops before the gap marker without reaching it —
 		// the words change, the anchor stays where it was placed.
 		{Old: "legibus inter se", New: "legibus atque moribus inter se"},
 		// anchor-CARRYING: the old span contains a citation anchor and --new carries it unchanged,

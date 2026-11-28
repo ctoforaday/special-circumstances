@@ -103,7 +103,7 @@ func delivered(t *testing.T, id Identity) {
 }
 
 // benchSits is the chair convening the bench on every gap an unruled docket motion is about, at the
-// report head, and the bench sitting that docket with its delivery of those gaps' passages: the
+// report head, and the bench sitting that docket: the
 // sitting a live bench rules from. The chair's sitting is the one it already holds.
 func benchSits(t *testing.T, run Run) Identity {
 	t.Helper()
@@ -154,7 +154,7 @@ func benchSits(t *testing.T, run Run) Identity {
 	if err := tx.Commit(); err != nil {
 		t.Fatal(err)
 	}
-	return sitRead(t, run, benchSeat)
+	return sit(t, run, benchSeat)
 }
 
 // sitRead opens seat's sitting and completes its delivery of report text in it: the sitting of a
@@ -166,7 +166,7 @@ func sitRead(t *testing.T, run Run, seat string) Identity {
 	return id
 }
 
-// repairClose is the gap's minting lens closing it repaired.
+// repairClose is the gap's assignee closing it repaired.
 func repairClose(gap string) *recordpb.Close {
 	return &recordpb.Close{GapId: proto.String(gap), ClosureClass: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED),
 		AnchorSeat: proto.String("L1"), AnchorTool: proto.String("t"), AnchorTarget: proto.String("x"), Prose: proto.String("fixed")}

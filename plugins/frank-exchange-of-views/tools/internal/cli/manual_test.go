@@ -251,8 +251,8 @@ func TestTheManualLiftsEveryVerbatimRepeatAndMarksEachRemoval(t *testing.T) {
 		// how much the lifting saved. Counted in, it reads as lost economy on the smallest surface.
 		lifted := len(out) - len(wordsSection(out))
 		t.Logf("%s: manual %d chars (%d without the words section) against %d chars of the pages it stands for (%d%%), %d blocks in SHARED", role, len(out), lifted, whole, 100*lifted/whole, len(claimed))
-		// MEASURED across the six surfaces: operator 69.95%, bench 70.33%, chair 71.98%, lane 76.39%,
-		// blue 76.65%, lens 79.95% (126601 of 158352 chars, 80 under the bound). A manual whose
+		// MEASURED across the six surfaces: operator 69.41%, bench 70.54%, chair 76.80%, lane 77.64%,
+		// blue 79.11%, lens 79.82% (134201 of 168139 chars, 310 under the bound). A manual whose
 		// repeats stopped being lifted comes out at or above 100%, markers and all. 80% IS
 		// DELIBERATELY TIGHT: it also fires on a lens page gaining a sentence, and that growth is
 		// answered by trimming the pages, never by raising the bound.
@@ -336,7 +336,7 @@ func TestASharedClosingSentenceIsLiftedAndTheFlagsOwnStay(t *testing.T) {
 	page := func(noun string) string {
 		return "the " + noun + "\n\nFlags:\n      --quote text   select only the " + noun + " containing this text LITERALLY. " + tail + "\n"
 	}
-	nouns := []string{"inquiries", "edits", "findings"}
+	nouns := []string{"inquiries", "edits", "gaps"}
 	shared, bodies := liftedOnce(t, page(nouns[0]), page(nouns[1]), page(nouns[2]))
 	if len(shared) != 1 || shared[0].text != tail || shared[0].marks != 3 {
 		t.Fatalf("lifted %+v, want the one closing sentence, marked on 3 entries", shared)

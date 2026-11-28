@@ -32,8 +32,7 @@ import (
 // The run holds the joins the views make across families, because a missing family shows only
 // where an event of it changes the output: a verdict per epoch (debate), a reading that finds a
 // citation against its sentence, an edit that reopens an anchor and a retire that takes a reopened one out
-// of the report (evidence), a mint crediting a finding
-// (findings), a docket ruling settling a gap (board, debate, motions), a close behind the archive a
+// of the report (evidence), a docket ruling settling a gap (board, debate, motions), a close behind the archive a
 // spot-check is read against (debate), a check backing an open gap's
 // anchor (board).
 func TestEveryNarrowedViewRendersWhatTheWholeRecordWould(t *testing.T) {
@@ -46,12 +45,9 @@ func TestEveryNarrowedViewRendersWhatTheWholeRecordWould(t *testing.T) {
 		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Register{ToolVersion: str("test")}),
 		recordtest.Event(t, HarnessSeat, &recordpb.SittingOpen{AgentId: str("blue-1"),
 			AgentType: str("frank-exchange-of-views:blue-researcher"), SeatId: str("blue-respond")}),
-		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Finding{Id: str("F-00000001"), Location: str("claim A"), Text: str("the source refutes claim A"), Severity: medium}),
-		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Finding{Id: str("F-00000002"), Text: str("uncredited")}),
 		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), GapId: str("G1"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 			Problem: str("p"), RequiredFix: str("f"), AcceptanceCheck: str("a"),
-			CheckKind: recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(), Severity: medium, Likelihood: medium, Impact: medium,
-			FoundBy: []string{"F-00000001"}}),
+			CheckKind: recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(), Severity: medium, Likelihood: medium, Impact: medium}),
 		recordtest.Event(t, "red-lens-r1-logic", &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), GapId: str("G2"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 			Problem: str("p2"), RequiredFix: str("f"), AcceptanceCheck: str("a"),
 			CheckKind: recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(), Severity: medium, Likelihood: medium, Impact: medium}),
@@ -78,6 +74,7 @@ func TestEveryNarrowedViewRendersWhatTheWholeRecordWould(t *testing.T) {
 		recordtest.Event(t, "blue-respond", &recordpb.Retire{Claim: str("the claim the computation backed"), Reason: str("superseded"),
 			Anchors: []string{"K-00000001"}}),
 		recordtest.Event(t, "red-chair", &recordpb.Regrade{GapId: str("G2"), Impact: recordtest.P(recordpb.Grade_GRADE_HIGH), Basis: str("moved")}),
+		recordtest.Event(t, "red-chair", &recordpb.Amend{GapId: str("G2"), Problem: str("restated"), Basis: str("narrower")}),
 		// The chair's plan permitted the PASS and its position withholds it, so the bench hears it:
 		// a position motion (motions), read off the plan and the verdicts of the sitting.
 		recordtest.Event(t, "red-chair", &recordpb.Plan{Printed: str(passPermittedPlanPrinted())}),
@@ -93,12 +90,15 @@ func TestEveryNarrowedViewRendersWhatTheWholeRecordWould(t *testing.T) {
 		recordtest.At(t, "red-chair", "red-chair:log:#9", &recordpb.Log{Text: str("the tool  refused"),
 			Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}),
 		recordtest.At(t, "blue-respond", "blue-respond:computation:#9", &recordpb.Computation{Argv: []string{"python3", "script.py"}, Basis: recordpb.Basis_BASIS_REPRODUCIBLE.Enum(), ComputationId: str("K-00000002"), BundleSha: str("def")}),
-		// Epoch 2: the chair sits again, dockets G2, the bench rules, red closes G1 and passes.
+		// Epoch 2: blue proposes closing G2, its assignee lets the window pass, the dispatch dockets the
+		// proposal, the bench rules it for blue, red closes G1 and passes.
+		recordtest.Event(t, "blue-respond", closeProposalOn(recordpb.Disposition_DISPOSITION_NOT_A_DEFECT)("G2")),
 		recordtest.Event(t, "red-chair", &recordpb.Register{ToolVersion: str("test")}),
-		recordtest.Event(t, "red-chair", &recordpb.Motion{MotionId: str("M1"), Basis: str("red cannot settle G2"),
-			Filing: &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: str("G2")}}}),
+		recordtest.Event(t, "red-chair", &recordpb.Docketing{DocketingId: str("D1"), GapId: str("G2"),
+			Cause: recordpb.DocketingCause_DOCKETING_CAUSE_PROPOSAL.Enum(), MotionId: str("M1"), Basis: str("blue's proposal its assignee did not accept")}),
 		recordtest.Event(t, "judge", &recordpb.MotionRule{MotionId: str("M1"), Opinion: str("the bench's reasoning"),
 			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
+				DocketingId: str("D1"), SidedWith: recordpb.SidedWith_SIDED_WITH_AUTHOR.Enum(),
 				Disposition: recordpb.Disposition_DISPOSITION_NOT_A_DEFECT.Enum(),
 				Principle:   str("pr"), Tension: str("tn"), ReviewFlag: str("rf"), Settled: str("st"), Final: proto.Bool(true)}}}),
 		recordtest.Event(t, "judge", &recordpb.MotionRule{MotionId: str("A-0000000b"), Opinion: str("the objection does not hold"),
@@ -260,7 +260,7 @@ func TestANarrowedViewNameIsDeclaredOnce(t *testing.T) {
 			t.Error("a second declaration of \"board\" was accepted — the registry now holds one of the two")
 		}
 	}()
-	declareNarrowedView("board", rendersEvents(FindingsJSONOf), recordpb.EventType_EVENT_TYPE_FINDING)
+	declareNarrowedView("board", rendersEvents(LogJSONOf), recordpb.EventType_EVENT_TYPE_LOG)
 }
 
 // NO PROJECTION READS AROUND ITS DECLARATION. EventsOf takes its families from the caller, so a
@@ -430,11 +430,11 @@ func whileWriting(t *testing.T, run Run, acts []*Event, read func()) {
 	}
 }
 
-// benchClosing is the bench's ruling on docket motion id, closing its gap as repaired.
+// benchClosing is the bench's ruling of docketing id for red, closing its gap as repaired.
 func benchClosing(id string) *recordpb.MotionRule {
-	return &recordpb.MotionRule{MotionId: proto.String(id),
-		Opinion: proto.String("because"),
+	return &recordpb.MotionRule{Opinion: proto.String("because"),
 		Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
+			DocketingId: proto.String(id), SidedWith: recordpb.SidedWith_SIDED_WITH_RAISER.Enum(),
 			Disposition: recordpb.Disposition_DISPOSITION_REPAIRED.Enum(),
 			Principle:   proto.String("correctness first"), Tension: proto.String("speed against certainty"),
 			ReviewFlag: proto.String("no"), Settled: proto.String("settled"), Final: proto.Bool(true),
@@ -455,10 +455,15 @@ func TestEveryGapIsOnTheWorkListWhileTheBenchRules(t *testing.T) {
 	run := b.register("blue-respond").register("judge").seed()
 	var acts []*Event
 	for i := 1; i <= gaps; i++ {
-		g, m := fmt.Sprintf("G%d", i), fmt.Sprintf("M%d", i)
+		g, d := fmt.Sprintf("G%d", i), fmt.Sprintf("D%d", i)
+		// THE RULING'S TOMBSTONE ROW is inserted before the ruling here, each on its own commit: the
+		// write path writes it after the ruling in one transaction, and in this order no instant leaves
+		// the closed gap off the list while the reads straddle the commits.
 		acts = append(acts,
-			recordtest.At(t, "blue-respond", "blue-respond:motion:"+m, docketMotion(m, g)),
-			recordtest.At(t, "judge", "judge:motion-rule:"+m, benchClosing(m)))
+			recordtest.At(t, "red-chair", "red-chair:docketing:"+d, docketing(d, g)),
+			recordtest.At(t, "judge", "judge:tombstone:"+d, &recordpb.Tombstone{GapId: proto.String(g),
+				Kind: recordpb.TombstoneKind_TOMBSTONE_KIND_RULING.Enum(), DocketingId: proto.String(d)}),
+			recordtest.At(t, "judge", "judge:motion-rule:"+d, benchClosing(d)))
 	}
 	check := func(who string, w WorkJSON) {
 		on := map[string]bool{}
@@ -466,7 +471,7 @@ func TestEveryGapIsOnTheWorkListWhileTheBenchRules(t *testing.T) {
 			on[g.ID] = true
 		}
 		for _, g := range w.Estopped {
-			if g.Fate == "" {
+			if g.Fate == "" && !on[g.ID] {
 				t.Fatalf("%s: %s is estopped with no fate — the ruling that closed it is not among the loaded events", who, g.ID)
 			}
 			on[g.ID] = true
@@ -583,10 +588,10 @@ func TestTheTerminalVerdictReadsTheOutcomeAndTheDerivationTogether(t *testing.T)
 }
 
 // THE DISPATCH PLAN IS READ OFF ONE SNAPSHOT. It readies the bench for a gap off the `gap` view's
-// unruled docket and lists the unruled motion off the events; asked of the record at two moments, a
-// docket motion filed between them readied the bench for a gap whose motion the plan's own blockers
-// did not hold. Parties file docket motions while the chair asks for the plan, and on every plan the
-// bench is engaged on a gap exactly when the gap's motion is among the plan's unruled motions.
+// standing docketing and lists the docketing off the events; asked of the record at two moments, a
+// docketing written between them readied the bench for a gap whose docketing the plan's own blockers
+// did not hold. The dispatch dockets gaps while the chair asks for the plan, and on every plan the
+// bench is engaged on a gap exactly when the plan's blockers list the gap docketed.
 func TestTheDispatchPlanReadiesTheBenchForTheMotionsItListsWhileMotionsAreFiled(t *testing.T) {
 	const gaps = 25
 	b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
@@ -597,8 +602,8 @@ func TestTheDispatchPlanReadiesTheBenchForTheMotionsItListsWhileMotionsAreFiled(
 	run := b.register("blue-respond").register("red-chair").seed()
 	var acts []*Event
 	for i := 1; i <= gaps; i++ {
-		m := fmt.Sprintf("M%d", i)
-		acts = append(acts, recordtest.At(t, "blue-respond", "blue-respond:motion:"+m, docketMotion(m, fmt.Sprintf("G%d", i))))
+		d := fmt.Sprintf("D%d", i)
+		acts = append(acts, recordtest.At(t, "red-chair", "red-chair:docketing:"+d, docketing(d, fmt.Sprintf("G%d", i))))
 	}
 	whileWriting(t, run, acts, func() {
 		plan, err := PlanDispatch(run)
@@ -607,7 +612,7 @@ func TestTheDispatchPlanReadiesTheBenchForTheMotionsItListsWhileMotionsAreFiled(
 		}
 		listed := map[string]bool{}
 		for _, b := range plan.Blockers {
-			if b.Kind == BlockerUnruledMotion {
+			if b.Kind == BlockerDocketed {
 				listed[b.Subject] = true
 			}
 		}
@@ -620,14 +625,14 @@ func TestTheDispatchPlanReadiesTheBenchForTheMotionsItListsWhileMotionsAreFiled(
 			}
 		}
 		// THE GAP VIEW ROUTES A DOCKETED GAP to the bench, or — while a party's closing is awaited —
-		// to its parties (closingowed.go); either way the route is the view's, and the listed motion
-		// the events'.
+		// to its parties (closingowed.go); either way the route is the view's, and the listed
+		// docketing the events'.
 		for i := 1; i <= gaps; i++ {
-			g, m := fmt.Sprintf("G%d", i), fmt.Sprintf("M%d", i)
+			g, d := fmt.Sprintf("G%d", i), fmt.Sprintf("D%d", i)
 			routed := benched[g] || slices.ContainsFunc(plan.Why, func(w string) bool { return strings.HasPrefix(w, g+": docketed — the closing of") })
-			if routed != listed[m] {
-				t.Fatalf("the plan routes docketed %s to the bench or its parties: %v, and lists its docket motion %s unruled: %v — the gap view and the events came off two reads of the record",
-					g, routed, m, listed[m])
+			if routed != listed[g] {
+				t.Fatalf("the plan routes docketed %s to the bench or its parties: %v, and lists docketing %s standing on it: %v — the gap view and the events came off two reads of the record",
+					g, routed, d, listed[g])
 			}
 		}
 	})

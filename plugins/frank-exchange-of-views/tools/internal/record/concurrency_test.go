@@ -8,8 +8,6 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"google.golang.org/protobuf/proto"
-
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
 // TestConcurrentSeatsRace is `go test -race` over the real write and replay paths: six lens
@@ -37,11 +35,9 @@ func TestConcurrentSeatsRace(t *testing.T) {
 				return
 			}
 			for i := 0; i < perSeat; i++ {
-				f := &recordpb.Finding{
-					Id: proto.String(fmt.Sprintf("%s-F%d", area, i)), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
-					Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
-					Impact:     recordtest.P(recordpb.Grade_GRADE_HIGH),
-					Text:       proto.String(strings.Repeat("finding prose ", 20)),
+				f := &recordpb.Log{
+					Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum(),
+					Text: proto.String(fmt.Sprintf("%s %d: ", area, i) + strings.Repeat("log prose ", 20)),
 				}
 				if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: seatID}, f); err != nil {
 					errs <- err
@@ -69,13 +65,13 @@ func TestConcurrentSeatsRace(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	findings := 0
+	logs := 0
 	for _, e := range m.Events {
-		if e.GetType() == recordpb.EventType_EVENT_TYPE_FINDING {
-			findings++
+		if e.GetType() == recordpb.EventType_EVENT_TYPE_LOG {
+			logs++
 		}
 	}
-	if want := seats * perSeat; findings != want {
-		t.Errorf("findings landed = %d, want %d", findings, want)
+	if want := seats * perSeat; logs != want {
+		t.Errorf("log entries landed = %d, want %d", logs, want)
 	}
 }

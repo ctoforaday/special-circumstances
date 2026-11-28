@@ -26,7 +26,6 @@ import (
 //     before and after it, a part's text as the new side — then the passage of each gap it minted,
 //     open or closed. With neither, one piece says the report has not changed since its pin.
 //   - The chair is cut each stale area's changes it has not borne (area_change), as change pieces.
-//   - The bench is cut the passage of each gap an unruled motion about gaps names.
 
 // DeliveryPiece is one item of report text: a label saying what it is, and its text. Text is never
 // trimmed; a piece too large for one item is split across consecutive pieces, each labelled as
@@ -46,7 +45,7 @@ type DeliveryCut struct {
 
 // CutDelivery cuts seatID's delivery from the record as it stands, each piece small enough that
 // fits(label, text) holds. subjects is what the seat's report-text items are about
-// (ReportTextSubjects): the chair's stale areas, the bench's gaps; a lens's are cut from the report.
+// (ReportTextSubjects): the chair's stale areas; a lens's are cut from the report.
 // A seat owed no report text — no report yet, or a role that is handed none — is cut nothing (nil
 // pieces).
 func CutDelivery(run Run, seatID string, subjects []string, fits func(label, text string) bool) (DeliveryCut, error) {
@@ -97,12 +96,6 @@ func CutDelivery(run Run, seatID string, subjects []string, fits func(label, tex
 				changes = append(changes, cs...)
 			}
 			cut.Pieces = pieces(changes, nil, fits)
-		case "bench":
-			passages, err := gapsPassages(q, report, subjects)
-			if err != nil {
-				return err
-			}
-			cut.Pieces = pieces(nil, passages, fits)
 		}
 		return nil
 	})
@@ -327,19 +320,6 @@ func ownPassages(q recordsql.Querier, report, seatID string) ([]DeliveryPiece, e
 
 // gapPassageSQL is gap ?1 and its recorded location.
 const gapPassageSQL = `SELECT "gap_id", COALESCE("location", '') FROM "mint" WHERE "gap_id" = ?1`
-
-// gapsPassages is the passage of each of gaps, in order.
-func gapsPassages(q recordsql.Querier, report string, gaps []string) ([]DeliveryPiece, error) {
-	var out []DeliveryPiece
-	for _, g := range gaps {
-		ps, err := gapPassages(q, report, gapPassageSQL, g)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, ps...)
-	}
-	return out, nil
-}
 
 // latestReopeningSQL is the stamped paragraphs before the latest edit whose reopened lists gap ?1,
 // or whose removed_anchors does: a pure cut of the gap's marker, whose old paragraphs are the gap's

@@ -255,12 +255,12 @@ func TestTheBoardIsSelectableAndKeepsItsEmptyArrays(t *testing.T) {
 // THE SELECTOR MATCHES THE VISIBLE TEXT, NOT THE RAW BYTES.
 //
 // The report carries an invisible annotation layer, and anchors ABUT inside a sentence:
-// `negligible<!--fx:F-eee49716--><!--fx:F-051df802-->.` is one sentence. A seat quoting
+// `negligible<!--gap:G-eee49716--><!--gap:G-051df802-->.` is one sentence. A seat quoting
 // `negligible.` exactly as the page reads it matched NOTHING — verified on m10's real report before
 // this gate was written, and it is the silent zero this surface keeps removing. `blue edit` already
 // tolerated both anchors and whitespace runs; the selector now normalises the same two things.
 func TestASelectorMatchesThroughAnchorsAndWhitespace(t *testing.T) {
-	runDir := seatRunReport(t, "# Findings\n\nOverhead is negligible<!--fx:F-eee49716--><!--fx:F-051df802-->.\n\nCost   is\n  spread over lines.\n")
+	runDir := seatRunReport(t, "# Findings\n\nOverhead is negligible<!--gap:G-eee49716--><!--gap:G-051df802-->.\n\nCost   is\n  spread over lines.\n")
 	for _, tc := range []struct{ name, flag, value string }{
 		{"a phrase spanning two abutting anchors", "--quote", "negligible."},
 		{"a regex spanning an anchor", "--match", "negligible[.]"},
@@ -287,7 +287,7 @@ func TestASelectorMatchesThroughAnchorsAndWhitespace(t *testing.T) {
 // read is unchanged and its miss is told apart: it counts the lines that hold the match inside a
 // token and names --anchor. A pattern the report does not hold at all gets no such sentence.
 func TestAReportSelectorThatNamesAnAnchorIsToldWhereAnchorsAreRead(t *testing.T) {
-	const body = "# Findings\n\nOverhead is negligible<!--fx:F-eee49716-->.\n\nThe computation is short<!--computation:K-0a0a0a0a-->.\n\nNo anchor here.\n"
+	const body = "# Findings\n\nOverhead is negligible<!--gap:G-eee49716-->.\n\nThe computation is short<!--computation:K-0a0a0a0a-->.\n\nNo anchor here.\n"
 	runDir := seatRunReport(t, body)
 	show := func(t *testing.T, args ...string) string {
 		t.Helper()
@@ -298,8 +298,8 @@ func TestAReportSelectorThatNamesAnAnchorIsToldWhereAnchorsAreRead(t *testing.T)
 		return out
 	}
 	for _, tc := range []struct{ name, flag, value, count string }{
-		{"an anchor id as a quote", "--quote", "fx:F-eee49716", "1 line(s)"},
-		{"anchor kinds as an alternation", "--match", "fx:|computation:", "2 line(s)"},
+		{"an anchor id as a quote", "--quote", "gap:G-eee49716", "1 line(s)"},
+		{"anchor kinds as an alternation", "--match", "gap:|computation:", "2 line(s)"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			out := show(t, tc.flag, tc.value)
@@ -336,7 +336,7 @@ func TestAReportSelectorThatNamesAnAnchorIsToldWhereAnchorsAreRead(t *testing.T)
 		}
 	})
 	t.Run("a quote copied as printed, anchor included, selects its line", func(t *testing.T) {
-		out := show(t, "--quote", "negligible<!--fx:F-eee49716-->.")
+		out := show(t, "--quote", "negligible<!--gap:G-eee49716-->.")
 		if !strings.Contains(out, "Overhead is negligible") || strings.Contains(out, "no line of the report matches") {
 			t.Errorf("the quote as the report prints it found nothing:\n%s", out)
 		}

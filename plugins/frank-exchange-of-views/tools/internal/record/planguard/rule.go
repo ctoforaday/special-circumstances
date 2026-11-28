@@ -19,7 +19,7 @@ import "strings"
 //	SELECT "event_id", "gap_id", … FROM "mint"                        -- a bulk detail read
 //	SELECT (SELECT count(*) FROM "verify"), (SELECT count(*) FROM "cite")
 //	SELECT "verdict" FROM "outcome" ORDER BY "event_id" DESC LIMIT 1
-//	SCAN mint_supersedes USING INDEX sqlite_autoindex_mint_supersedes_1
+//	SCAN close_anchors USING INDEX sqlite_autoindex_close_anchors_1
 //	SCAN events USING COVERING INDEX events_type
 //
 // Two distinctions fall out of that list, and both are read off the plan or the statement rather

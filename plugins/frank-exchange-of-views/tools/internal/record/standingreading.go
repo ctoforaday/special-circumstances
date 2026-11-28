@@ -192,7 +192,7 @@ func standingReadingOf(evs []*Event, win WindowIndex, found []locatedReading, se
 // whose claim no longer locates once is LOST: it stands behind no mint until the seat reads the
 // sentence as it now stands, and where it finds against, the debt stands with the edit that took the
 // claim out named (lost), its sentence's tokens read as of the report before the loss (the as-of join),
-// unless that edit removed the sentence (removed) or applied red's text verbatim (estopped).
+// unless that edit removed the sentence (removed) or red's applied text stands estopped there (estopped).
 type locatedReading struct {
 	ev   *Event
 	v    *recordpb.Verify
@@ -223,8 +223,8 @@ type locatedReading struct {
 	// reword, named or not.
 	removed  bool
 	reworded string
-	// estopped is whether the chain's last edit applied red's prescription verbatim over a span that
-	// meets the estoppel floor: red wrote the sentence the report now holds.
+	// estopped is whether the chain's last edit meets the estoppel floor and an estoppel tombstone
+	// stands on the gap it answered: red wrote the sentence the report now holds.
 	estopped bool
 }
 
@@ -360,7 +360,7 @@ func locatedReadingsOn(q recordsql.Querier, evs []*Event, win WindowIndex, repor
 		if !FindsAgainst(v) {
 			continue
 		}
-		l, err := lostReadingAt(e, v, win, edits, report)
+		l, err := lostReadingAt(q, e, v, win, edits, report)
 		if err != nil {
 			return nil, err
 		}
@@ -421,8 +421,8 @@ func editsOf(evs []*Event, win WindowIndex) []editAt {
 // reworded sentence out in turn rewords it again, or removes it, and the debt is judged against the
 // chain's CURRENT sentence — the lens's re-read of it replaces the reading (lostReadingReplaced), a gap
 // quoting it at any link of the chain, or on report as it stands, discharges (the joins are unioned),
-// and the LAST link's applied_verbatim is the estoppel: a reword of red's applied text ends it, and a
-// later verbatim re-apply restores it. Keyed on the first link alone, a debt whose sentence was
+// and the LAST link's gap's standing estoppel tombstone is the estoppel: a reword of red's applied text
+// ends it, and a later verbatim re-apply restores it. Keyed on the first link alone, a debt whose sentence was
 // reworded twice stood against a sentence the report no longer held, and nothing the lens did cleared
 // it.
 //
@@ -431,7 +431,7 @@ func editsOf(evs []*Event, win WindowIndex) []editAt {
 // names no edit (lost stays 0) and estops nothing, and the sentence it left is still the debt's
 // current sentence: the gap minted on the reading before the edit is joined where the claim last
 // located, and the reading of the sentence as it now stands replaces the reading.
-func lostReadingAt(e *Event, v *recordpb.Verify, win WindowIndex, edits []editAt, report string) (locatedReading, error) {
+func lostReadingAt(q recordsql.Querier, e *Event, v *recordpb.Verify, win WindowIndex, edits []editAt, report string) (locatedReading, error) {
 	w := win.Of(e)
 	l := locatedReading{ev: e, v: v, id: w.ID, seat: e.GetSeatId(), sitting: w.SittingID}
 	run, s0, found, err := claimSentenceAfter(edits, w.ID, v)
@@ -460,8 +460,26 @@ func lostReadingAt(e *Event, v *recordpb.Verify, win WindowIndex, edits []editAt
 		if at, ok := sentenceByWords(k.before, words); ok {
 			l.joinSentence(k.before, at)
 		}
-		l.reworded, l.removed, l.estopped = k.reworded, k.removed, k.bounded && k.m.ed.GetAppliedVerbatim()
+		l.reworded, l.removed = k.reworded, k.removed
 		words = k.reworded
+	}
+	// THE ESTOPPEL IS THE WRITTEN ROW: the chain's last link estops where it meets the floor and an
+	// estoppel tombstone stands on the gap it answered — the verbatim application placed it, and a
+	// reword of that sentence ended it (tombstone.go). It binds only the lens that prescribed the
+	// applied text (X11): another reader's debt over it is its own.
+	if last := links[len(links)-1]; last.bounded && last.m.ed.GetAnswers() != "" {
+		var minter string
+		if _, err := queryRowAt(q, []any{&minter},
+			`SELECT e."seat_id" FROM "mint" m JOIN "events" e ON e."id" = m."event_id" WHERE m."gap_id" = ?`, last.m.ed.GetAnswers()); err != nil {
+			return l, err
+		}
+		if minter == l.seat {
+			stands, err := tombstoneStands(q, recordpb.TombstoneKind_TOMBSTONE_KIND_ESTOPPEL, last.m.ed.GetAnswers())
+			if err != nil {
+				return l, err
+			}
+			l.estopped = stands
+		}
 	}
 	if !l.removed {
 		if at, ok := sentenceByWords(report, words); ok {
@@ -730,7 +748,7 @@ func requireOwnStandingReading(w writeView, seatID string, m *recordpb.Mint) err
 			}
 		}
 		return feov.Errorf(feov.Conflict,
-			"--class %s states that %s. That is a reading's finding, and the record holds no standing reading of yours of citation %s that %s (%s). "+
+			"--class %s states that %s. That is what a reading finds, and the record holds no standing reading of yours of citation %s that %s (%s). "+
 				"Read it first — `verify --anchor %s %s %s` — and mint on that reading. Nothing is recorded",
 			class, row.states, c, row.citedSays, latest, c, row.citedAs, verifyRequired)
 	}
@@ -742,7 +760,7 @@ func requireOwnStandingReading(w writeView, seatID string, m *recordpb.Mint) err
 	}
 	if strings.TrimSpace(m.GetLocation()) == "" {
 		return feov.Errorf(feov.Conflict,
-			"--class %s states that %s. That is a reading's finding of one subject: the citation (`--about-kind anchor --about C-…`) your reading found against, or the sentence (`--quote`) a source you found refutes. This mint names neither, so nothing is recorded",
+			"--class %s states that %s. That is what a reading finds of one subject: the citation (`--about-kind anchor --about C-…`) your reading found against, or the sentence (`--quote`) a source you found refutes. This mint names neither, so nothing is recorded",
 			class, row.states)
 	}
 	ms, err := mintSentenceAt(w, m)
@@ -762,7 +780,7 @@ func requireOwnStandingReading(w writeView, seatID string, m *recordpb.Mint) err
 		latest = fmt.Sprintf("your latest, event %d of %s, is `%s`", r.id, r.v.GetUrl(), recordpb.Word(r.v.GetOutcome()))
 	}
 	return feov.Errorf(feov.Conflict,
-		"--class %s states that %s. That is a reading's finding, and the record holds no standing reading of yours of a source you found for the sentence %s that %s (%s). "+
+		"--class %s states that %s. That is what a reading finds, and the record holds no standing reading of yours of a source you found for the sentence %s that %s (%s). "+
 			"Read the source first — `verify --url <source> --title <name> --quote <this sentence> %s %s` — and mint on that reading. "+
 			"Where the source is one blue cites, name the citation it contradicts (`--about-kind anchor --about C-…`): a cited source's defect is keyed on the citation, the subject the mint names. Nothing is recorded",
 		class, row.states, sentenceWords(ms.placed, ms.at), row.foundSays, latest, row.citedAs, verifyRequired)
@@ -780,25 +798,26 @@ func readingBehind(evs []*Event, win WindowIndex, report string, found []located
 		if !ok || m.GetGapId() != gapID {
 			continue
 		}
+		seat := e.GetSeatId() // the minter: the reading the mint was checked on is its
 		row, ok := readingMintedClassOf(m.GetClass())
 		if !ok {
 			return standingReading{}, false
 		}
 		if m.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_ANCHOR {
-			r, has := standingReadingOf(evs, win, nil, e.GetSeatId(), standingSubject{anchor: m.GetAboutRef()})
+			r, has := standingReadingOf(evs, win, nil, seat, standingSubject{anchor: m.GetAboutRef()})
 			return r, has && r.stands && row.cited(r.v)
 		}
 		if row.found == nil {
 			return standingReading{}, false
 		}
 		if at, ok := gapSentenceIn(report, anchor.Sentences(report), gapID); ok {
-			r, has := standingReadingOf(evs, win, found, e.GetSeatId(), standingSubject{sentence: at})
+			r, has := standingReadingOf(evs, win, found, seat, standingSubject{sentence: at})
 			return r, has && row.found(r.v)
 		}
 		var out standingReading
 		has := false
 		for _, l := range found {
-			if l.anchor == "" && !l.located && l.seat == e.GetSeatId() && slices.Contains(l.gapsIn, gapID) && row.found(l.v) {
+			if l.anchor == "" && !l.located && l.seat == seat && slices.Contains(l.gapsIn, gapID) && row.found(l.v) {
 				out, has = standingReading{ev: l.ev, v: l.v, id: l.id}, true
 			}
 		}
@@ -888,12 +907,13 @@ type mintRow struct {
 func mintRowsOf(evs []*Event, win WindowIndex) ([]mintRow, map[string]mintRow) {
 	var out []mintRow
 	byGap := map[string]mintRow{}
+	acting := mintersOf(evs)
 	for _, e := range evs {
 		m, ok := recordpb.BodyAs[*recordpb.Mint](e)
 		if !ok {
 			continue
 		}
-		r := mintRow{gap: m.GetGapId(), seat: e.GetSeatId(), class: m.GetClass(), aboutKind: m.GetAboutKind(), aboutRef: m.GetAboutRef(), location: m.GetLocation(), at: win.Of(e).ID}
+		r := mintRow{gap: m.GetGapId(), seat: acting[m.GetGapId()], class: m.GetClass(), aboutKind: m.GetAboutKind(), aboutRef: m.GetAboutRef(), location: m.GetLocation(), at: win.Of(e).ID}
 		out = append(out, r)
 		byGap[r.gap] = r
 	}
@@ -1077,7 +1097,7 @@ func AssemblyFailures(run Run) ([]AssemblyFailure, error) {
 			switch {
 			case m.aboutKind == recordpb.AboutKind_ABOUT_KIND_ANCHOR:
 				if st := ledger.at(m.aboutRef); st != nil && !st.retired {
-					out = append(out, AssemblyFailure{Kind: string(BlockerMaterialGap), Subject: m.aboutRef, Why: fmt.Sprintf("citation %s: open material %s gap %s by %s", m.aboutRef, class, g.id, g.mintedBy)})
+					out = append(out, AssemblyFailure{Kind: string(BlockerMaterialGap), Subject: m.aboutRef, Why: fmt.Sprintf("citation %s: open material %s gap %s by %s", m.aboutRef, class, g.id, g.assignee)})
 				}
 			case m.location != "":
 				report, err := render()
@@ -1085,7 +1105,7 @@ func AssemblyFailures(run Run) ([]AssemblyFailure, error) {
 					return err
 				}
 				if at, ok := gapSentenceIn(report, anchor.Sentences(report), g.id); ok {
-					out = append(out, AssemblyFailure{Kind: string(BlockerMaterialGap), Subject: sentenceText(report[at[0]:at[1]]), Why: fmt.Sprintf("sentence %s: open material %s gap %s by %s", sentenceWords(report, at), class, g.id, g.mintedBy)})
+					out = append(out, AssemblyFailure{Kind: string(BlockerMaterialGap), Subject: sentenceText(report[at[0]:at[1]]), Why: fmt.Sprintf("sentence %s: open material %s gap %s by %s", sentenceWords(report, at), class, g.id, g.assignee)})
 				}
 			}
 		}

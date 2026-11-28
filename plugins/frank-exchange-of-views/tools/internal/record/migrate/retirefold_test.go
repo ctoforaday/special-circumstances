@@ -36,18 +36,17 @@ const (
 )
 
 // cutsOf is every removed_anchors list the migrated archives hold, by archive, in event order: the
-// folds of claim retires into the cuts that bared their tokens (translation 2, F18, F23) and the cuts
-// no retire followed (translation 4, F22). m35's 230 is a rewrite whose new holds prose (F22).
+// folds of claim retires into the cuts that bared their tokens (P12b translation 2, F18, F23) and the cuts
+// no retire followed (P12b translation 4). No list names a finding: the findings fold places no `F-`
+// token (§III.A5), so the cuts that took only finding anchors (m19's, m28's first, m32's, m35's — F22)
+// take nothing and list none.
 var cutsOf = map[string][][]string{
-	b3Run:    {{"F-f03e68d7", "G-19b1727b"}},
-	b6Run:    {{"F-719d69c4", "G-68c6ecf7"}},
-	b9Run:    {{"F-353551d2", "G-8bd21b5d"}},
-	waveARun: {{"F-cc41a3c2", "F-a4c54467", "C-3743f72c", "G-f6f63173"}},
-	m19Run:   {{"F-cd03bd17", "F-664d1307", "F-47230a06", "F-ba76bc46"}},
-	m28Run:   {{"F-0e004c80"}, {"F-651ad9be", "G-3a2c77c1"}},
-	m32Run:   {{"F-d061e710"}},
-	m35Run:   {{"F-3201caa4"}},
-	m37Run:   {{"F-9ef7dbdd", "G-20128984", "G-477feea1"}},
+	b3Run:    {{"G-19b1727b"}},
+	b6Run:    {{"G-68c6ecf7"}},
+	b9Run:    {{"G-8bd21b5d"}},
+	waveARun: {{"C-3743f72c", "G-f6f63173"}},
+	m28Run:   {{"G-3a2c77c1"}},
+	m37Run:   {{"G-20128984", "G-477feea1"}},
 	run1883:  {{"G-05dad92a", "G-3dc8d8e2"}},
 }
 
@@ -126,8 +125,10 @@ func (m migratedArchive) gap(id string) (record.GapJSON, bool) {
 // which is in the removed_anchors of the edit that bared it is folded, and written as no event; one
 // taking anchors off a kept sentence is the anchor-only retire it was in effect; and one taking an
 // open gap's own marker is a lost act (F14). The split is the plan's, archive by archive, and the gaps
-// whose marker a fold took keep the fates their replayed acts give them.
-// anchorlessBy is each archive's anchorless claim retires, each listed in its lost_acts: 97 in all.
+// whose marker a fold took keep the fates their replayed acts give them. A retire's anchors are read
+// as the migrated record spells them, less the findings', which leave every list they stood in.
+// anchorlessBy is each archive's anchorless claim retires, each listed in its lost_acts: 99 in all —
+// m32's 377 and m35's 245 took only a finding's anchor, so they carry none.
 var anchorlessBy = map[string]int{
 	"2026-09-02_quadratic-formula.tar.gz":            1,
 	"2026-09-10_is-91-prime-b3.tar.gz":               1,
@@ -140,8 +141,8 @@ var anchorlessBy = map[string]int{
 	"2026-10-17_is-91-prime-m27.tar.gz":              2,
 	"2026-10-18_is-91-prime-m28.tar.gz":              11,
 	"2026-10-18_is-91-prime-m29.tar.gz":              11,
-	"2026-10-24_is-91-prime-m32.tar.gz":              3,
-	"2026-10-27_is-91-prime-m35.tar.gz":              13,
+	"2026-10-24_is-91-prime-m32.tar.gz":              4,
+	"2026-10-27_is-91-prime-m35.tar.gz":              14,
 	"2026-10-30_mersenne-31-prime-sum.tar.gz":        3,
 	"2026-11-04_eiffel-tower-height.tar.gz":          14,
 	"2026-11-11_eiffel-tower-height.tar.gz":          1,
@@ -154,8 +155,6 @@ func TestAClaimRetireFoldsIntoItsCut(t *testing.T) {
 		waveARun:    {"folded": 1},
 		m19Run:      {"anchor-only": 3},
 		m28Run:      {"folded": 1},
-		m32Run:      {"folded": 1},
-		m35Run:      {"folded": 1},
 		m36Run:      {"F14": 1},
 		mersenneRun: {"anchor-only": 4},
 		eiffelRun:   {"anchor-only": 2},
@@ -165,6 +164,7 @@ func TestAClaimRetireFoldsIntoItsCut(t *testing.T) {
 	total, anchorless := map[string]int{}, map[string]int{}
 	for _, name := range archivedRuns(t) {
 		m := readMigrated(t, name)
+		findings := findingNamesOf(m.source)
 		folded := map[string]bool{}
 		for _, c := range m.cuts() {
 			for _, id := range c {
@@ -184,6 +184,9 @@ func TestAClaimRetireFoldsIntoItsCut(t *testing.T) {
 			}
 			var anchors []string
 			for _, a := range ev.Lists["anchors"] {
+				if findings[a] {
+					continue
+				}
 				if to, ok := m.res.IDs[a]; ok {
 					a = to
 				}
@@ -227,7 +230,7 @@ func TestAClaimRetireFoldsIntoItsCut(t *testing.T) {
 			t.Errorf("%s: removed_anchors %v, want %v", name, c, cutsOf[name])
 		}
 	}
-	if w := map[string]int{"anchorless": 97, "folded": 6, "anchor-only": 10, "F14": 1}; fmt.Sprint(total) != fmt.Sprint(w) {
+	if w := map[string]int{"anchorless": 99, "folded": 4, "anchor-only": 10, "F14": 1}; fmt.Sprint(total) != fmt.Sprint(w) {
 		t.Errorf("the claim retires classify as %v, want %v", total, w)
 	}
 	if fmt.Sprint(anchorless) != fmt.Sprint(anchorlessBy) {
@@ -236,6 +239,7 @@ func TestAClaimRetireFoldsIntoItsCut(t *testing.T) {
 
 	// F18's six gaps keep the fates they migrated with before the fold: no Close is written, an open
 	// one reads gone, and no act on any of them is lost but the ones P3's delivery rule already lost.
+	// m28's G-3a2c77c1 is the exception, below.
 	for _, c := range []struct {
 		run, gap string
 		open     bool
@@ -243,7 +247,6 @@ func TestAClaimRetireFoldsIntoItsCut(t *testing.T) {
 		lost     []int64 // source ids of the lost acts on the gap
 	}{
 		{waveARun, "G-f6f63173", true, "", []int64{328}},
-		{m28Run, "G-3a2c77c1", true, "", []int64{632, 659}},
 		{m37Run, "G-20128984", true, "", nil},
 		{m37Run, "G-477feea1", false, "repaired", nil},
 		{run1883, "G-05dad92a", false, "repaired", nil},
@@ -252,10 +255,27 @@ func TestAClaimRetireFoldsIntoItsCut(t *testing.T) {
 		m := readMigrated(t, c.run)
 		assertGapFate(t, m, c.run, c.gap, c.open, c.class, c.lost)
 	}
+	// m28's G-3a2c77c1 is ended by its docket ruling (source 659), which the bench makes on the
+	// parties' evidence and takes no delivery for (§V R1): the ruling comes forward, sided with the
+	// author (Translation 4), and the gap reads closed not_a_defect by its docketing; only its lens's
+	// close (632) is lost.
+	m28 := readMigrated(t, m28Run)
+	if g, ok := m28.gap("G-3a2c77c1"); !ok || g.Open || fmt.Sprint(g.Closure["disposition"]) != "not_a_defect" || g.Closure["docketing_id"] == nil {
+		t.Errorf("%s: G-3a2c77c1 reads %+v; want closed not_a_defect by its docketing's ruling", m28Run, g)
+	}
+	var m28Lost []int64
+	for _, r := range m28.res.LostActs {
+		if strings.Contains(r.Err, "G-3a2c77c1") {
+			m28Lost = append(m28Lost, r.OldID)
+		}
+	}
+	if !slices.Equal(m28Lost, []int64{632}) {
+		t.Errorf("%s: the lost acts on G-3a2c77c1 are source %v, want [632]", m28Run, m28Lost)
+	}
 	// m36's retire 442 took both of its gaps' markers while they were open; the markers stay on their
-	// kept sentence with its two finding anchors, and the fates their lenses recorded stand.
+	// kept sentence, and the fates their lenses recorded stand.
 	m := readMigrated(t, m36Run)
-	for _, id := range []string{"G-34314cff", "G-e24f46e2", "F-ae64abb9", "F-521b0819"} {
+	for _, id := range []string{"G-34314cff", "G-e24f46e2"} {
 		if !strings.Contains(m.md, anchor.Token(id)) {
 			t.Errorf("m36: %s left the report; retire 442 is written as no event under F14", id)
 		}
@@ -293,10 +313,10 @@ func assertGapFate(t *testing.T, m migratedArchive, run, id string, open bool, c
 
 // NO MIGRATED ARCHIVE HOLDS A BARE ANCHOR. No live write leaves a token on no words, and migrate
 // refuses a record whose final report holds one: every committed archive's final render reads no
-// bare token. Each cut no retire followed takes its gap's marker and its finding anchors in the order
-// its new holds them (translation 4), and that gap reads open and gone with no Close written. No
-// migrated edit names a token in both reopened and removed_anchors. Every archived F- token a baring
-// edit or a claim retire touched takes the treatment its row names.
+// bare token. Each cut no retire followed takes its gap's marker in the order its new holds it (P12b
+// translation 4), and that gap reads open and gone with no Close written. No migrated edit names a
+// token in both reopened and removed_anchors. Every token a baring edit or a claim retire touched
+// takes the treatment its row names.
 func TestNoMigratedArchiveHoldsABareAnchor(t *testing.T) {
 	for _, name := range archivedRuns(t) {
 		m := readMigrated(t, name)
@@ -321,49 +341,46 @@ func TestNoMigratedArchiveHoldsABareAnchor(t *testing.T) {
 			t.Errorf("%s: removed_anchors %v, want %v", name, c, cutsOf[name])
 		}
 	}
-	// Translation 4's gaps stay open, reading gone, and no act on them is lost but the ones P3's
-	// delivery rule already lost (b3's docket ruling, b6's and b9's lens closes; source ids).
+	// P12b translation 4's gaps stay open, reading gone, and no act on them is lost but the ones P3's
+	// delivery rule already lost (b6's and b9's lens closes; source ids). b3's docket ruling (173) is
+	// the bench's, which takes no delivery (§V R1), so it comes forward.
 	for _, c := range []struct {
 		run, gap string
 		lost     []int64
 	}{
-		{b3Run, "G-19b1727b", []int64{173}}, {b6Run, "G-68c6ecf7", []int64{173}}, {b9Run, "G-8bd21b5d", []int64{136}},
+		{b3Run, "G-19b1727b", nil}, {b6Run, "G-68c6ecf7", []int64{173}}, {b9Run, "G-8bd21b5d", []int64{136}},
 	} {
 		assertGapFate(t, readMigrated(t, c.run), c.run, c.gap, true, "", c.lost)
 	}
-	// The F- population's tokens that no cut takes: re-seated (m26), carried by an anchor-only retire
-	// (eiffel 11-04), or standing on their kept sentence (m36).
+	// The tokens no cut takes beside a finding's: eiffel 11-04's claim retire 394 is the anchor-only
+	// retire of its gap's marker alone (its finding anchor is never placed), and m26's re-seated gap
+	// markers stand in the report.
 	eiffel := readMigrated(t, eiffelRun)
 	if !slices.ContainsFunc(eiffel.evs, func(e *recordpb.Event) bool {
 		r, ok := recordpb.BodyAs[*recordpb.Retire](e)
-		return ok && slices.Equal(r.GetAnchors(), []string{"F-d2081075", "G-8dbfce13"})
+		return ok && slices.Equal(r.GetAnchors(), []string{"G-8dbfce13"})
 	}) {
-		t.Error("eiffel 11-04: no anchor-only retire carries F-d2081075 and G-8dbfce13")
-	}
-	m36 := readMigrated(t, m36Run)
-	for _, id := range []string{"F-ae64abb9", "F-521b0819"} {
-		if !strings.Contains(m36.md, anchor.Token(id)) {
-			t.Errorf("m36: %s left its kept sentence", id)
-		}
+		t.Error("eiffel 11-04: no anchor-only retire carries G-8dbfce13 alone")
 	}
 	m26 := readMigrated(t, m26Run)
-	for _, id := range []string{"F-3f45c83d", "F-df9c936c", "F-f9de927e", "F-bcff91e4", "F-e1a7c8a3", "F-dc74b9c1", "F-e17d48bd"} {
+	for _, id := range []string{"G-59e61f8c", "G-0f2d72fd"} {
 		if !strings.Contains(m26.md, anchor.Token(id)) {
-			t.Errorf("m26: %s left the report; translation 6 re-seats it", id)
+			t.Errorf("m26: %s left the report; P12b translation 6 re-seats it", id)
 		}
 	}
 }
 
-// A REWRITE KEEPS ITS TOKEN IN ITS SENTENCE (translation 6, F20). m26's rewrites left eleven tokens
-// after their sentences' full stops, and no retire took them: each is re-seated before the full stop
-// of the sentence it trails, counted once as `reseated`, and no other archive counts one. Both gaps
-// keep their fates, and nothing removes any of the eleven.
+// A REWRITE KEEPS ITS TOKEN IN ITS SENTENCE (P12b translation 6, F20). m26's rewrites left four tokens
+// after their sentences' full stops — two gaps' markers and two citations', the seven finding anchors
+// beside them never placed — and no retire took them: each is re-seated before the full stop of the
+// sentence it trails, counted once as `reseated`, and no other archive counts one. Both gaps keep
+// their fates, and nothing removes any of the four.
 func TestARewriteKeepsItsTokenInItsSentence(t *testing.T) {
 	for _, name := range archivedRuns(t) {
 		res, _ := MigratedArchive(t, name)
 		want := 0
 		if name == m26Run {
-			want = 11
+			want = 4
 		}
 		if got := res.GapAnchors.Shapes["reseated"]; got != want {
 			t.Errorf("%s: %d tokens re-seated, want %d", name, got, want)
@@ -378,8 +395,8 @@ func TestARewriteKeepsItsTokenInItsSentence(t *testing.T) {
 		return b.String()
 	}
 	for _, c := range []struct{ sentence, run string }{
-		{"This is a limit on the claim, not a finding that no such source exists", tok("G-59e61f8c", "F-3f45c83d", "F-df9c936c", "F-f9de927e", "F-bcff91e4", "F-e1a7c8a3")},
-		{"does not prove that none exists", tok("G-0f2d72fd", "F-dc74b9c1", "F-e17d48bd")},
+		{"This is a limit on the claim, not a finding that no such source exists", tok("G-59e61f8c")},
+		{"does not prove that none exists", tok("G-0f2d72fd")},
 		{"its data block runs to 271 without listing 91", tok("C-8a9958e3")},
 		{"so no single base settles primality", tok("C-8c470447")},
 	} {
@@ -387,20 +404,29 @@ func TestARewriteKeepsItsTokenInItsSentence(t *testing.T) {
 			t.Errorf("m26: %q does not end %s before its full stop", c.sentence, c.run)
 		}
 	}
-	if g, ok := m.gap("G-59e61f8c"); !ok || g.Open || g.SupersededBy != "G-4a4093c0" {
-		t.Errorf("m26: G-59e61f8c reads %+v; want superseded by G-4a4093c0", g)
+	// G-59e61f8c's one supersede link (source mint 266, G-4a4093c0 naming it) moved its successor's
+	// location, so Translation 7 drops it: G-4a4093c0 stands as its own gap, and G-59e61f8c, its
+	// lens's close (269) a lost act, stays open on its re-seated marker.
+	if l, want := m.res.SupersedeLinks, []migration.SupersedeLink{{OldID: 266, Successor: "G-4a4093c0", Ancestor: "G-59e61f8c",
+		Outcome: linkMovedField, Moved: []string{"location"}}}; fmt.Sprint(l) != fmt.Sprint(want) {
+		t.Errorf("m26: supersede links %+v, want %+v", l, want)
+	}
+	for _, id := range []string{"G-59e61f8c", "G-4a4093c0"} {
+		if g, ok := m.gap(id); !ok || !g.Open || g.LocationState != record.LocationMarked {
+			t.Errorf("m26: %s reads %+v; want open and marked", id, g)
+		}
 	}
 	if g, ok := m.gap("G-0f2d72fd"); !ok || !g.Open {
 		t.Errorf("m26: G-0f2d72fd reads %+v; want open", g)
 	}
 	if c := m.cuts(); len(c) > 0 {
-		t.Errorf("m26: removed_anchors %v; translation 6 removes nothing", c)
+		t.Errorf("m26: removed_anchors %v; P12b translation 6 removes nothing", c)
 	}
-	// AN EDIT TAKING A STOP THE RE-SEAT TOOK IS A LOST ACT (lead call 11-27). Each run m26 re-seated
-	// was followed by the stray full stop its sentence had left after the run, and the re-seat's
-	// splice took it. Source edits 219 and 222 each took one of those stops out: 219's quote, run
-	// rewritten as moved, no longer locates, and 222's would land on the re-seated sentence's own
-	// full stop. Both are written as no event and listed in lost_acts; no other archive loses an edit.
+	// AN EDIT TAKING A STRAY STOP IS SETTLED, NOT LOST. Each run m26 re-seated was followed by the stray
+	// full stop its sentence had left after the run. Source edits 219 and 222 each took one of those
+	// stops out: 219's quote no longer locates, and 222's locates on the re-seated sentence's own full
+	// stop, after the anchor run it abuts. Both are settled (findingsfold_test reads them), so no
+	// archive lists an edit in lost_acts.
 	for _, name := range archivedRuns(t) {
 		res, _ := MigratedArchive(t, name)
 		var got []int64
@@ -409,17 +435,13 @@ func TestARewriteKeepsItsTokenInItsSentence(t *testing.T) {
 				got = append(got, a.OldID)
 			}
 		}
-		var want []int64
-		if name == m26Run {
-			want = []int64{219, 222}
-		}
-		if !slices.Equal(got, want) {
-			t.Errorf("%s: edits in lost_acts %v, want %v", name, got, want)
+		if len(got) > 0 {
+			t.Errorf("%s: edits in lost_acts %v, want none", name, got)
 		}
 	}
 	for _, end := range []string{
-		"This is a limit on the claim, not a finding that no such source exists" + tok("G-59e61f8c", "F-3f45c83d", "F-df9c936c", "F-f9de927e", "F-bcff91e4", "F-e1a7c8a3") + ".\n\n## Open questions",
-		"does not prove that none exists" + tok("G-0f2d72fd", "F-dc74b9c1", "F-e17d48bd") + ".\n",
+		"This is a limit on the claim, not a finding that no such source exists" + tok("G-59e61f8c") + ".\n",
+		"does not prove that none exists" + tok("G-0f2d72fd") + ".\n",
 	} {
 		if strings.Count(m.md, end) != 1 {
 			t.Errorf("m26: the report does not hold %q once, its sentence ending on one full stop", end)

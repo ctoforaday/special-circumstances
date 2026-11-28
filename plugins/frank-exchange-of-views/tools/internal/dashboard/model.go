@@ -39,12 +39,11 @@ type LogTile struct {
 	Last  string
 }
 
-// Shards is the Red's-board view data. Findings/Citations are -1 when unavailable (JS null).
+// Shards is the Red's-board view data. Citations is -1 when unavailable (JS null).
 type Shards struct {
 	LedgerExists     bool
 	OpenRows         int
 	OpenBySeverity   map[string]int
-	Findings         int // -1 == unavailable
 	Citations        int // -1 == unavailable
 	ClosureIndexRows int
 	ArchiveRecords   int
@@ -70,9 +69,8 @@ type Judiciary struct {
 	Measured      bool
 	JudgeSittings int
 	Rulings       map[string]int
-	Disputes      struct{ Raised, Accepted, Rejected int }
-	ChainSpans    map[int]int
-	Chains        int
+	LifeSpans     map[int]int
+	Lives         int
 	MigDown       int
 	MigUp         int
 	MigFlat       int
@@ -360,13 +358,12 @@ func BuildModel(run record.Run, transcriptDir string, cfg Config, nowMs float64)
 	// config.bin (the operator passing the tool path); the Go binary IS the tool, so it gates on
 	// the record's EXISTENCE.
 	logTile := LogTile{Count: -1}
-	shards := Shards{OpenBySeverity: map[string]int{}, Findings: -1, Citations: -1}
+	shards := Shards{OpenBySeverity: map[string]int{}, Citations: -1}
 	if haveRecord {
 		bj, bjErr := record.BoardJSONOfRun(run)
 		if bjErr != nil {
 			bj = record.BoardJSON{Open: []record.GapJSON{}, Closed: []record.GapJSON{}, Anomalies: []string{}}
 		}
-		fj := record.FindingsJSONOf(fam.Events, fam.At)
 		frj := record.LogJSONOf(fam.Events, fam.At)
 		logTile.Count = frj.Counts.Total
 		if n := len(frj.Log); n > 0 {
@@ -382,7 +379,7 @@ func BuildModel(run record.Run, transcriptDir string, cfg Config, nowMs float64)
 		}
 		shards = Shards{
 			LedgerExists: true, OpenRows: bj.Counts.Open, OpenBySeverity: obs,
-			Findings: fj.Counts.Total, Citations: bj.Counts.Citations,
+			Citations:        bj.Counts.Citations,
 			ClosureIndexRows: bj.Counts.Closed, ArchiveRecords: len(bj.Closed),
 		}
 	}
@@ -455,16 +452,15 @@ func BuildModel(run record.Run, transcriptDir string, cfg Config, nowMs float64)
 }
 
 // buildJudiciary reads the bench's traffic off the record: judge sittings, rulings by disposition,
-// grade-motion traffic, and how long arguments live over supersedes chains (union-find), with
-// grade migration.
+// and how long each gap's argument lives, with grade migration.
 //
 // THE RECORD, NOT THE JOURNAL. The record holds every input as a field a writer can refuse —
-// docket and grade motions with their rulings, the chair's gate, each gap's mint and close epoch,
-// its grades then and now, and what it supersedes. A journal envelope carries only what its
+// docket motions with their rulings, the chair's gate, each gap's mint and close epoch,
+// and its grades then and now. A journal envelope carries only what its
 // seat's schema declares, and a key no schema declares reads as an empty list on every run: the
 // page for a bench that never sat.
 func buildJudiciary(fam record.Family) Judiciary {
-	j := Judiciary{Measured: true, Rulings: map[string]int{}, ChainSpans: map[int]int{}}
+	j := Judiciary{Measured: true, Rulings: map[string]int{}, LifeSpans: map[int]int{}}
 	// A judge sitting is a stored sitting of the bench's seat: the hook's bracket opens it, or the
 	// bench's register where no bracket did. Counted by opening, so a register that joined its
 	// bracket's sitting, or a second register in one sitting, adds none, and a sitting the bracket
@@ -474,20 +470,11 @@ func buildJudiciary(fam record.Family) Judiciary {
 			j.JudgeSittings++
 		}
 	}
-	for _, m := range record.MotionsOf(fam.Events, fam.At) {
-		switch m.Subject {
-		case "docket":
-			if m.Ruled() {
-				j.Rulings[m.Ruling]++
-			}
-		case "grade":
-			j.Disputes.Raised++
-			switch m.Ruling {
-			case "accepted":
-				j.Disputes.Accepted++
-			case "rejected":
-				j.Disputes.Rejected++
-			}
+	// THE BENCH'S RULINGS are its docketings' (record.DocketingsOf): a gap's assignee accepting a
+	// proposed act answers no docketing, and is no judiciary act.
+	for _, d := range record.DocketingsOf(fam.Events) {
+		if d.Ruled() {
+			j.Rulings[d.Word()]++
 		}
 	}
 	// The epoch an open gap has lived to is the record's current one: the last with work in it.
@@ -496,24 +483,8 @@ func buildJudiciary(fam record.Family) Judiciary {
 	current := fam.At.CurrentEpoch(fam.Events)
 
 	// A gap lives from its mint epoch to its close epoch, or to the current epoch while open. Its
-	// first mass is the grades it was minted at; its last is the grades it holds now.
-	type life struct {
-		first, last         int
-		firstMass, lastMass float64
-	}
-	lives := map[string]life{}
-	parent := map[string]string{}
-	var find func(string) string
-	find = func(x string) string {
-		for {
-			p, ok := parent[x]
-			if !ok || p == x {
-				return x
-			}
-			x = p
-		}
-	}
-	var gapOrder []string
+	// first mass is the grades it was minted at; its last is the grades it holds now. A gap is its own
+	// line: its wording and grades move under its id, and no mint continues another.
 	for _, g := range fam.Gaps {
 		mint := g.Mint
 		if mint == nil {
@@ -523,46 +494,13 @@ func buildJudiciary(fam record.Family) Judiciary {
 		if g.HasClosed {
 			last = g.ClosedEpoch
 		}
-		lives[g.ID] = life{
-			first: g.Epoch, last: max(last, g.Epoch),
-			firstMass: record.GapMass(recordpb.Word(mint.GetLikelihood()), recordpb.Word(mint.GetImpact())),
-			lastMass:  record.GapMass(recordpb.Word(g.Likelihood), recordpb.Word(g.Impact)),
-		}
-		gapOrder = append(gapOrder, g.ID)
-		// UNION THE ROOTS: a gap superseding several ancestors joins all their chains into one.
-		for _, anc := range mint.GetSupersedes() {
-			if ra, rg := find(anc), find(g.ID); ra != rg {
-				parent[ra] = rg
-			}
-		}
-	}
-	type chain struct {
-		first, last         int
-		firstMass, lastMass float64
-	}
-	chains := map[string]*chain{}
-	for _, id := range gapOrder {
-		e := lives[id]
-		root := find(id)
-		c := chains[root]
-		if c == nil {
-			c = &chain{first: e.first, last: e.last, firstMass: e.firstMass, lastMass: e.lastMass}
-			chains[root] = c
-		}
-		if e.first <= c.first {
-			c.first = e.first
-			c.firstMass = e.firstMass
-		}
-		if e.last >= c.last {
-			c.last = e.last
-			c.lastMass = e.lastMass
-		}
-	}
-	for _, c := range chains {
-		span := c.last - c.first + 1
-		j.ChainSpans[span]++
+		last = max(last, g.Epoch)
+		span := last - g.Epoch + 1
+		j.LifeSpans[span]++
+		j.Lives++
 		if span > 1 {
-			d := c.lastMass - c.firstMass
+			d := record.GapMass(recordpb.Word(g.Likelihood), recordpb.Word(g.Impact)) -
+				record.GapMass(recordpb.Word(mint.GetLikelihood()), recordpb.Word(mint.GetImpact()))
 			switch {
 			case d < 0:
 				j.MigDown++
@@ -573,7 +511,6 @@ func buildJudiciary(fam record.Family) Judiciary {
 			}
 		}
 	}
-	j.Chains = len(chains)
 	return j
 }
 

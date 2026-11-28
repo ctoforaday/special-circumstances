@@ -86,8 +86,14 @@ func gapStatesOf(r familyReads) ([]*Gap, error) {
 	byID := eventsByID(evs, win)
 	mints := map[string]*recordpb.Mint{}
 	regrades := map[string][]*recordpb.Regrade{}
-	for _, e := range evs {
+	amends := map[string][]*recordpb.Amend{}
+	amendAt := map[string][]int64{}
+	ids := win.IDs(evs)
+	for i, e := range evs {
 		switch m := mustBody(e).(type) {
+		case *recordpb.Amend:
+			amends[m.GetGapId()] = append(amends[m.GetGapId()], m)
+			amendAt[m.GetGapId()] = append(amendAt[m.GetGapId()], ids[i])
 		case *recordpb.Mint:
 			if _, seen := mints[m.GetGapId()]; !seen {
 				mints[m.GetGapId()] = m
@@ -101,6 +107,8 @@ func gapStatesOf(r familyReads) ([]*Gap, error) {
 		g := &Gap{
 			ID: row.id, Epoch: row.epoch, Open: row.open, Mint: mints[row.id],
 			Regrades:       regrades[row.id],
+			Amends:         amends[row.id],
+			amendAt:        amendAt[row.id],
 			Severity:       gradeOrZero(row.sev),
 			Likelihood:     gradeOrZero(row.lik),
 			Impact:         gradeOrZero(row.imp),
@@ -114,15 +122,14 @@ func gapStatesOf(r familyReads) ([]*Gap, error) {
 		}
 		if c != nil {
 			g.HasClosed, g.ClosedEpoch, g.ClosedByBench, g.BenchClosedLast = true, c.closedEpoch, c.closedByBench, c.benchClosedLast
-			g.Closure, g.BenchClosure, g.SupersededBy = c.lastClose, c.lastBenchClosure, c.supersededBy
+			g.Closure, g.BenchClosure = c.lastClose, c.lastBenchClosure
 		}
 		out = append(out, g)
 	}
 	return out, nil
 }
 
-// GapsByID indexes the family for the readers that follow lineage (an ancestor lookup is a map
-// hit, never a second query).
+// GapsByID indexes the family by gap id (a lookup is a map hit, never a second query).
 func GapsByID(gaps []*Gap) map[string]*Gap {
 	out := make(map[string]*Gap, len(gaps))
 	for _, g := range gaps {
@@ -139,20 +146,6 @@ func gradeOrZero(v sql.NullString) recordpb.Grade {
 	}
 	g, _ := GradeOf(v.String)
 	return g
-}
-
-// ObservationsOf builds the lens observations from the finding events, exactly as the fold
-// appended them: seat, key, the type's word, the finding body.
-func ObservationsOf(evs []*Event) []*Observation {
-	var out []*Observation
-	for _, e := range evs {
-		if f, ok := recordpb.BodyAs[*recordpb.Finding](e); ok {
-			out = append(out, &Observation{
-				SeatID: e.GetSeatId(), Key: e.GetKey(), Kind: recordpb.Word(e.GetType()), Finding: f,
-			})
-		}
-	}
-	return out
 }
 
 // Family is the record handed to a whole-record presenter — the gap family in board order and
@@ -218,7 +211,7 @@ func gapFamilyActs(evs []*Event) []*Event {
 	var out []*Event
 	for _, e := range evs {
 		switch e.GetType() {
-		case recordpb.EventType_EVENT_TYPE_MINT, recordpb.EventType_EVENT_TYPE_REGRADE,
+		case recordpb.EventType_EVENT_TYPE_MINT, recordpb.EventType_EVENT_TYPE_REGRADE, recordpb.EventType_EVENT_TYPE_AMEND,
 			recordpb.EventType_EVENT_TYPE_CLOSE, recordpb.EventType_EVENT_TYPE_MOTION_RULE:
 			out = append(out, e)
 		}

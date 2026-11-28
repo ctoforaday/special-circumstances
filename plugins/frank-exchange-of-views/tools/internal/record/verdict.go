@@ -146,7 +146,7 @@ func verdictOf(files runFiles, r verdictReads) (verdict, why string, ok bool, er
 		// has ruled since the chair's last sitting, and where the bench was all the limit left
 		// undispatched, its ruling leaves nobody ready (epochLimitHeldTheBench).
 		if plan.EpochLimitReached || epochLimitHeldTheBench(params, *r.plan) {
-			return "CEILING", fmt.Sprintf("epoch limit %d reached — the run's term; the parties ready at the chair's last sitting were not dispatched and PASS is not permitted", plan.MaxEpochs) + standing, true, nil
+			return "CEILING", fmt.Sprintf("epoch limit %d reached — the run's term; the parties ready at the chair's last sitting were not dispatched beyond the closings they owed and PASS is not permitted", plan.MaxEpochs) + standing, true, nil
 		}
 	}
 	return "", "no pass, no halt, and the board is not at its ceiling — the run ended before a terminal state was reached, and the record says so rather than guessing" + standing, false, nil

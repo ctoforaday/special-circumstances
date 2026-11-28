@@ -81,40 +81,6 @@ func TestBenchCarriedLeavesTheGapOpenWhileClosedDoesNot(t *testing.T) {
 	}
 }
 
-// The full grade dispute: blue contests, the chair accepts, the originating lens regrades. The regrade is a
-// SEPARATE act from the acceptance, and the board must end up showing the moved grade —
-// an accepted dispute that never moves the grade is agreement with no consequence.
-func TestAcceptedDisputeIsFollowedByAGradeThatActuallyMoves(t *testing.T) {
-	runDir := seatRun(t)
-	id := mintGap(t, runDir, "grade-moves", "doctrine_vs_implementation")
-
-	if _, err := run(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond",
-		"--id", id, "--dimension", "severity", "--proposed", "low",
-		"--reason", "the consequence is bounded by the caller's own validation"); err != nil {
-		t.Fatalf("motion grade file: %v", err)
-	}
-	if _, err := runAt(t, "motion", "grade", "rule", "--run", runDir, "--seat-id", "red-chair",
-		"--id", "M1", "--as", "accepted", "--reason", "the bound holds; regrading"); err != nil {
-		t.Fatalf("motion grade rule: %v", err)
-	}
-	// The lens answers the ruling at a sitting opened after it, as the engine dispatches it: a lens
-	// whose sitting opened before the ruling has not read it, and its regrade is refused until it has.
-	sit(t, runDir, lensSeat)
-	if _, err := run(t, "regrade", "--run", runDir, "--seat-id", lensSeat,
-		"--id", id, "--severity", "low",
-		"--reason", "blue's dispute is accepted — the caller validates, so the blast radius is one call"); err != nil {
-		t.Fatalf("lens regrade: %v", err)
-	}
-
-	ev := lastBody(t, runDir, &recordpb.Regrade{})
-	if got := ev.GetSeverity(); got != recordpb.Grade_GRADE_LOW {
-		t.Errorf("regrade recorded severity %q, want low — an accepted dispute that does not move the grade is a channel with no consequence", recordpb.Word(got))
-	}
-	if !setFields(ev)["basis"] {
-		t.Error("the regrade lost its basis; grade movement without a stated reason is the silent regrading this channel exists to prevent")
-	}
-}
-
 // A petition crosses roles in both directions: a MERGE files it, the BENCH rules on it,
 // and the relief is meant to bind the seats that come after. Both halves must be in the
 // one record, or the relief the bench grants binds nobody.
@@ -135,7 +101,7 @@ func TestPetitionCrossesFromMergeToBenchAndItsReliefIsRecorded(t *testing.T) {
 
 	pet := lastBody(t, runDir, &recordpb.Motion{})
 	// The class lives on the PETITION ARM — the filing is a oneof, so a petition's class is not a
-	// field the Motion itself carries. That separation is what stops a grade motion silently
+	// field the Motion itself carries. That separation is what stops a docket motion silently
 	// holding a petition's class.
 	if pet.GetPetition().GetClass() != recordpb.PetitionClass_PETITION_CLASS_SAFETY || !setFields(pet)["relief"] {
 		t.Errorf("the petition lost its class or relief (%v) — relief that is not recorded cannot bind anybody", pet)
@@ -182,71 +148,36 @@ func TestSpotCheckCanRecordAnHonestlyEmptyArchive(t *testing.T) {
 
 // Two lenses write CONCURRENTLY into their own shards and the merge must read both. This
 // is the append-only design's central physical claim; if shard merging were lossy, the
-// board would silently under-count findings in exactly the runs that worked hardest.
+// board would silently under-count gaps in exactly the runs that worked hardest.
 func TestConcurrentLensShardsBothReachTheMerge(t *testing.T) {
 	runDir := seatRun(t)
 	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-lens-adversary"); err != nil {
 		t.Fatalf("register L2: %v", err)
 	}
-	for _, l := range []struct{ seat, label string }{
-		{"red-lens-evidence", "evidence"}, // both pass the same local --key F1
-		{"red-lens-adversary", "adversary"},
+	for _, l := range []struct{ seat, label, class string }{
+		{"red-lens-evidence", "evidence", "spec_underspecification"}, // both pass the same local --key G1
+		{"red-lens-adversary", "adversary", otherClass},
 	} {
-		if _, err := run(t, "finding", "--run", runDir, "--seat-id", l.seat,
-			"--key", "F1", "--quote", "§1", "--reason", "a finding",
+		if _, err := run(t, "mint", "--run", runDir, "--seat-id", l.seat,
+			"--key", "G1", "--quote", "§1", "--class", l.class, "--problem", "a gap",
+			"--check-kind", "document", "--check", "c",
 			"--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
-			t.Fatalf("finding %s: %v", l.label, err)
+			t.Fatalf("mint %s: %v", l.label, err)
 		}
 	}
 
-	seen := map[string]string{} // finding id -> the seat that filed it
+	seen := map[string]string{} // gap id -> the seat that minted it
 	for _, e := range events(t, runDir) {
-		if e.GetType() == recordpb.EventType_EVENT_TYPE_FINDING {
-			f, _ := recordpb.BodyAs[*recordpb.Finding](e)
-			if seen[f.GetId()] != "" || f.GetId() == "" {
-				t.Errorf("finding id %q is empty or shared by two findings", f.GetId())
+		if e.GetType() == recordpb.EventType_EVENT_TYPE_MINT {
+			m, _ := recordpb.BodyAs[*recordpb.Mint](e)
+			if seen[m.GetGapId()] != "" || m.GetGapId() == "" {
+				t.Errorf("gap id %q is empty or shared by two gaps", m.GetGapId())
 			}
-			seen[f.GetId()] = e.GetSeatId()
+			seen[m.GetGapId()] = e.GetSeatId()
 		}
 	}
 	if seats := slices.Sorted(maps.Values(seen)); !slices.Equal(seats, []string{"red-lens-adversary", "red-lens-evidence"}) {
-		t.Errorf("the chair sees %v, want one finding from each lens — findings from every seat are rows in one record", seen)
-	}
-}
-
-// A closure with a SUCCESSOR: the repair caused a regression, which moves to a named gap. Losing
-// the successor turns a regression into a clean repair on the board. The successor is named only
-// with repaired_with_regression: a gap whose purpose passes to another is closed by minting that
-// one with --supersedes.
-func TestClosureWithSuccessorNamesWhereTheResidueWent(t *testing.T) {
-	runDir := seatRun(t)
-	first := mintGap(t, runDir, "partial-repair", "policy_without_mechanism")
-	next := mintGap(t, runDir, "the-residue", "policy_without_mechanism")
-
-	closeAs := func(as string) error {
-		_, err := run(t, "close", "--run", runDir, "--seat-id", lensSeat,
-			"--id", first, "--as", as,
-			"--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./internal/parser",
-			"--superseded-by", next,
-			"--reason", "the named site is repaired; the repair broke the sibling site")
-		return err
-	}
-	if err := closeAs("repaired"); err == nil || !strings.Contains(err.Error(), "only with --as repaired_with_regression") {
-		t.Errorf("--superseded-by on a repaired close = %v, want it refused", err)
-	}
-	if err := closeAs("repaired_with_regression"); err != nil {
-		t.Fatalf("close with successor: %v", err)
-	}
-
-	ev := lastBody(t, runDir, &recordpb.Close{})
-	if got := ev.GetSuccessor(); got != next {
-		t.Errorf("the closure records successor %q, want %s — a partial repair whose residue is unnamed reads as a complete one", got, next)
-	}
-	if gapIsOpen(t, runDir, first) {
-		t.Errorf("gap %s was closed and is still open on the board", first)
-	}
-	if !gapIsOpen(t, runDir, next) {
-		t.Errorf("the successor %s must remain OPEN — it is where the unrepaired residue lives", next)
+		t.Errorf("the chair sees %v, want one gap from each lens — gaps from every seat are rows in one record", seen)
 	}
 }
 
@@ -268,49 +199,10 @@ func TestBenchHaltIsItsOwnActAndIsVisibleInTheRecord(t *testing.T) {
 	// `motion docket rule --as` now; the property is the same and so is the word that must
 	// be refused.
 	id := mintGap(t, runDir, "not-haltable", "partial_control_coverage")
-	m := docketFile(t, runDir, "red-chair", id, "put before the bench")
+	m := docketFile(t, runDir, blueSeat, id, "put before the bench")
 	args := benchRuleArgs(m, "halt", "p")
 	args = append([]string{args[0], args[1], args[2], "--run", runDir, "--seat-id", "judge"}, args[3:]...)
 	if _, err := run(t, args...); err == nil {
 		t.Error("`motion docket rule --as halt` was accepted; ending the run must not be reachable by a mistyped disposition")
-	}
-}
-
-// AN ABSENT FLAG IS NOT AN EMPTY ANSWER, driven through the command a seat actually types.
-//
-// `merge close` set `successor` whatever happened, so an ordinary closure recorded `successor =
-// ”`. Once successor referenced `mint.gap_id` every close in the tool failed outright — the
-// constraint is what surfaced it — but the defect predates the constraint: before it, the same
-// rows were written and read as a closure whose successor was the empty gap.
-//
-// The class is wider than the instance and this pins the instance. 40 sites build a field with
-// `proto.String(seat.Str(...))`; the others do not fail loudly because their fields carry no
-// foreign key, so an absent flag lands as ” and reads as an answer.
-func TestAnAbsentFlagIsNotWrittenAsEmpty(t *testing.T) {
-	runDir := seatRun(t)
-	// The gap has to exist: `close --id` is a reference the record checks, and G1 is what the
-	// first mint of the round is assigned.
-	if _, err := run(t, "mint", "--about-kind", "section", "--about", "Findings", "--run", runDir, "--seat-id", lensSeat,
-		"--class", "risk_coverage_omission", "--check-kind", "document", "--check", "c",
-		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
-		t.Fatalf("lens mint: %v", err)
-	}
-	if _, err := runAt(t, "close", "--run", runDir, "--seat-id", lensSeat,
-		"--id", "G1", "--as", "repaired",
-		"--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x",
-		"--reason", "the repair was verified at the leaf"); err != nil {
-		t.Fatalf("lens close: %v", err)
-	}
-
-	c := lastBody(t, runDir, &recordpb.Close{})
-	// UNSET, not empty. `--superseded-by` was never passed, and the record must say the seat did
-	// not answer rather than that it answered with nothing.
-	if c.Successor != nil {
-		t.Errorf("an unpassed --superseded-by was recorded as %q — a flag the seat never typed became "+
-			"a claim about lineage, and lineage is what the successor field exists to carry", c.GetSuccessor())
-	}
-	// And the flags that WERE passed are there, so this is not passing because nothing was written.
-	if c.GetAnchorSeat() != "L1" || c.GetProse() == "" {
-		t.Errorf("the closure lost what the seat did pass: %+v", c)
 	}
 }

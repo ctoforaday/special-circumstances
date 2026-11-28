@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"encoding/json"
 	"regexp"
 	"strings"
 	"testing"
@@ -71,7 +70,7 @@ func TestVerifyRecordsTheSentenceItsAnchorMarks(t *testing.T) {
 	if got := firstVerify(t, runDir).GetClaim(); got != verifiedSentence {
 		t.Errorf("the verification's claim = %q, want the sentence its anchor marks, %q", got, verifiedSentence)
 	}
-	// The lens typed no claim, so the tool prints the one it read: it is what a finding quotes.
+	// The lens typed no claim, so the tool prints the one it read: it is what a gap quotes.
 	if !printsClaim(out, verifiedSentence) {
 		t.Errorf("verify did not print the claim it recorded:\n%s", out)
 	}
@@ -91,25 +90,6 @@ func TestAVerifyOfACitationTakesNoQuote(t *testing.T) {
 	if v := firstVerify(t, runDir); v != nil {
 		t.Errorf("a refused verify recorded a verification: %v", v)
 	}
-}
-
-// lensFinding files a finding graded on every axis, anchored by args, and returns its id.
-func lensFinding(t *testing.T, runDir, seatID, key string, args ...string) string {
-	t.Helper()
-	out, err := run(t, append([]string{"--json", "finding", "--run", runDir, "--seat-id", seatID, "--key", key,
-		"--reason", "the source says otherwise", "--severity", "high", "--likelihood", "high", "--impact", "medium"}, args...)...)
-	if err != nil {
-		t.Fatalf("finding %q: %v\n%s", args, err, out)
-	}
-	var env struct {
-		Result struct {
-			FindingID string `json:"finding_id"`
-		} `json:"result"`
-	}
-	if err := json.Unmarshal([]byte(out), &env); err != nil || env.Result.FindingID == "" {
-		t.Fatalf("finding --json printed no finding_id: %v\n%s", err, out)
-	}
-	return env.Result.FindingID
 }
 
 // A CITATION THE REPORT HOLDS NO SENTENCE FOR IS REFUSED, and the refusal records nothing.

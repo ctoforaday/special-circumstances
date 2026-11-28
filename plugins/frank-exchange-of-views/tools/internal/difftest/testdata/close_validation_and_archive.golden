@@ -30,7 +30,7 @@ exit 0
 stdout:
 minted GAP001
   acceptance check RECORDED as: refetch
-  (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
+  (read it back — a shell may have rewritten it before this tool saw it; your amend restates it at your next sitting)
 ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open to you and none of them is owed).
 
 $ close --run {RUN} --seat-id red-lens-evidence --id GAP001
@@ -38,11 +38,11 @@ exit 2
 stderr:
 feov-record: close: requires --as, --reason, --verified-against, --verified-by, --verified-with
 
-      --as as-value               REQUIRED — HOW the gap ended — the same words the bench's dispositions use
+      --as as-value               REQUIRED unless --accept — HOW the gap ended — one vocabulary with every closure on the record
       --reason string             REQUIRED — your THINKING for this act, not your process — why you graded, closed, ruled or edited as you did; it is the substance the other side answers. The record already holds WHAT you did, in order, so do not narrate the verbs you ran
-      --verified-against string   REQUIRED — AGAINST WHAT — the object itself (the stored computation, the cited bytes, the named path), never a stand-in
-      --verified-by string        REQUIRED — WHO verified it — the seat that read the evidence
-      --verified-with string      REQUIRED — WITH WHAT — the tool or command that showed it
+      --verified-against string   REQUIRED unless --accept — AGAINST WHAT — the object itself (the stored computation, the cited bytes, the named path), never a stand-in
+      --verified-by string        REQUIRED unless --accept — WHO verified it — the seat that read the evidence
+      --verified-with string      REQUIRED unless --accept — WITH WHAT — the tool or command that showed it
 
 Run `feov-record close --help` for what it takes, flag by flag.
 
@@ -51,7 +51,7 @@ exit 2
 stderr:
 feov-record: close: --id names gap G-00000000, which no mint event created — a dangling reference is accepted here and DROPPED at replay, which is how eight judicial closures vanished from a board that went on reporting them open
 
-$ close --run {RUN} --seat-id red-lens-evidence --id GAP001 --as repaired_with_regression --verified-by L1 --verified-with git show --verified-against 7bc501e:x
+$ close --run {RUN} --seat-id red-lens-evidence --id GAP001 --as repaired --verified-by L1 --verified-with git show --verified-against 7bc501e:x
 exit 2
 stderr:
 feov-record: close: requires --reason
@@ -82,7 +82,7 @@ ALL CLEAR — nothing blocks you and you may end your turn (1 item(s) stay open 
 -- inquiries
 # Inquiries — RENDERED PROJECTION (source of truth: the record, records/record.db)
 
-_No inquiries recorded. On a run past epoch 0 that is itself a finding: the exploration
+_No inquiries recorded. On a run past epoch 0 that is itself a defect: the exploration
 either did not happen or was not written down, and a report with no roads-not-taken is
 indistinguishable from one that never looked._
 

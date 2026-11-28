@@ -95,14 +95,15 @@ func TestTheBoardShowsHowEachGapClosed(t *testing.T) {
 			ClosureClass: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED), Prose: proto.String("The clause the gap named is gone; its literal check passes."),
 			AnchorSeat: proto.String("red-lens-voice"), AnchorTool: proto.String("show report --match 'cached'"), AnchorTarget: proto.String("report head 272, line 11")}),
 		mint("G-00000003", "The bound is argued and not computed."),
-		recordtest.Event(t, "red-chair", &recordpb.Motion{MotionId: proto.String("M1"), Basis: proto.String("impasse on G-00000003"),
-			Filing: &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G-00000003")}}}),
-		recordtest.Event(t, "judge", &recordpb.MotionRule{MotionId: proto.String("M1"), Opinion: proto.String("the repair answers the check"),
-			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_DEFECT_ACCEPTED),
-				Principle: proto.String("correctness"), Tension: proto.String("cost"), ReviewFlag: proto.String("false"), Settled: proto.String("the bound stands as computed"), ReopensOn: proto.String("a counterexample below the bound")}}}),
+		recordtest.Event(t, "red-chair", &recordpb.Docketing{DocketingId: proto.String("M1"), GapId: proto.String("G-00000003"),
+			Cause: recordpb.DocketingCause_DOCKETING_CAUSE_IMPASSE.Enum(), Basis: proto.String("impasse on G-00000003")}),
+		recordtest.Event(t, "judge", &recordpb.MotionRule{Opinion: proto.String("the repair answers the check"),
+			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{DocketingId: proto.String("M1"), SidedWith: recordpb.SidedWith_SIDED_WITH_AUTHOR.Enum(),
+				Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_DEFECT_ACCEPTED),
+				Principle:   proto.String("correctness"), Tension: proto.String("cost"), ReviewFlag: proto.String("false"), Settled: proto.String("the bound stands as computed"), ReopensOn: proto.String("a counterexample below the bound")}}}),
 	)
 	mustContain(t, doc, "docket.md",
-		"- G-00000001 | repaired | problem of G-00000001 | successor -\n"+
+		"- G-00000001 | repaired | problem of G-00000001\n"+
 			"  - minted because: The same run-narration pattern recurs in four sections.\n"+
 			"  - required_fix: fix for G-00000001\n"+
 			"  - acceptance_check: check for G-00000001\n"+

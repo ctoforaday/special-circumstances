@@ -31,8 +31,7 @@ import (
 // A soft tell in the printed text ("this run", "epoch 3") is flagged and not refused because a
 // subject can use those words too.
 func newMint() *cobra.Command {
-	var gf gapFlags
-	supersedes, foundBy := flags.IDList(flags.GapID), flags.IDList(flags.FindingID)
+	var st Statement
 
 	c := seat.Prose(seat.New("mint", mintResult{}, func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		run, err := s.Run()
@@ -47,59 +46,12 @@ func newMint() *cobra.Command {
 		}
 		// The id is minted once the retry check has passed: a retry answers with the stored one.
 		var gapID string
-		p, err := gf.fill(cmd, text, seat.Str(cmd, flags.Key))
+		p, err := st.Fill(run, cmd, text, seat.Str(cmd, flags.Key))
 		if err != nil {
 			return nil, err
 		}
-		var guards []record.Guard
 
-		// THE LOCATION IS MATCHED AGAINST THE REPORT, and it was not.
-		//
-		// `lens finding --quote` is REFUSED on a mis-quote — the anchor cannot be spliced
-		// where the text is not. Mint's took prose, on the reasoning that a gap's location is
-		// "recorded for a reader". Measured (#359): three gaps were minted naming report
-		// sections that do not exist, two of them `--existence verified`. A seat asserted it
-		// had checked a defect at the leaf, at a place the tool never confirmed was there.
-		//
-		// A location a reader cannot find is not a location. It is refused now, by the same
-		// rule the lens has always been held to.
-		//
-		// AN OMISSION HAS A PLACE, AND IT IS NOT A BORROWED SENTENCE: an absence names the
-		// section it is missing from, the inquiry whose question it argues against, or the gap
-		// it is about, and the record CHECKS the reference. The two verbs of one act spell it
-		// one way, so the gap minted from such a finding carries the same handle the finding does.
-		about, aboutRefP, aerr := record.ResolveAbout(run, record.MustEnum("mint", "about_kind"), seat.Str(cmd, flags.AboutKind), seat.Str(cmd, flags.About))
-		if aerr != nil {
-			return nil, aerr
-		}
-		loc := seat.Location(cmd)
-		// ONE SUBJECT, and exactly one: a quote or an --about. A gap that claims both is claiming
-		// two; a gap with neither is a problem nothing locates, which the record refuses
-		// (record.requireMintSubject).
-		if strings.TrimSpace(loc) != "" && about != nil {
-			return nil, feov.Errorf(feov.Validation, "takes --quote OR --about, not both: a gap has one subject")
-		}
-		// THE GAP'S ANCHOR IS PLACED as every kind's is: at the end of its quote, which must occur
-		// once within one paragraph of the report the mint lands on (seat.AppendPlaced, below). A gap
-		// is one sentence (R-4), and the board reads its location from where its anchor stands.
-		p.Location = proto.String(loc)
-		p.AboutKind = about
-		p.AboutRef = aboutRefP
-		// THE CONCRETE PROPOSAL is verified against the report the mint lands on (gapFlags.fill says
-		// why fix_basis is derived, not claimed).
-		if fixNew := seat.Str(cmd, flags.New); fixNew != "" {
-			guards = append(guards, record.Check(func(l *record.Landing) error {
-				report, err := l.Report()
-				if err != nil {
-					return err
-				}
-				return verifiedFix(p, report, gapID, quotePlace(seat.Str(cmd, flags.Quote)), fixNew)
-			}))
-		}
-		p.Supersedes = supersedes.Value()
-		p.FoundBy = foundBy.Value()
-
-		// Crash-retry idempotency: --key (the stable local label, e.g. the source lens finding) makes
+		// Crash-retry idempotency: --key (the stable local label) makes
 		// a retried mint return the EXISTING id — when the retry states the gap the key names. It is
 		// asked once the gap is built, so the retry is held to the same inputs the first call was.
 		if prior, err := record.ExistingMintByKey(run, s.SeatID, seat.Str(cmd, flags.Key)); err != nil {
@@ -115,88 +67,10 @@ func newMint() *cobra.Command {
 			}
 			return mintResult{GapID: prior.GetGapId(), Check: prior.GetAcceptanceCheck(), Idempotent: true}, nil
 		}
-		// ONLY AN OPEN GAP'S MINTER SUPERSEDES IT, AND A SUCCESSOR OF ONE THAT NOTHING ANSWERS YET CARRIES ITS
-		// CHECK KIND, and the demand with it (record.SupersessionAdmitted) — the minter rule first, so a
-		// seat that may not supersede the gap is told that rather than what its successor would owe.
-		// Asked here so it refuses before the placement and shape checks, and again in the write's
-		// transaction, where the answer holds.
-		if err := record.SupersessionAdmitted(run, s.SeatID, p); err != nil {
-			if c := feov.CodeOf(err); c == string(feov.Conflict) || c == string(feov.Validation) {
-				return nil, err
-			}
-			return nil, unreadableRefusal("the gaps --supersedes names", err)
-		}
 		gapID = record.NewID("gap")
 		p.GapId = proto.String(gapID)
 
-		// ESTOPPEL: RED IS BOUND BY THE FIX IT PRESCRIBED (#267 stage 4).
-		//
-		// A gap whose location is text red PRESCRIBED and blue applied VERBATIM is an
-		// amendment to the gap that prescribed it, not a fresh gap. Measured: 3 of 3 of the
-		// 2026-08-04 smoke's round-2 gaps were about text blue added in round 1 at red's own
-		// instruction, and blue had no channel to say so.
-		//
-		// Red is not silenced — it argues the point on the ORIGINAL gap, where its own
-		// prescription sits on the record beside the complaint, or mints with --supersedes so
-		// the lineage is explicit. What it may not do is open a clean slate against its own
-		// words.
-		//
-		// THE REJECTION IS LOGGED, AS AN ESTOPPEL, not merely refused. A guard that silently
-		// blocks is invisible: this makes "how often does red relitigate its own
-		// prescriptions" a per-run number on the record, which is the measurement of the
-		// pathology the guard prevents. Same discipline as `blue cite`'s unreachable-source
-		// rejection — the tool records the block, never the seat's memory of it.
-		//
-		// ASKED OF THE RECORD THE MINT LANDS ON: blue's `edit --accept` of a prescription commits in
-		// parallel, and a mint checked against the record before it opens a fresh gap against red's
-		// own words. The refusal is decided under the write lock; the log entry
-		// that records it is written after, as its own act.
-		//
-		// A FOUND-SOURCE 32 IS A QUOTE MINT AND MEETS THE GUARD LIKE ANY GAP (gblock, 2026-11-06, F4
-		// (a)): red mints --supersedes the prescribing gap, as the refusal says. A reword of the applied
-		// text by blue ends the estoppel (record.estoppingPrescriptions).
-		guards = append(guards, record.Check(func(l *record.Landing) error {
-			return requireNotEstopped(l, seat.Str(cmd, flags.Quote), supersedes.Value())
-		}))
-
-		var est estopped
-		switch _, err := seat.AppendPlaced(s, p, gapID, loc, mintPlacementRefusal, guards...); {
-		case errors.As(err, &est):
-			prior := est.Gap
-			// WHOSE FIX IT WAS IS READ OFF THE RECORD, because the guard refuses a mint against ANY red
-			// seat's applied prescription: told "text YOU prescribed", the evidence lens on the #1565
-			// smoke was handed the logic lens's words as its own.
-			author := est.PrescribedBy + "'s"
-			if est.PrescribedBy == s.SeatID {
-				author = "your"
-			}
-			msg := fmt.Sprintf("estoppel — this gap's location is text red prescribed and blue applied verbatim: %s fix for %s. A prescription blue applied binds every red seat, whichever lens wrote it, so it is not a fresh gap: raise it as an amendment to %s (argue it there, or mint with --supersedes %s so the lineage is explicit). Prescribed text: %q",
-				author, prior, prior, prior, est.Text)
-			// The KIND is a field, not something a reader infers from the wording. The
-			// prose above is aimed at a seat and must stay editable; the count an
-			// operator reads must not move when it is edited (#283).
-			// THE TYPE IS A VALUE NOW, not a key/word pair. `text` is the field the log
-			// projection reads, and the old payload set the wrong key — every estoppel
-			// block recorded an entry that rendered with EMPTY TEXT, so the block was
-			// logged and its explanation was not. The schema removes the way to make that
-			// mistake: one prose field, one typed assertion, one source.
-			//
-			// SOURCE IS TOOL, and that is the axis the old single enum conflated: this is
-			// the tool refusing a mint, not a seat filing a report about its sitting, and
-			// an operator filtering for seat reports must not have to know which VALUES
-			// were tool values to exclude it.
-			lt := recordpb.LogType_LOG_TYPE_ESTOPPEL
-			src := recordpb.LogSource_LOG_SOURCE_TOOL
-			fr := &recordpb.Log{
-				Text:   proto.String(msg),
-				Type:   &lt,
-				Source: &src,
-			}
-			if _, ferr := record.Append(s.Identity(), fr); ferr != nil {
-				return nil, ferr
-			}
-			return nil, record.ToolLogged(feov.Errorf(feov.Conflict, "%s", msg))
-		case err != nil:
+		if err := WriteMint(s, p, seat.Str(cmd, flags.Quote), seat.Str(cmd, flags.New)); err != nil {
 			return nil, err
 		}
 		// THE AMBIGUOUS TELLS ARE ADVICE, and they ride back on the confirmation. The write path has
@@ -212,15 +86,8 @@ func newMint() *cobra.Command {
 		return mintResult{GapID: gapID, Check: seat.Str(cmd, flags.Check), VoiceTells: tells}, nil
 	}))
 
-	c.Flags().String(flags.Key, "", flags.DescKey+". A repeat under the handle that states the gap otherwise — its quote, class, problem, fix, check, grades, subject, --reason, --supersedes or --found-by — is refused: a handle names one gap")
-	gf.register(c)
-	flags.Text(c, flags.Quote, "the ONE sentence the defect lives at — "+flags.DescQuoteAlone+". The tool anchors the gap at its end, and the board shows that sentence with its section")
-	seat.RequiredUnless(c, flags.Quote, "unless --about-kind/--about name the subject")
-	enumhelp.Flag(c, flags.AboutKind, record.MustEnum("mint", "about_kind"),
-		"anchor this gap to something that is NOT report text — a section for what is missing from it, an inquiry, the question this run was asked or one of its question parts, a gap already on the board, or a computation whose sentence you judged unsound; use instead of --quote")
-	flags.Text(c, flags.About, "the `reference` --about-kind names: a section heading, an inquiry id, a question part id (none with --about-kind question, for a part of the question no question part covers), a gap id, or a computation's anchor, which is the bare id inside its `"+anchor.Token("K-…")+"` token in the report ("+flags.BareID("K-…")+") or that token whole. It is CHECKED against the record")
-	c.Flags().Var(supersedes, flags.Supersedes, "comma-separated ancestor ids this gap replaces; an open one closes in this act, its purpose passing to this gap, and an open one whose check kind is source or computation and that nothing answers yet passes its live-answer demand too: this gap carries its --check-kind, and another is refused (ancestors of different check kinds are superseded in separate mints), and what would have met the ancestor's demand after this mint meets this gap's")
-	c.Flags().Var(foundBy, flags.FoundBy, "comma-separated ids of the lens findings that surfaced it, as the findings view lists them")
+	c.Flags().String(flags.Key, "", flags.DescKey+". A repeat under the handle that states the gap otherwise — its quote, class, problem, fix, check, grades, subject or --reason — is refused: a handle names one gap")
+	st.Register(c)
 	// THE GAP ID IS REQUIRED OF THE RECORD AND SUPPLIED BY THE VERB — declared here, at the code
 	// that does the supplying, so the fact and what makes it true cannot drift apart. Without it
 	// the contract gate reads "mint declares gap_id required and registers no --id" and is right
@@ -301,8 +168,8 @@ func (g *gapFlags) fill(cmd *cobra.Command, text, key string) (*recordpb.Mint, e
 	//
 	// So `fix_basis` is COMPUTED from whether a validated pair is present. It is not a
 	// flag. A seat asked to self-report "verified | proposed" reports the flattering
-	// one, and the field becomes decoration — the same reason the finding id and the
-	// gap id are tool-assigned rather than claimed. The verb's guard (verifiedFix) sets it to
+	// one, and the field becomes decoration — the same reason the gap id is
+	// tool-assigned rather than claimed. The verb's guard (verifiedFix) sets it to
 	// verified.
 	//
 	// THE PAIR IS CHECKED AGAINST THE REPORT THE MINT LANDS ON. Blue's edit can commit in
@@ -337,12 +204,12 @@ type mintResult struct {
 	// mint succeeded, printed only the new id, and echoed nothing — the corruption surfaced only
 	// when someone read the board afterwards. The tool cannot prevent a shell from rewriting its
 	// own argv; what it can do is show what it stored, which is the one thing that makes the
-	// difference visible while the seat is still there to fix it. No verb amends a check after
-	// mint, so the moment of the write is the only moment.
+	// difference visible while the seat is still there to fix it: an amend at the seat's next
+	// sitting restates the check, and this echo is what tells it one is owed.
 	Check string `json:"acceptance_check,omitempty"`
 	// VoiceTells is ADVICE on the problem, the fix and a --new replacement, and the gap is already on the board by the
-	// time it renders. The fix for a tell that turns out to be real is the next mint's wording, or
-	// a supersession; nothing here asks the seat to undo the write.
+	// time it renders. The fix for a tell that turns out to be real is the seat's amend of the gap;
+	// nothing here asks the seat to undo the write.
 	VoiceTells []string `json:"voice_tells,omitempty"`
 }
 
@@ -363,10 +230,10 @@ func mintEcho(check string, tells []string) string {
 		return note
 	}
 	return "\n  acceptance check RECORDED as: " + check +
-		"\n  (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)" + note
+		"\n  (read it back — a shell may have rewritten it before this tool saw it; your amend restates it at your next sitting)" + note
 }
 
-// mintPlacementRefusal is finding's placement refusal, worded for a gap: one whose quote repeats
+// mintPlacementRefusal is the placement refusal, worded for a gap: one whose quote repeats
 // may name its section instead, and one about something not in the report names that.
 func mintPlacementRefusal(err error) error {
 	r := placementRefusal("gap", err)
@@ -376,7 +243,7 @@ func mintPlacementRefusal(err error) error {
 	case errors.Is(err, anchortext.ErrOnHeading):
 		return r
 	}
-	return fmt.Errorf("%w\n\nFor a gap about something that is NOT in the report, do not borrow a nearby sentence: name it with --about-kind/--about, the same pair `finding` takes", r)
+	return fmt.Errorf("%w\n\nFor a gap about something that is NOT in the report, do not borrow a nearby sentence: name it with --about-kind/--about", r)
 }
 
 // estopped is the estoppel guard's refusal: the prescription the mint's quote names, which blue
@@ -437,7 +304,7 @@ func verifiedFix(p *recordpb.Mint, report, gapID string, at gapPlace, fixNew str
 		}
 		return feov.Wrap(feov.Validation, err, "--new is not a fix blue's accept would apply to the report as it stands, with this gap's anchor at the end of %s: %s. "+
 			"NOTHING IS RECORDED. A fix is verified only where the accept applies it, so what the accept would refuse is refused here. "+
-			"The accept moves the gap's and the findings' anchors at the sentence's end to the end of --new; any other anchor in the span — a citation or a computation, which backs its sentence, or one inside the sentence — stays only where --new keeps its sentence word for word or holds the anchor itself. "+
+			"The accept moves the gaps' anchors at the sentence's end to the end of --new; any other anchor in the span — a citation or a computation, which backs its sentence, or one inside the sentence — stays only where --new keeps its sentence word for word or holds the anchor itself. "+
 			"Where such an anchor is what does not survive: keep the sentence it marks word for word in --new, and the tool puts the anchor back on it; "+
 			"or %s; "+
 			"or leave --new off and state the fix as prose in --fix", at.subject, why, carry)
@@ -477,17 +344,6 @@ func mintBaredRefusal(at gapPlace, bared []string) string {
 		what, it, its, it, at.subject)
 }
 
-// contains reports membership, so an --supersedes that already names the estopping gap
-// lets the mint through: declaring the lineage IS the amendment the guard asks for.
-func contains(xs []string, want string) bool {
-	for _, x := range xs {
-		if x == want {
-			return true
-		}
-	}
-	return false
-}
-
 // mintAsserted is what a gap states, and so what a retry under its key must state again: everything
 // the seat says of the defect and where, and its argument for it.
 var mintAsserted = []seat.Asserted{
@@ -505,8 +361,6 @@ var mintAsserted = []seat.Asserted{
 	{Flag: flags.Complexity, Field: "complexity_cost"},
 	{Flag: flags.AboutKind, Field: "about_kind"},
 	{Flag: flags.About, Field: "about_ref"},
-	{Flag: flags.Supersedes, Field: "supersedes"},
-	{Flag: flags.FoundBy, Field: "found_by"},
 }
 
 // familyReader is the one read the estoppel guard makes of the record a mint lands on.
@@ -514,18 +368,176 @@ type familyReader interface {
 	Family() (record.Family, error)
 }
 
-// requireNotEstopped refuses a mint whose location is text a red seat prescribed and blue applied
-// verbatim, unless the mint supersedes that gap — and refuses any mint whose record could not be
-// read to ask: a gap opened because the estoppel question could not be asked is one the tool
-// admitted on nothing. Every `--quote` mint meets it, a found source's claim_contradicts_source
-// included (gblock, 2026-11-06, F4 (a)).
-func requireNotEstopped(l familyReader, quote string, supersedes []string) error {
+// requireNotEstopped refuses seat's mint whose location is text seat prescribed and blue applied
+// verbatim — and refuses any mint whose record could not be read to ask: a gap opened because the
+// estoppel question could not be asked is one the tool admitted on nothing. Every `--quote` mint meets
+// it, a found source's claim_contradicts_source included (gblock, 2026-11-06, F4 (a)). Estoppel binds
+// only the prescribing lens (#1695 X11).
+func requireNotEstopped(l familyReader, seat, quote string) error {
 	fam, err := l.Family()
 	if err != nil {
-		return unreadableRefusal("whether this location is text red prescribed", err)
+		return unreadableRefusal("whether this location is text you prescribed", err)
 	}
-	if est, ok := record.EstoppelConflict(fam, quote); ok && !contains(supersedes, est.Gap) {
+	if est, ok := record.EstoppelConflict(fam, seat, quote); ok {
 		return estopped{est}
 	}
 	return nil
+}
+
+// placementRefusal is the refusal `mint` gives for a quote Attach will not place; noun is what the
+// quote anchors. A section is named by --about-kind, so a quote on a heading is told to.
+func placementRefusal(noun string, err error) error {
+	switch {
+	case errors.Is(err, anchortext.ErrMisQuote):
+		return feov.Errorf(feov.Validation, "--quote was not found in report.md.\n\nIt is matched LITERALLY against the report, so it must be the quoted text ALONE. A section heading in front of it (\"Findings: …\", \"## Method — …\") is the common cause and makes it match nothing — measured, four times in one sitting with four different separators. Name the section in --reason instead.\n\nA quote may not cross a blank line: a %s anchors ONE passage", noun)
+	case errors.Is(err, anchortext.ErrInFence):
+		return feov.Errorf(feov.Validation, "the quote resolves inside a code fence — anchor a prose sentence, not code")
+	case errors.Is(err, anchortext.ErrOnHeading):
+		return fmt.Errorf("%w; for a %s about the whole section, name the section with --about-kind section", anchortext.Refusal(err), noun)
+	}
+	return anchortext.Refusal(err)
+}
+
+// WriteMint is the mint's write. before is what the same transaction writes ahead of the mint. Its
+// effects ride with the mint: --new verified against the report the
+// mint lands on (verifiedFix), the estoppel guard and its TOOL log, and the Places guard with the
+// Anchor that places the gap's marker. quote is the sentence as the seat typed it; fixNew its --new.
+func WriteMint(s seat.Context, p *recordpb.Mint, quote, fixNew string, before ...record.Act) error {
+	gapID := p.GetGapId()
+	var guards []record.Guard
+	// THE CONCRETE PROPOSAL is verified against the report the mint lands on (gapFlags.fill says
+	// why fix_basis is derived, not claimed).
+	if fixNew != "" {
+		guards = append(guards, record.Check(func(l *record.Landing) error {
+			report, err := l.Report()
+			if err != nil {
+				return err
+			}
+			return verifiedFix(p, report, gapID, quotePlace(quote), fixNew)
+		}))
+	}
+	// ESTOPPEL: RED IS BOUND BY THE FIX IT PRESCRIBED (#267 stage 4).
+	//
+	// A gap whose location is text red PRESCRIBED and blue applied VERBATIM is an
+	// amendment to the gap that prescribed it, not a fresh gap. Measured: 3 of 3 of the
+	// 2026-08-04 smoke's round-2 gaps were about text blue added in round 1 at red's own
+	// instruction, and blue had no channel to say so.
+	//
+	// Red is not silenced — it argues the point on the ORIGINAL gap, where its own
+	// prescription sits on the record beside the complaint. What it may not do is open a clean slate against its own
+	// words.
+	//
+	// THE REJECTION IS LOGGED, AS AN ESTOPPEL, not merely refused. A guard that silently
+	// blocks is invisible: this makes "how often does red relitigate its own
+	// prescriptions" a per-run number on the record, which is the measurement of the
+	// pathology the guard prevents. Same discipline as `blue cite`'s unreachable-source
+	// rejection — the tool records the block, never the seat's memory of it.
+	//
+	// ASKED OF THE RECORD THE MINT LANDS ON: blue's `edit --accept` of a prescription commits in
+	// parallel, and a mint checked against the record before it opens a fresh gap against red's
+	// own words. The refusal is decided under the write lock; the log entry
+	// that records it is written after, as its own act.
+	//
+	// A FOUND-SOURCE 32 IS A QUOTE MINT AND MEETS THE GUARD LIKE ANY GAP (gblock, 2026-11-06, F4
+	// (a)): red argues it on the prescribing gap, as the refusal says. A reword of the applied
+	// text by blue writes the row that ends the estoppel (record.writeTombstones).
+	guards = append(guards, record.Check(func(l *record.Landing) error {
+		return requireNotEstopped(l, s.SeatID, quote)
+	}))
+
+	var est estopped
+	switch _, err := record.AppendActs(s.Identity(), append(before, seat.PlacedActs(p, gapID, p.GetLocation(), mintPlacementRefusal, guards...)...)...); {
+	case errors.As(err, &est):
+		prior := est.Gap
+		road := fmt.Sprintf("restate it on %s with your amend of it (`amend --id %s`), where your prescription sits beside the complaint", prior, prior)
+		if run, err := s.Run(); err == nil {
+			if open, err := record.GapOpenOf(run, prior); err == nil && !open {
+				road = fmt.Sprintf("%s is closed, so no act of yours restates it: the text stands as you prescribed it", prior)
+			}
+		}
+		msg := fmt.Sprintf("estoppel — this gap's location is text you prescribed and blue applied verbatim: your fix for %s. Your own applied prescription binds you, so it is not a fresh gap: %s. Another lens audits that text as it audits any of blue's. Applied text: %q",
+			prior, road, est.Text)
+		// The KIND is a field, not something a reader infers from the wording. The
+		// prose above is aimed at a seat and must stay editable; the count an
+		// operator reads must not move when it is edited (#283).
+		// THE TYPE IS A VALUE NOW, not a key/word pair. `text` is the field the log
+		// projection reads, and the old payload set the wrong key — every estoppel
+		// block recorded an entry that rendered with EMPTY TEXT, so the block was
+		// logged and its explanation was not. The schema removes the way to make that
+		// mistake: one prose field, one typed assertion, one source.
+		//
+		// SOURCE IS TOOL, and that is the axis the old single enum conflated: this is
+		// the tool refusing a mint, not a seat filing a report about its sitting, and
+		// an operator filtering for seat reports must not have to know which VALUES
+		// were tool values to exclude it.
+		lt := recordpb.LogType_LOG_TYPE_ESTOPPEL
+		src := recordpb.LogSource_LOG_SOURCE_TOOL
+		fr := &recordpb.Log{
+			Text:   proto.String(msg),
+			Type:   &lt,
+			Source: &src,
+		}
+		if _, ferr := record.Append(s.Identity(), fr); ferr != nil {
+			return ferr
+		}
+		return record.ToolLogged(feov.Errorf(feov.Conflict, "%s", msg))
+	case err != nil:
+		return err
+	}
+	return nil
+}
+
+// Statement is a gap's statement as a verb takes it: its judgment (class, problem, fix, proposal,
+// acceptance check, grades) and its subject — the one sentence it lives at (--quote), or what
+// --about-kind/--about name. `mint` takes it.
+type Statement struct{ g gapFlags }
+
+// Register registers the statement's flags on c.
+func (st *Statement) Register(c *cobra.Command) {
+	st.g.register(c)
+	flags.Text(c, flags.Quote, "the ONE sentence the defect lives at — "+flags.DescQuoteAlone+". The tool anchors the gap at its end, and the board shows that sentence with its section")
+	seat.RequiredUnless(c, flags.Quote, "unless --about-kind/--about name the subject")
+	enumhelp.Flag(c, flags.AboutKind, record.MustEnum("mint", "about_kind"),
+		"anchor this gap to something that is NOT report text — a section for what is missing from it, an inquiry, the question this run was asked or one of its question parts, a computation whose sentence you judged unsound, or another lens's open gap whose printed wording or grades are the defect; use instead of --quote")
+	flags.Text(c, flags.About, "the `reference` --about-kind names: a section heading, an inquiry id, a question part id (none with --about-kind question, for a part of the question no question part covers), a computation's anchor, which is the bare id inside its `"+anchor.Token("K-…")+"` token in the report ("+flags.BareID("K-…")+") or that token whole, or another lens's open gap id. It is CHECKED against the record")
+}
+
+// Fill is the Mint the statement's flags state, with text as its argument and key as its --key, its
+// subject resolved against run's record. Its id, ancestor and a verified --new are the writer's.
+func (st *Statement) Fill(run record.Run, cmd *cobra.Command, text, key string) (*recordpb.Mint, error) {
+	p, err := st.g.fill(cmd, text, key)
+	if err != nil {
+		return nil, err
+	}
+	// THE LOCATION IS MATCHED AGAINST THE REPORT, and it was not.
+	//
+	// A quote is REFUSED on a mis-quote — the anchor cannot be spliced where the text is
+	// not. Mint's took prose, on the reasoning that a gap's location is
+	// "recorded for a reader". Measured (#359): three gaps were minted naming report
+	// sections that do not exist, two of them `--existence verified`. A seat asserted it
+	// had checked a defect at the leaf, at a place the tool never confirmed was there.
+	//
+	// A location a reader cannot find is not a location, and it is refused.
+	//
+	// AN OMISSION HAS A PLACE, AND IT IS NOT A BORROWED SENTENCE: an absence names the
+	// section it is missing from, the inquiry whose question it argues against, or the
+	// anchor whose check failed, and the record CHECKS the reference.
+	about, aboutRefP, aerr := record.ResolveAbout(run, record.MustEnum("mint", "about_kind"), seat.Str(cmd, flags.AboutKind), seat.Str(cmd, flags.About))
+	if aerr != nil {
+		return nil, aerr
+	}
+	loc := seat.Location(cmd)
+	// ONE SUBJECT, and exactly one: a quote or an --about. A gap that claims both is claiming
+	// two; a gap with neither is a problem nothing locates, which the record refuses
+	// (record.requireMintSubject).
+	if strings.TrimSpace(loc) != "" && about != nil {
+		return nil, feov.Errorf(feov.Validation, "takes --quote OR --about, not both: a gap has one subject")
+	}
+	// THE GAP'S ANCHOR IS PLACED as every kind's is: at the end of its quote, which must occur
+	// once within one paragraph of the report the mint lands on (seat.AppendPlaced, below). A gap
+	// is one sentence (R-4), and the board reads its location from where its anchor stands.
+	p.Location = proto.String(loc)
+	p.AboutKind = about
+	p.AboutRef = aboutRefP
+	return p, nil
 }

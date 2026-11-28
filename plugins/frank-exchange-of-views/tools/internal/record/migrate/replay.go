@@ -5,13 +5,14 @@ import (
 	"fmt"
 	"slices"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
 	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/bluedoc"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/compute"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
@@ -36,7 +37,7 @@ type Result struct {
 	Refusals            []migration.Refusal
 	AcceptedLosses      map[string]string             // word -> the entry's stated reason
 	SourceHash          string                        // sha256 over the event stream AS READ — the logical record
-	IDs                 map[string]string             // archived id or finding label -> the id the migrated record carries
+	IDs                 map[string]string             // archived id -> the id the migrated record carries
 	Serialized          map[string]int                // archived instance seat -> events moved after instance 1 (serializeInstances)
 	StatedFills         []migration.StatedFill        // values supplied where the source predates the field
 	ClassTranslations   []migration.ClassTranslation  // the archived class slugs an authored row of gapclass.go carried, and onto what
@@ -45,6 +46,13 @@ type Result struct {
 	ReportOrder         string                        // what became of the order of the report's text (order.go)
 	ProseRewrites       []migration.ProseRewrite      // every archived id rewritten inside a seat's wording, in order
 	DroppedPlanBlockers int                           // stored plans' archived reading blockers of a found source, which leave the plan (TranslateReadingBlockers)
+	QuotelessReadings   []int64                       // source ids of the readings whose quote held only tokens the fold takes out, written as no event (EventSchema 80)
+	SettledEdits        []int64                       // source ids of the edits whose change a finding's token kept from standing, written as no event (EventSchema 80)
+	UnowedEngagements   []int64                       // source ids of the engagements whose sitting owes none on the migrated record, written as no event (EventSchema 80)
+	SupersedeLinks      []migration.SupersedeLink     // Translation 7: every archived supersede link and what it became (supersede.go)
+	RekeyedAnchors      []int64                       // Translation 7: source ids of an amended successor's marker placements, written as no event
+	AmendedAncestorActs []int64                       // Translation 7: source ids of a close or regrade naming a gap an amended link restated, after it, written as no event
+	Dockets             migration.DocketResidue       // Translations 3 and 4's residue: the source ids written as no event (EventSchema 80)
 	LostActs            []migration.Refusal           // archived acts the delivered-text rule refuses, written as no event (undeliveredLoss)
 
 	computations []migratedComputation          // every computation written, and where its artifact is (computations.go)
@@ -55,7 +63,7 @@ type Result struct {
 }
 
 // undeliveredLoss is the accepted loss of an archived act the delivered-text rule refuses.
-const undeliveredLoss = "an archived close, spot-check or ruling on a motion about gaps stands only on report text delivered to its seat, and its sitting holds no recorded delivery; it is written as no event, each such act listed in lost_acts, and the run's stamped outcome is carried as history"
+const undeliveredLoss = "an archived close or spot-check stands only on report text delivered to its seat, and its sitting holds no recorded delivery; it is written as no event, each such act listed in lost_acts, and the run's stamped outcome is carried as history"
 
 // dependentLossWhy is the accepted loss of an archived act refused only because it depends on a lost act.
 const dependentLossWhy = "an archived act refused only because it depends on a gap a lost act took with it is that same loss; it is written as no event, each such act listed in lost_acts with the act it depended on"
@@ -124,6 +132,7 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 		In:             map[string]int{},
 		Out:            map[string]int{},
 		AcceptedLosses: map[string]string{},
+		SupersedeLinks: []migration.SupersedeLink{},
 	}
 	res.SourceHash, err = hashEvents(evs)
 	if err != nil {
@@ -137,10 +146,25 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 	// event; a reading that named it comes forward as a reading of the label's source. The labels and
 	// their sources are read off the SOURCE stream: the migrated Verify has no label to be found by.
 	labelled := labelSources(evs, rm)
+	// A FINDING IS WRITTEN AS NO EVENT (EventSchema 80), and every name it carries leaves the id
+	// lists and the token fields of the record (remap.dropped). The names are read off the SOURCE
+	// stream: no translated body carries them.
+	rm.dropFindings(findingNames(evs))
 	// AN IN-ACT MINT OF A CITED READING COMES FORWARD ABOUT ITS CITATION (EventSchema 71): the
 	// citation its carrying reading named is the subject the live mint names, read off the source
 	// stream, since the migrated Verify names no gap.
 	cited := citedInActMints(evs)
+	// A SUPERSEDE LINK IS AN AMEND OR NOTHING (Translation 7, supersede.go): the ancestor each archived
+	// mint named is read off the SOURCE stream, since no translated mint carries it.
+	ancestors := supersededBy(evs)
+	amendedAncestors := map[string]bool{} // first gaps an amended link restated (actOnAmendedAncestor)
+	// AN ARCHIVED DOCKET IS A DOCKETING, OR NO EVENT (EventSchema 80, docketing.go): which docket the
+	// dispatch filed is read off the source stream's order, which no translated body carries.
+	dockets, err := docketsOf(evs, reg, rm)
+	if err != nil {
+		return nil, err
+	}
+	reopened := map[string]bool{} // gaps whose close a dropped bench act took away (reopenedSpotCheck)
 	rm.archivedNotes = true
 	if sq, ok := src.(*SQLiteSource); ok {
 		if e, known := sq.SourceEpoch(); known && e >= computationEpoch {
@@ -221,7 +245,7 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 	for _, old := range evs {
 		bodies, _ := reg.Translate(old)
 		for _, body := range bodies {
-			rm.apply(body, old.Fields["label"])
+			rm.apply(body)
 		}
 	}
 	// The learning pass writes nothing, so what it rewrote is not what the record holds.
@@ -236,6 +260,35 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 	// pin is the id of the event that source head was written as.
 	newID := map[int64]int64{} // source events.id -> the events.id of the first event written from it
 	var wrote int64
+	// A PIN THAT NAMED AN ACT LEFT OUT BY DESIGN names the record as it stood before it: the last
+	// event written, which is what a read at that act saw less the act. A dispatch's pin, a stale
+	// refusal's read point, a report read's head and a stored plan's ids that named such an act each
+	// translate to it, so the act's absence moves no read point past an act the seat had not seen.
+	// The acts left out this way are an act on a superseded gap (actOnSupersededGap), a finding
+	// (EventSchema 80) and a quoteless reading; a settled edit is headBefore's. An act the write REFUSED is not one of
+	// them, nor is a dropped Anchor, which no archived pin names: a pin naming either is refused,
+	// below, since the record never held what it read.
+	pinBefore := func(oldID int64) error {
+		if _, seen := newID[oldID]; seen {
+			return nil
+		}
+		var last int64
+		if err := batch.Querier().QueryRow(`SELECT COALESCE(MAX("id"), 0) FROM "events"`).Scan(&last); err != nil {
+			return fmt.Errorf("reading the last event written before source event %d: %w", oldID, err)
+		}
+		newID[oldID] = last
+		return nil
+	}
+	// headBefore translates a pin naming a settled edit to the report head it left standing: the
+	// latest edit or part written, which renders the report that edit's change already stood in.
+	headBefore := func(oldID int64) error {
+		var head int64
+		if err := batch.Querier().QueryRow(`SELECT COALESCE(MAX("id"), 0) FROM "events" WHERE "type" IN ('blue_edit', 'report_part')`).Scan(&head); err != nil {
+			return fmt.Errorf("reading the report head before source event %d: %w", oldID, err)
+		}
+		newID[oldID] = head
+		return nil
+	}
 	computationAnchors := map[string][]string{}  // bundle_sha -> the anchors of the computations written on it, in order
 	bundleOf := map[string]string{}              // archived script sha -> the bundle_sha its computation was written with
 	standing := map[string]*recordpb.Reproduce{} // bundle_sha -> the latest reproduce written that ran it
@@ -243,11 +296,9 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 	res.derived = map[string][]compute.Execution{}
 	computationOf := map[string]migratedComputation{} // computation_id -> the computation written with it
 
-	proposalMethod := map[string]string{}  // inquiry id -> the method its proposal carried (before epoch 30)
-	classMints := map[string]int{}         // archived class slug an authored row translates -> the mints written with it
-	supersededMotions := map[string]bool{} // motion ids left out as acts on a superseded gap (actOnSupersededGap)
-	raises := map[string]bool{}            // the ids of the archived raises written as no event
-	lost := lostGaps{}                     // each gap a lost act took with it (lostacts.go)
+	proposalMethod := map[string]string{} // inquiry id -> the method its proposal carried (before epoch 30)
+	classMints := map[string]int{}        // archived class slug an authored row translates -> the mints written with it
+	lost := lostGaps{}                    // each gap a lost act took with it (lostacts.go)
 	for at, old := range evs {
 		res.In[old.Word]++
 		// A Correction, and a replacement, are written with the chain's root.
@@ -287,6 +338,35 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 				continue
 			}
 			res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
+			continue
+		}
+		if src.Word == "finding" {
+			if err := pinBefore(old.ID); err != nil {
+				return nil, err
+			}
+			continue
+		}
+		// A BENCH OPINION, AND A DOCKET NO DISPATCH FILED WITH ITS RULING, IS WRITTEN AS NO EVENT
+		// (docketing.go); the gap each closed reads open where nothing else closed it.
+		if src.Word == "opinion" {
+			res.Dockets.Opinions = append(res.Dockets.Opinions, old.ID)
+			if g, ok := src.Fields["gap_id"].(string); ok {
+				reopened[rm.respelled(g)] = true
+			}
+			if err := pinBefore(old.ID); err != nil {
+				return nil, err
+			}
+			continue
+		}
+		var drop docketDrop
+		if bodies, drop = dockets.translate(bodies); drop != keptDocket {
+			res.Dockets.PartyDockets = append(res.Dockets.PartyDockets, old.ID)
+			if r, ok := src.Fields["motion_id"].(string); ok && src.Word == "motion_rule" {
+				reopened[rm.respelled(dockets.gapOf[r])] = true
+			}
+			if err := pinBefore(old.ID); err != nil {
+				return nil, err
+			}
 			continue
 		}
 		// AN ARCHIVED REPRODUCE NAMES ITS SCRIPT BY THE SCRIPT'S SHA, and the record names a bundle:
@@ -337,7 +417,7 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 			if repro != nil && repro.Drift != nil {
 				drift = proto.String(repro.GetDrift())
 			}
-			rm.apply(body, src.Fields["label"])
+			rm.apply(body)
 			if repro != nil {
 				repro.Drift = drift
 				// AN ACT THAT RAN NOTHING STANDS ON ITS BUNDLE'S RE-RUN and states that re-run's
@@ -370,19 +450,87 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 			} else if drop {
 				continue
 			}
-			if drop, err := actOnSupersededGap(batch.Querier(), body, supersededMotions); err != nil {
-				return nil, err
-			} else if drop {
-				// A PIN THAT NAMED THE ACT LEFT OUT names the record as it stood before it: the last
-				// event written, which is what a read at that act saw less the act.
-				if _, seen := newID[old.ID]; !seen {
-					var last int64
-					if err := batch.Querier().QueryRow(`SELECT COALESCE(MAX("id"), 0) FROM "events"`).Scan(&last); err != nil {
-						return nil, fmt.Errorf("reading the last event written before source event %d: %w", old.ID, err)
+			if m, ok := body.(*recordpb.Mint); ok {
+				if raw, linked := ancestors[src.ID]; linked {
+					link, amend, regrade, err := supersedeLink(batch.Querier(), m, seatID, rm.current(rm.respelled(raw)))
+					if err != nil {
+						return nil, err
 					}
-					newID[old.ID] = last
+					link.OldID = old.ID
+					res.SupersedeLinks = append(res.SupersedeLinks, link)
+					if amend != nil {
+						wrote, err := writeAmend(batch, id, ts, amend, regrade, res)
+						if err != nil {
+							res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: refused(err)})
+							continue
+						}
+						rm.rekey(m.GetGapId(), amend.GetGapId())
+						amendedAncestors[amend.GetGapId()] = true
+						if _, seen := newID[old.ID]; !seen {
+							for _, k := range links[1:] {
+								newID[byKey[k].ID] = wrote
+							}
+							newID[old.ID] = wrote
+						}
+						continue
+					}
+				}
+			}
+			// AN ENGAGEMENT THAT OWES NONE IS WRITTEN AS NO EVENT, and counted (UnowedEngagements): the
+			// record as migrated names none for it. A pin naming it names the record before it.
+			if d, ok := body.(*recordpb.Dispatch); ok {
+				if none, err := record.EngagementOwesNone(batch.Querier(), seatID, d); err != nil {
+					return nil, err
+				} else if none {
+					res.UnowedEngagements = append(res.UnowedEngagements, old.ID)
+					if err := pinBefore(old.ID); err != nil {
+						return nil, err
+					}
+					continue
+				}
+			}
+			// THE BENCH SIDES WITH A STATED POSITION, AND NOTHING ELSE (EventSchema 80, docketing.go): a
+			// ruling of a docketing a Close or an Amend ended first, a regrade of the bench's own, and a spot-check of
+			// a gap a dropped bench act left open, and an inquiry check such a gap alone holds wanting, are
+			// written as no event, each stated.
+			if ended, err := endedRuling(batch.Querier(), body); err != nil {
+				return nil, err
+			} else if ended {
+				res.Dockets.EndedRulings = append(res.Dockets.EndedRulings, old.ID)
+				if err := pinBefore(old.ID); err != nil {
+					return nil, err
 				}
 				continue
+			}
+			if benchRegrade(body, seatID) {
+				res.Dockets.BenchRegrades = append(res.Dockets.BenchRegrades, old.ID)
+				if err := pinBefore(old.ID); err != nil {
+					return nil, err
+				}
+				continue
+			}
+			if drop, err := reopenedSpotCheck(batch.Querier(), body, reopened); err != nil {
+				return nil, err
+			} else if drop {
+				res.Dockets.SpotChecks = append(res.Dockets.SpotChecks, old.ID)
+				if err := pinBefore(old.ID); err != nil {
+					return nil, err
+				}
+				continue
+			}
+			if drop, err := reopenedInquiryCheck(batch.Querier(), body, reopened); err != nil {
+				return nil, err
+			} else if drop {
+				res.Dockets.InquiryChecks = append(res.Dockets.InquiryChecks, old.ID)
+				if err := pinBefore(old.ID); err != nil {
+					return nil, err
+				}
+				continue
+			}
+			if k, ok := body.(*recordpb.Docketing); ok {
+				if err := docketingCause(batch.Querier(), k); err != nil {
+					return nil, err
+				}
 			}
 			if b, ok := body.(*recordpb.ReportPart); ok {
 				res.parts = append(res.parts, b.GetText())
@@ -400,7 +548,9 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 				d.Pin = proto.Int64(to)
 			}
 			// A STALE REFUSAL'S READ POINT is an events.id too: the last act the refusal showed. It
-			// is translated as a pin is, and refused where the act it names wrote no event.
+			// is translated as a pin is, and refused where the act it names wrote no event. A read
+			// point at a finding is the last event before it (pinBefore): the acts after it are news
+			// to the seat as they were, and the finding, which the record no longer holds, is none.
 			if st, ok := body.(*recordpb.Stale); ok && st.Through != nil {
 				to, landed := newID[st.GetThrough()]
 				if !landed {
@@ -452,25 +602,49 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 					continue
 				}
 			}
-			// A RAISE IS WRITTEN AS NO EVENT (EventSchema 59): a finding about a reading that found
-			// against its sentence — decoded as about an anchor, its ref a reading's events.id rather
-			// than an anchor id — has no place in a record where the lens mints the gap on its reading.
-			// The ref must name a reading the replay wrote, or the finding is refused: nothing but a
-			// raise is dropped. A gap's found_by naming it loses that entry, below.
-			if f, ok := body.(*recordpb.Finding); ok && f.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_ANCHOR && anchor.Kind(f.GetAboutRef()) == "" {
-				if err := raisedReading(batch.Querier(), f, newID); err != nil {
-					res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
-					continue
+			// AN ACT ON A GAP AN AMENDED LINK RESTATED, NAMING THE GAP ITSELF RATHER THAN ITS SUCCESSOR, IS
+			// WRITTEN AS NO EVENT (Translation 7): under the rule of its day the seat went on acting on the
+			// gap it had superseded — closing it as carried by the successor, regrading it — and the
+			// successor is that gap now, so the act would close or move the gap the successor's own acts
+			// go on answering. A pin naming it names the record before it.
+			if actOnAmendedAncestor(rm, src, body, amendedAncestors) {
+				res.AmendedAncestorActs = append(res.AmendedAncestorActs, old.ID)
+				if err := pinBefore(old.ID); err != nil {
+					return nil, err
 				}
-				raises[f.GetId()] = true
 				continue
 			}
-			if m, ok := body.(*recordpb.Mint); ok && len(raises) > 0 {
-				m.FoundBy = slices.DeleteFunc(m.FoundBy, func(id string) bool { return raises[id] })
+			// A RE-KEYED SUCCESSOR'S MARKER IS ITS FIRST GAP'S (Translation 7): the successor kept the first
+			// gap's location, so its Anchor placed a second marker on the sentence the first gap's already
+			// marks, and is written as no event; a pin naming it names the record before it.
+			if _, ok := body.(*recordpb.Anchor); ok {
+				if raw, _ := src.Fields["id"].(string); raw != "" {
+					if _, rekeyed := rm.rekeyed[rm.respelled(raw)]; rekeyed {
+						res.RekeyedAnchors = append(res.RekeyedAnchors, old.ID)
+						if err := pinBefore(old.ID); err != nil {
+							return nil, err
+						}
+						continue
+					}
+				}
 			}
-			// A DROPPED LABEL'S ANCHOR IS WRITTEN AS NO EVENT, and a reading of the citation it placed
+			// A DROPPED LABEL'S OR FINDING'S ANCHOR IS WRITTEN AS NO EVENT, and a reading of the citation it placed
 			// becomes a reading of the label's source.
 			if a, ok := body.(*recordpb.Anchor); ok && rm.dropped[a.GetId()] {
+				continue
+			}
+			// A READING WHOSE QUOTE WAS ONLY TOKENS THE FOLD TAKES OUT IS WRITTEN AS NO EVENT. A seat
+			// that quoted nothing but a finding's token and a dropped label's (quadratic-formula: a
+			// re-check of a citation stranded in the title line) quoted no report text; with both
+			// tokens gone its quote says nothing, and no sentence of the report is equivalent to it —
+			// the labelled reading's claim would attach the reading to a sentence it never named. The
+			// reading is the residue, counted (QuotelessReadings); a pin naming it names the record
+			// before it.
+			if v, ok := body.(*recordpb.Verify); ok && v.Claim != nil && strings.TrimSpace(v.GetClaim()) == "" {
+				res.QuotelessReadings = append(res.QuotelessReadings, old.ID)
+				if err := pinBefore(old.ID); err != nil {
+					return nil, err
+				}
 				continue
 			}
 			if v, ok := body.(*recordpb.Verify); ok && rm.dropped[v.GetAnchor()] {
@@ -526,17 +700,27 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 			if c, ok := body.(*recordpb.Close); ok {
 				c.Anchors = slices.DeleteFunc(c.Anchors, func(a string) bool { return a == c.GetGapId() })
 			}
-			filer := id
-			if seat, ok := opinionFiler(src, body); ok {
-				filer = record.Identity{Run: dst, SeatID: seat}
+			// AN EDIT OF A STRAY A FINDING'S TOKEN LEFT, WHOSE CHANGE ALREADY STANDS, IS WRITTEN AS NO
+			// EVENT. A bare finding token standing against a terminator kept the terminator outside an
+			// edit's span (bluedoc.settleAbuttingAnchors), and a later edit removed the stray it left
+			// (m26, twice). With the token gone the first edit takes the terminator, so no stray stands
+			// in the migrated report: the later edit's quote names text it never held, or finds the
+			// sentence's own terminator and would delete it with the anchor on it. It is the residue,
+			// counted (SettledEdits); a pin naming it names the report head before it.
+			if settledEdit(batch.Querier(), src, body) {
+				res.SettledEdits = append(res.SettledEdits, old.ID)
+				if err := headBefore(old.ID); err != nil {
+					return nil, err
+				}
+				continue
 			}
 			// AN ARCHIVED ACT THE DELIVERED-TEXT RULE REFUSES IS WRITTEN AS NO EVENT (gblock
-			// 2026-11-14): an archived close, spot-check or ruling on a motion about gaps whose sitting
+			// 2026-11-14): an archived close or spot-check whose sitting
 			// holds no delivery of report text stood on text the record never recorded reaching its
 			// seat. Nothing is synthesized to make it stand; it is an accepted loss, listed by act, and
 			// a pin or read point that named it names the last event written before it. The run's
 			// stamped outcome is carried as history.
-			if err := record.DeliveredTextRefusal(batch.Querier(), filer.SeatID, body); err != nil {
+			if err := record.DeliveredTextRefusal(batch.Querier(), id.SeatID, body); err != nil {
 				var u *record.UndeliveredError
 				if !errors.As(err, &u) {
 					return nil, err
@@ -561,22 +745,15 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 			switch {
 			case errors.Is(err, errNoEvent), errors.As(err, &loss):
 				// AN ACT THE RECORD HOLDS NO EVENT FOR (retirefold.go): a claim retire folded into its cuts
-				// is no act; a claim retire carrying no anchor or taking an open gap's marker, and an edit
-				// the fold leaves nothing to do, are lost acts. A pin that named it names the last event
-				// written before it — for an edit, the last report head: a pin names the report its party
-				// audited, and a lost edit changed nothing the migrated report holds, so that report is
-				// the one the head before it stands at.
+				// is no act; a claim retire carrying no anchor or taking an open gap's marker is a lost act.
+				// A pin that named it names the last event written before it.
 				if loss.err != nil {
 					res.LostActs = append(res.LostActs, migration.Refusal{OldID: old.ID, Word: old.Word, Err: loss.Error()})
 					res.AcceptedLosses[old.Word] = loss.why
 				}
 				if _, seen := newID[old.ID]; !seen {
 					var last int64
-					if _, edit := body.(*recordpb.BlueEdit); edit {
-						if last, err = record.ReportHeadAt(batch.Querier()); err != nil {
-							return nil, fmt.Errorf("reading the report head before source event %d: %w", old.ID, err)
-						}
-					} else if err := batch.Querier().QueryRow(`SELECT COALESCE(MAX("id"), 0) FROM "events"`).Scan(&last); err != nil {
+					if err := batch.Querier().QueryRow(`SELECT COALESCE(MAX("id"), 0) FROM "events"`).Scan(&last); err != nil {
 						return nil, fmt.Errorf("reading the last event written before source event %d: %w", old.ID, err)
 					}
 					newID[old.ID] = last
@@ -594,14 +771,14 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 					return nil, err
 				}
 				if a != nil {
-					if _, err := batch.Write(record.Identity{Run: dst, SeatID: record.HarnessSeat}, a, ts); err != nil {
+					if _, _, err := batch.Write(record.Identity{Run: dst, SeatID: record.HarnessSeat}, a, ts); err != nil {
 						res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: "admitting the sitting this close ends: " + err.Error()})
 						continue
 					}
 					res.Out[admissionWord]++
 				}
 			}
-			ev, err := batch.Write(filer, body, ts)
+			ev, actID, err := batch.Write(id, body, ts)
 			if err != nil {
 				gap, from, dep, derr := lost.dependsOn(batch.Querier(), body)
 				if derr != nil {
@@ -626,6 +803,15 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 				continue
 			}
 			res.Out[wordOf(ev)]++
+			// THE ROWS THE WRITE PATH WROTE BESIDE THE ACT (record.writeTombstones): every event above the
+			// act's own id is one, written in its savepoint.
+			var rows int
+			if err := batch.Querier().QueryRow(`SELECT count(*) FROM "events" WHERE "id" > ?`, actID).Scan(&rows); err != nil {
+				return nil, fmt.Errorf("counting the tombstone rows written after source event %d: %w", old.ID, err)
+			}
+			if rows > 0 {
+				res.Out[recordpb.Word(recordpb.EventType_EVENT_TYPE_TOMBSTONE)] += rows
+			}
 			if translatedSlug != "" {
 				classMints[translatedSlug]++
 			}
@@ -657,9 +843,10 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 				}
 			}
 			if _, seen := newID[old.ID]; !seen {
-				if err := batch.Querier().QueryRow(`SELECT MAX("id") FROM "events"`).Scan(&wrote); err != nil {
-					return nil, fmt.Errorf("reading the id of the event written from source event %d: %w", old.ID, err)
-				}
+				// THE ACT'S OWN ID, as the write returns it: after a placing or ending act the newest
+				// event is the tombstone row the write path wrote beside it (record.writeTombstones),
+				// which no pin, plan id or reading ref names.
+				wrote = actID
 				// Every link of a chain is the one act written here.
 				for _, k := range links[1:] {
 					newID[byKey[k].ID] = wrote
@@ -668,7 +855,7 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 			}
 			if anchorAfter != nil {
 				// The act landed whether or not its Anchor does, so what follows still pairs with it.
-				if _, err := batch.Write(record.Identity{Run: dst, SeatID: seatID}, anchorAfter, ts); err != nil {
+				if _, _, err := batch.Write(record.Identity{Run: dst, SeatID: seatID}, anchorAfter, ts); err != nil {
 					res.Refusals = append(res.Refusals, migration.Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
 				} else {
 					res.Out[recordpb.Word(recordpb.EventType_EVENT_TYPE_ANCHOR)]++
@@ -691,6 +878,12 @@ func replay(src Source, fromDir string, reg Registry, batch *record.Replay, dst 
 	if res.SupersededOutcomes == nil {
 		res.SupersededOutcomes = []migration.SupersededOutcome{}
 	}
+	res.QuotelessReadings, res.SettledEdits = statedIDs(res.QuotelessReadings), statedIDs(res.SettledEdits)
+	res.UnowedEngagements, res.RekeyedAnchors = statedIDs(res.UnowedEngagements), statedIDs(res.RekeyedAnchors)
+	res.AmendedAncestorActs = statedIDs(res.AmendedAncestorActs)
+	d := &res.Dockets
+	d.Opinions, d.PartyDockets = statedIDs(d.Opinions), statedIDs(d.PartyDockets)
+	d.EndedRulings, d.BenchRegrades, d.SpotChecks, d.InquiryChecks = statedIDs(d.EndedRulings), statedIDs(d.BenchRegrades), statedIDs(d.SpotChecks), statedIDs(d.InquiryChecks)
 	return res, nil
 }
 
@@ -788,7 +981,7 @@ func writeSynthesizedCast(evs []OldEvent, rm *remap, batch *record.Replay, dst r
 		return false, nil // nothing registered: nothing to admit, and nothing will register
 	}
 	sort.Strings(cast)
-	_, err := batch.Write(record.Identity{Run: dst, SeatID: record.HarnessSeat}, &recordpb.Cast{SeatIds: cast}, at)
+	_, _, err := batch.Write(record.Identity{Run: dst, SeatID: record.HarnessSeat}, &recordpb.Cast{SeatIds: cast}, at)
 	return err == nil, err
 }
 
@@ -840,47 +1033,11 @@ func archivedSha(src OldEvent) (string, bool) {
 // refusedArgument reports whether body is a closing or a position the write path refuses from
 // seatID at this place (record.ClosingRefusal, record.PositionRefusal) — one replay writes as no
 // event. A read that fails is returned, never taken for a refusal.
-// actOnSupersededGap reports whether body is an act on a gap a successor's mint closed by superseding
-// it, which the write refuses (EventSchema 62): a close, a regrade, a docket or grade motion on it, and
-// the ruling of a motion so left out. An archive's lens superseded an open gap and went on acting on
-// it — closing it repaired, regrading it, docketing it — under the rule of its day, when superseding
-// closed nothing. Since the ruling of gblock 2026-11-04 the successor's mint closes the ancestor and
-// holds its purpose, so the migrated record holds the ancestor closed there and each such act is left
-// out — the residue, stated with the change, that run-archive/ holds byte for byte. A closing on a
-// motion left out is refusedArgument's, since no docket stands for it. motions collects the ids of
-// the motions left out, for their rulings.
-func actOnSupersededGap(q recordsql.Querier, body proto.Message, motions map[string]bool) (bool, error) {
-	var gap string
-	switch b := body.(type) {
-	case *recordpb.Close:
-		gap = b.GetGapId()
-	case *recordpb.Regrade:
-		gap = b.GetGapId()
-	case *recordpb.Motion:
-		gap = b.GetDocket().GetGapId() + b.GetGrade().GetGapId()
-	case *recordpb.MotionRule:
-		return motions[b.GetMotionId()], nil
-	default:
-		return false, nil
-	}
-	if gap == "" {
-		return false, nil
-	}
-	superseded, err := record.SupersededGap(q, gap)
-	if err != nil || !superseded {
-		return false, err
-	}
-	if m, ok := body.(*recordpb.Motion); ok {
-		motions[m.GetMotionId()] = true
-	}
-	return true, nil
-}
-
 func refusedArgument(q recordsql.Querier, body proto.Message, seatID string) (bool, error) {
 	var err error
 	switch b := body.(type) {
 	case *recordpb.Closing:
-		err = record.ClosingRefusal(q, b.GetGapId(), seatID)
+		err = record.ClosingRefusal(q, seatID, b)
 	case *recordpb.Position:
 		err = record.PositionRefusal(seatID)
 	}
@@ -894,24 +1051,72 @@ func refusedArgument(q recordsql.Querier, body proto.Message, seatID string) (bo
 	return true, nil
 }
 
-// raisedReading checks that a raise — a finding about an anchor whose ref names no anchor — names a
-// reading: its ref a source events.id, carried through newID to a Verify the replay wrote. A ref that
-// is no events.id, wrote no event, or names no Verify is refused naming the finding — the loud miss,
-// so nothing but a raise is dropped.
-func raisedReading(q recordsql.Querier, f *recordpb.Finding, newID map[int64]int64) error {
-	n, err := strconv.ParseInt(strings.TrimSpace(f.GetAboutRef()), 10, 64)
+// settledEdit reports whether body is an edit whose change the migrated report already holds, because
+// the text it changed was a stray a finding's token left. It is one of two shapes, both measured on
+// m26:
+//   - its archived quote held a finding's token, that quote no longer locates in the report as the
+//     migrated record renders it, and its replacement already locates there;
+//   - it only deletes leading punctuation, and the punctuation its quote locates stands after, or
+//     against, an anchor the edit does not name. A stray terminator stood after a finding's token; with the token
+//     gone the quote finds the sentence's own terminator instead, and replaying it would delete that
+//     and the anchor on it.
+//
+// An exact-span edit and a run with no report yet are never settled: their misses stay the write's
+// and the render's to refuse.
+func settledEdit(q recordsql.Querier, src OldEvent, body proto.Message) bool {
+	b, ok := body.(*recordpb.BlueEdit)
+	if !ok || b.GetExactSpan() {
+		return false
+	}
+	text, err := record.RenderAt(q)
 	if err != nil {
-		return fmt.Errorf("finding %s is about %q, which names no anchor and is no events.id", f.GetId(), f.GetAboutRef())
+		return false
 	}
-	to, landed := newID[n]
-	if !landed {
-		return fmt.Errorf("finding %s raises the reading at event %d, which wrote no event on the migrated record before it", f.GetId(), n)
+	if stray, located := strayAt(text, b.GetOld(), b.GetNew()); located {
+		return stray
 	}
-	var one int
-	if err := q.QueryRow(`SELECT 1 FROM "verify" WHERE "event_id" = ?`, to).Scan(&one); err != nil {
-		return fmt.Errorf("finding %s raises event %d (written as %d), which is no reading on the migrated record: %v", f.GetId(), n, to, err)
+	if archived, _ := src.Fields["old"].(string); !strings.Contains(archived, "<!--"+findingTag+":") {
+		return false
 	}
-	return nil
+	_, _, err = bluedoc.LocateUniqueReplacing(text, b.GetNew())
+	return err == nil
+}
+
+// strayAt reports whether the edit from old to new is a stray terminator where old locates in text, and
+// whether old locates at all. The located span is widened leftward over the run of anchor tokens that
+// abuts it: the quote's leading punctuation stands after a token the locate skips, and that token is
+// the anchor the stop belongs to.
+func strayAt(text, old, replacement string) (stray, located bool) {
+	start, end, err := bluedoc.LocateUniqueReplacing(text, old)
+	if err != nil {
+		return false, false
+	}
+	return strayTerminator(old, replacement, text[tokenRunBefore(text, start):end]), true
+}
+
+// tokenRunBefore is the start of the run of anchor tokens that ends at i in text, or i when no token
+// ends there.
+func tokenRunBefore(text string, i int) int {
+	var spans [][2]int
+	anchor.Each(text[:i], func(start, end int, _ string) { spans = append(spans, [2]int{start, end}) })
+	for k := len(spans) - 1; k >= 0 && spans[k][1] == i; k-- {
+		i = spans[k][0]
+	}
+	return i
+}
+
+// strayTerminator reports whether an edit from old to new only deletes old's leading punctuation, and
+// span — where old locates — holds an anchor neither old nor new names.
+func strayTerminator(old, replacement, span string) bool {
+	if replacement == old || strings.TrimLeft(old, anchortext.TrailingPunct) != replacement {
+		return false
+	}
+	for _, id := range anchor.IDs(span) {
+		if !strings.Contains(old, id) && !strings.Contains(replacement, id) {
+			return true
+		}
+	}
+	return false
 }
 
 // labelSource is a dropped label's source: the url and title its labelled reading read.
@@ -935,6 +1140,23 @@ func labelSources(evs []OldEvent, rm *remap) map[string]labelSource {
 		out[rm.spelling("citation", l)] = out[l]
 	}
 	rm.dropLabels(labels)
+	return out
+}
+
+// findingNames is every name an archived finding carries — its id, its archived id and its label —
+// as the source spells each, read off the source stream.
+func findingNames(evs []OldEvent) []string {
+	var out []string
+	for _, old := range evs {
+		if old.Word != "finding" {
+			continue
+		}
+		for _, col := range []string{"id", "finding_id", "label"} {
+			if n, _ := old.Fields[col].(string); n != "" {
+				out = append(out, n)
+			}
+		}
+	}
 	return out
 }
 
@@ -996,4 +1218,31 @@ func truthy(v any) bool {
 		return b
 	}
 	return false
+}
+
+// statedIDs is ids, or an empty list where it holds none: the manifest states a zero rather than
+// leaving it absent.
+func statedIDs(ids []int64) []int64 {
+	if ids == nil {
+		return []int64{}
+	}
+	return ids
+}
+
+// writeAmend writes an amended supersede link's acts (Translation 7): the Amend, then the Regrade where
+// the grades differ, under the successor's seat and stamp. It answers the Amend's events.id.
+func writeAmend(batch *record.Replay, id record.Identity, ts time.Time, amend *recordpb.Amend, regrade *recordpb.Regrade, res *Result) (int64, error) {
+	ev, actID, err := batch.Write(id, amend, ts)
+	if err != nil {
+		return 0, err
+	}
+	res.Out[wordOf(ev)]++
+	if regrade != nil {
+		rev, _, err := batch.Write(id, regrade, ts)
+		if err != nil {
+			return 0, fmt.Errorf("the amend landed and its regrade is refused: %w", err)
+		}
+		res.Out[wordOf(rev)]++
+	}
+	return actID, nil
 }

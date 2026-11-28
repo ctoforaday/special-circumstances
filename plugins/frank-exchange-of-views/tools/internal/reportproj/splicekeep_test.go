@@ -11,7 +11,7 @@ import (
 // quote includes and one abutting the span outside it leave the same way, and removeMut's loud failure
 // on an absent token stays correct.
 func TestTheSpliceKeepsEveryTokenTheReplacementDoesNotCarry(t *testing.T) {
-	const f1, f2 = "<!--fx:F-00000001-->", "<!--fx:F-00000002-->"
+	const f1, f2 = "<!--gap:G-00000001-->", "<!--gap:G-00000002-->"
 	report := "One. Two" + f1 + f2 + ". Three.\n"
 	start := strings.Index(report, "Two")
 	end := start + len("Two"+f1+f2)
@@ -32,11 +32,11 @@ func TestTheSpliceKeepsEveryTokenTheReplacementDoesNotCarry(t *testing.T) {
 		t.Errorf("replay of a cut dropped a token its replacement did not carry: %q, %v", got, err)
 	}
 	// AND THE REMOVES COME AFTER: each listed token once, in list order, by RemoveAnchorAt.
-	out, err := RemoveListed(got, []string{"F-00000002", "F-00000001"})
+	out, err := RemoveListed(got, []string{"G-00000002", "G-00000001"})
 	if err != nil || out != "One. Three.\n" {
 		t.Errorf("RemoveListed after the splice:\n got %q (%v)\nwant %q", out, err, "One. Three.\n")
 	}
-	if _, err := RemoveListed(out, []string{"F-00000001"}); err == nil {
+	if _, err := RemoveListed(out, []string{"G-00000001"}); err == nil {
 		t.Errorf("a remove of a token already gone was not refused")
 	}
 }

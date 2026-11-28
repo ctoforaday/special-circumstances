@@ -19,6 +19,8 @@ type Guard struct {
 	ask func(*Landing) error
 	// last is the guard's declaration that it is asked AFTER the write path's validation (CheckLast).
 	last bool
+	// landed is the guard's declaration that it is asked of the record with the act on it (CheckLanded).
+	landed bool
 }
 
 // Check is a guard asked before the write path's validation.
@@ -28,6 +30,11 @@ func Check(ask func(*Landing) error) Guard { return Guard{ask: ask} }
 // refusal tells the seat to record the act again, which is false of an act the write path refuses for
 // itself — a motion on a gap already disposed of is refused whatever the seat reads.
 func CheckLast(ask func(*Landing) error) Guard { return Guard{ask: ask, last: true} }
+
+// CheckLanded is a guard asked of the record with the act written on it, inside the write's
+// transaction: one whose question is what the act leaves — the report after an edit — rather than what
+// it lands on. A refusal rolls the act back with the rest of the transaction.
+func CheckLanded(ask func(*Landing) error) Guard { return Guard{ask: ask, landed: true} }
 
 // ErrWritesNothing is a guard's answer that the write is not owed on the record it would land on — the
 // run is over, the anchor is already placed. The transaction rolls back with nothing written, and the
@@ -57,7 +64,21 @@ func guardsAt(w writeView, guards []Guard, last bool) error {
 	}
 	l := &Landing{w: w}
 	for _, g := range guards {
-		if g.last != last {
+		if g.last != last || g.landed {
+			continue
+		}
+		if err := g.ask(l); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// landedAt runs the guards asked of the record with the act on it (CheckLanded), in order, against w.
+func landedAt(w writeView, guards []Guard) error {
+	l := &Landing{w: w}
+	for _, g := range guards {
+		if !g.landed {
 			continue
 		}
 		if err := g.ask(l); err != nil {

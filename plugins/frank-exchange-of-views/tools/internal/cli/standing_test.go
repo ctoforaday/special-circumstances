@@ -4,6 +4,12 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+
+	"google.golang.org/protobuf/proto"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
 // EVERY ACT SAYS WHERE THE SEAT NOW STANDS (#1122).
@@ -91,16 +97,20 @@ func TestTheStandingIsTheSameInBothForms(t *testing.T) {
 // seat handed "1 item blocks you" has to ask which, which is the call this feature exists to remove.
 func TestABlockedSeatIsToldWhatBlocksIt(t *testing.T) {
 	runDir := seatRun(t)
-	// A grade motion blue filed is the chair's to rule, a blocking item with text of its own — so
-	// this drives the blocked arm on a board state a real sitting reaches.
-	contestSeverity(t, runDir, mintGap(t, runDir, "a-gap", "spec_underspecification"))
-	out, err := run(t, "position", "--run", runDir, "--seat-id", "red-chair",
+	// A chair sitting whose stored plan permits the PASS owes the PASS or a position withholding it, a
+	// blocking item with text of its own — so this drives the blocked arm on a board state a real
+	// sitting reaches: the plan `dispatch next` stores, then an act that is neither.
+	registerSeatOnce(t, runDir, "red-chair")
+	plan := record.Plan{Parties: []record.Party{}, Docket: []string{}, RemandOwed: []record.RemandOwed{}, Exchanges: []record.ExchangeCount{},
+		Why: []string{}, StaleAreas: []record.StaleArea{}, Blockers: []record.PlanBlocker{}, PassPermitted: true}
+	recordtest.Seed(t, runDir, recordtest.At(t, "red-chair", "red-chair:plan:#1", &recordpb.Plan{Printed: proto.String(plan.WithKey().Printed())}))
+	out, err := run(t, "log", "--run", runDir, "--seat-id", "red-chair", "--type", "defect",
 		"--reason", "red's account of this epoch")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(out, "STILL TO CLEAR") {
-		t.Fatalf("the chair owes a ruling and was not told it is held:\n%s", out)
+		t.Fatalf("the chair owes the PASS or a position and was not told it is held:\n%s", out)
 	}
 	// THE TERMINAL AND THE HELD STATE MUST NOT BOTH READ AS PERMISSION. "ALL CLEAR" is the one
 	// sentence that grants it, and a held seat must not see it anywhere in the block.
@@ -121,7 +131,6 @@ func TestTheChairsDigestCountsOnlyWhatTheChairClears(t *testing.T) {
 	runDir := seatRun(t)
 	id := mintGap(t, runDir, "a-material-gap", "spec_underspecification")
 	gapLine := "gap " + id + " is open and material"
-	contestSeverity(t, runDir, id)
 
 	out, err := run(t, "position", "--run", runDir, "--seat-id", "red-chair", "--reason", "red's account of this epoch")
 	if err != nil {
@@ -134,14 +143,13 @@ func TestTheChairsDigestCountsOnlyWhatTheChairClears(t *testing.T) {
 	if strings.Contains(head, gapLine) || !strings.Contains(board, gapLine) {
 		t.Errorf("a gap its minter closes is counted in the chair's own debt, want it under the board's state:\n%s", out)
 	}
-	if !strings.Contains(head, "was filed and never ruled") {
-		t.Errorf("the chair's own item is not in its own count:\n%s", out)
-	}
 	if strings.Contains(out, "before you may end your turn") {
 		t.Errorf("the chair's PASS blockers are said to hold its turn:\n%s", out)
 	}
-	if !strings.Contains(head, "STILL TO CLEAR before the run can PASS") {
-		t.Errorf("the chair is not told its items hold a PASS:\n%s", out)
+	// The chair holds no item of its own beside another seat's material gap: its PASS-or-position item
+	// stands only where the plan permits the PASS (TestABlockedSeatIsToldWhatBlocksIt counts it).
+	if !strings.Contains(head, "NOTHING HERE IS YOURS TO CLEAR") {
+		t.Errorf("the chair is not told none of the board is its own to clear:\n%s", out)
 	}
 
 	// THE ENVELOPE SAYS THE SAME: `blocking` is the chair's own, and the rest is beside it.
@@ -179,11 +187,11 @@ func TestTheChairsDigestCountsOnlyWhatTheChairClears(t *testing.T) {
 func TestAMotionAlsoSaysWhereTheSeatStands(t *testing.T) {
 	runDir := seatRun(t)
 	id := mintGap(t, runDir, "motion-gap", "spec_underspecification")
-	out, err := run(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond",
-		"--id", id, "--dimension", "severity", "--proposed", "low",
-		"--reason", "the consequence is bounded by the caller's own validation")
+	exchangeOn(t, runDir, id)
+	out, err := run(t, regradeProposalArgs(runDir, "blue-respond", id, "low",
+		"the consequence is bounded by the caller's own validation; the bench should decide the gap")...)
 	if err != nil {
-		t.Fatalf("motion grade file: %v\n%s", err, out)
+		t.Fatalf("motion docket file: %v\n%s", err, out)
 	}
 	if !saysWhereYouStand(out) {
 		t.Errorf("a motion is a write and said nothing about where the seat stands:\n%s", out)
@@ -194,13 +202,4 @@ func TestAMotionAlsoSaysWhereTheSeatStands(t *testing.T) {
 // what the block is, and a test spelling them separately drifts from the renderer one leg at a time.
 func saysWhereYouStand(s string) bool {
 	return strings.Contains(s, "ALL CLEAR") || strings.Contains(s, "STILL TO CLEAR") || strings.Contains(s, "NOTHING HERE IS YOURS TO CLEAR")
-}
-
-// contestSeverity is blue contesting gap id's severity: a motion the chair rules.
-func contestSeverity(t *testing.T, runDir, id string) {
-	t.Helper()
-	if _, err := run(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond", "--id", id,
-		"--dimension", "severity", "--proposed", "low", "--reason", "the consequence is smaller"); err != nil {
-		t.Fatal(err)
-	}
 }

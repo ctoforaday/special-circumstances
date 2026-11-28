@@ -12,16 +12,16 @@ import (
 )
 
 // DispatchNext is `dispatch next`'s whole act, in ONE write transaction: the chair's sitting is
-// checked, the plan is folded, a plan already standing is answered with nothing written, the docket
-// motions at impasse are filed, the blockers are read again with them on the record, one dispatch
-// row per party is written where the rows do not already stand, and the plan is stored as printed.
+// checked, the plan is folded, a plan already standing is answered with nothing written, the plan's
+// docketings are written, the blockers are read again with them on the record, one dispatch row per
+// party is written where the rows do not already stand, and the plan is stored as printed.
 // standing says the plan was already the record's decision.
 //
 // ONE TRANSACTION, BECAUSE THE ROWS ARE THE PLAN'S AND THE PLAN IS THE RECORD'S. Folded on one read
 // and written on later ones, the rows record a decision no state of the record yields: a lens's close
 // committed between them engages a party on a gap that is closed, and two askings in one sitting —
 // the chair's prose and --json calls made at once — each find no standing plan and each write the
-// rows and the impasse motions. The transaction takes the write lock at its BEGIN, so every seat's
+// rows and the docketings. The transaction takes the write lock at its BEGIN, so every seat's
 // write lands before the plan is folded or after its rows are in.
 //
 // Each act is written through writeIn with the write path's validation, asked of this transaction.
@@ -66,9 +66,10 @@ func dispatchNext(id Identity, first proto.Message) (plan Plan, standing bool, e
 		if err != nil {
 			return err
 		}
-		return writeIn(tx.Tx, ev, id.SeatID, typ, body, func(*sql.Tx) error {
+		_, err = writeIn(tx.Tx, ev, id.SeatID, typ, body, func(*sql.Tx) error {
 			return validateAct(writeView{q: tx, files: files}, id.SeatID, typ, body)
 		}, stamp)
+		return err
 	}
 	if first != nil {
 		if err := write(first); err != nil {
@@ -99,8 +100,8 @@ func dispatchNext(id Identity, first proto.Message) (plan Plan, standing bool, e
 	}
 	// ASKED AGAIN, NOTHING NEW IS RECORDED. The same plan, with nobody sat since it was stored, is
 	// the decision already on the record; writing it again doubles the rows every reader of "who was
-	// dispatched" counts. A plan that files a docket is never standing: the filing is new.
-	if len(plan.ToFile) == 0 && planStands(evs, win, plan.Printed()) {
+	// dispatched" counts. A plan that writes a docketing is never standing: the docketing is new.
+	if len(plan.ToDocket) == 0 && planStands(evs, win, plan.Printed()) {
 		if first != nil {
 			if err := tx.Commit(); err != nil {
 				return emptyPlan(), false, err
@@ -112,19 +113,25 @@ func dispatchNext(id Identity, first proto.Message) (plan Plan, standing bool, e
 	// asked — engages the parties its rows already engage: those rows stand, and only the plan is
 	// stored again.
 	rowsStand := dispatchStands(evs, win, plan)
-	// AT IMPASSE, AND PAST THE GRADE-MOVEMENT THRESHOLD, THE VERB FILES THE DOCKET MOTION ITSELF, the
-	// moment either is first computed, so "docketed" and the condition are one fact and no seat's
-	// discretion sits between the gap and the bench.
-	for _, g := range plan.ToFile {
-		if err := write(&recordpb.Motion{
-			MotionId: proto.String(NewID("motion")),
-			Basis:    proto.String(plan.basis[g]),
-			Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String(g)}},
-		}); err != nil {
-			return emptyPlan(), false, fmt.Errorf("docketing %s: %w", g, err)
+	// THE VERB WRITES THE DOCKETING ITSELF — at impasse, past the grade-movement threshold, and at the
+	// end of a proposal's window — the moment the condition is first computed, so "docketed" and the
+	// condition are one fact and no seat's discretion sits between the gap and the bench. A docketing is
+	// the tool's row and no seat's motion: it carries no act, and the bench answers it for a side.
+	for _, d := range plan.ToDocket {
+		k := &recordpb.Docketing{
+			DocketingId: proto.String(NewID("docketing")),
+			GapId:       proto.String(d.gapID),
+			Cause:       d.cause.Enum(),
+			Basis:       proto.String(d.basis),
+		}
+		if d.motionID != "" {
+			k.MotionId = proto.String(d.motionID)
+		}
+		if err := write(k); err != nil {
+			return emptyPlan(), false, fmt.Errorf("docketing %s: %w", d.gapID, err)
 		}
 	}
-	wrote := len(plan.ToFile) > 0
+	wrote := len(plan.ToDocket) > 0
 	for _, p := range plan.Parties {
 		if rowsStand {
 			break
@@ -136,18 +143,21 @@ func dispatchNext(id Identity, first proto.Message) (plan Plan, standing bool, e
 			return emptyPlan(), false, err
 		}
 	}
-	// THE BLOCKERS RETURNED, AND THE REASONS THAT STATE THEM, ARE THE RECORD'S ONCE THE VERB HAS
-	// WRITTEN. The plan above was folded before its docket motions and its rows: its list lacks the
-	// motions just filed, each an unruled motion whose gavel is the bench's. The workflow convenes the
+	// THE BLOCKERS RETURNED, THE STALE AREAS AND THE REASONS THAT STATE THEM ARE THE RECORD'S ONCE THE
+	// VERB HAS WRITTEN. The plan above was folded before its docketings and its rows: its list lacks the
+	// docketings just written, each a gap before the bench. The workflow convenes the
 	// terminal bench off the relayed blockers, and the plan asked again in the sitting is folded on
 	// the record with them: a plan stored with the list folded before would be one the record had
-	// already moved past, by the verb's own act, and asked again it would never stand.
+	// already moved past, by the verb's own act, and asked again it would never stand. The stale areas
+	// are the stale_area blockers' list, and the chair's spot-check is driven off it while its work
+	// list reads the blockers: refolded apart, the two named different areas and the chair's sitting
+	// ended owing changes behind a pin the plan never named.
 	if wrote {
 		after, err := planAt(tx, files)
 		if err != nil {
 			return emptyPlan(), false, err
 		}
-		plan.Blockers, plan.Why = after.Blockers, after.Why
+		plan.Blockers, plan.Why, plan.StaleAreas = after.Blockers, after.Why, after.StaleAreas
 		plan = plan.WithKey()
 	}
 	// THE PLAN IS STORED AS PRINTED, WHOLE, a plan with no party included: the hook writes it

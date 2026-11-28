@@ -29,15 +29,15 @@ import (
 // the bench rules, and each side reads back the state the others set.
 
 // seatRun sets up a run directory with every seat registered, the way the engine does: on the cast
-// setup writes, which the chair's dispatch plans against (a bench convened on a docket, benchSitsOn).
+// setup writes, which the chair's dispatch plans against (a bench convened on a docket, conveneBench).
 func seatRun(t *testing.T) string {
 	return seatRunReport(t, "")
 }
 
 // seatRunReport is seatRun with the round-0 report body a caller needs. body=="" seeds the generic
-// report carrying the quotes the finding tests anchor to; a non-empty body is ingested instead, for
+// report carrying the quotes the tests anchor to; a non-empty body is ingested instead, for
 // a test whose --quote is specific. Either way the report is INGESTED (#709), mirroring the real run
-// where blue-synthesize wrote and froze the report before red-lens files findings — so a caller must
+// where blue-synthesize wrote and froze the report before red-lens mints gaps — so a caller must
 // NOT writeReport again afterwards, which would be a second, refused ingest.
 func seatRunReport(t *testing.T, body string) string {
 	t.Helper()
@@ -153,39 +153,7 @@ func TestBenchClosureIsVisibleToRedsBoard(t *testing.T) {
 	}
 }
 
-// Blue disputes a grade, red answers, and BOTH sides' records must show the exchange.
-// A dispute answered into the void is the same defect one channel over.
-func TestGradeDisputeIsVisibleToBothSides(t *testing.T) {
-	runDir := seatRun(t)
-	id := mintGap(t, runDir, "disputed-grade", "policy_without_mechanism")
-
-	if _, err := run(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond",
-		"--id", id, "--dimension", "severity", "--proposed", "low",
-		"--reason", "the consequence is bounded by the caller's own validation"); err != nil {
-		t.Fatalf("motion grade file: %v", err)
-	}
-	if _, err := runAt(t, "motion", "grade", "rule", "--run", runDir, "--seat-id", "red-chair",
-		"--id", "M1", "--as", "accepted",
-		"--reason", "the bound holds; regrading"); err != nil {
-		t.Fatalf("motion grade rule: %v", err)
-	}
-
-	evs := events(t, runDir)
-	var sawFiling, sawRuling bool
-	for _, e := range evs {
-		switch e.GetType() {
-		case recordpb.EventType_EVENT_TYPE_MOTION:
-			sawFiling = true
-		case recordpb.EventType_EVENT_TYPE_MOTION_RULE:
-			sawRuling = true
-		}
-	}
-	if !sawFiling || !sawRuling {
-		t.Fatalf("the exchange must survive in one shared record: filing=%v ruling=%v", sawFiling, sawRuling)
-	}
-}
-
-// The lens that minted a gap closes it with its verification anchor; the closure and its anchor
+// A gap's assignee closes it with its verification anchor; the closure and its anchor
 // must both be readable afterwards. An anchored closure whose anchor is not recoverable is exactly the
 // attestation-format defect the scorecard measures — and this run scored 0% anchored.
 func TestClosureCarriesItsAnchorIntoTheRecord(t *testing.T) {
@@ -218,11 +186,6 @@ func TestClosureCarriesItsAnchorIntoTheRecord(t *testing.T) {
 // were invisible to the others, every cross-seat duty in the protocol would be unverifiable.
 func TestAllFourSeatsWriteIntoOneReadableRecord(t *testing.T) {
 	runDir := seatRun(t)
-	if _, err := run(t, "finding", "--run", runDir, "--seat-id", "red-lens-evidence",
-		"--key", "F1", "--quote", "§2", "--reason", "a finding",
-		"--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
-		t.Fatal(err)
-	}
 	mintGap(t, runDir, "shared-record", "doctrine_vs_implementation")
 	if _, err := run(t, "inquiry", "propose", "--run", runDir, "--seat-id", "blue-respond",
 		"--question", "considered rewriting the parser", "--as", "declined",
@@ -258,7 +221,7 @@ func registerChairOnce(t *testing.T, runDir string) {
 
 // registerLensOnce seats `lensSeat` — ONCE, whatever path did it — and completes its delivery of
 // the whole report where one is ingested, as a lens's first sitting does. A seat registers before it
-// acts, and a gap is its minting lens's to close, so every mint helper here sits the same lens rather
+// acts, and a gap is its assignee's to close, so every mint helper here sits the same lens rather
 // than a fresh one per call. The delivery is the lens's pin (report_read, written
 // by the delivery writer as it hands the last item): a lens that sat and was never delivered the report
 // is still ready at the head and owes its first whole delivery, and every PASS these fixtures drive

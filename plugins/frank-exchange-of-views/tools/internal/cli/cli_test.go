@@ -152,7 +152,7 @@ func runSeen(t *testing.T, args ...string) (stdout, stderr string, err error) {
 }
 
 // deliverBeforeActing completes the seat's delivery of report text before an act that stands only on
-// delivered text: a lens's close, the chair's spot-check, a ruling on a motion. Live, the delivery
+// delivered text: a lens's close (its accept of a close proposal included), the chair's spot-check. Live, the delivery
 // writer hands the seat its report text one item after each of its tool calls and writes the
 // report_read with the last item (sittingwrite.WriteNextItem); the harness runs no hooks, so it
 // completes the delivery here, from the seat's own list: only where that list holds a report-text item
@@ -173,12 +173,11 @@ func deliverBeforeActing(t *testing.T, args []string, seatID string) {
 	}
 	switch {
 	case len(words) >= 1 && (words[0] == "close" || words[0] == "spot-check"):
-	case len(words) >= 3 && words[0] == "motion" && words[2] == "rule":
 	default:
 		return
 	}
 	role := seatclass.RoleOfSeat(seatID)
-	if role != "lens" && role != "chair" && role != "bench" {
+	if role != "lens" && role != "chair" {
 		return
 	}
 	dir := flagValue(args, "--run")
@@ -215,8 +214,8 @@ func assertRefusalNamesItsCommandOnce(t *testing.T, leaf *cobra.Command, err err
 }
 
 // seedBlueReport records a report whose prose contains the quoted sentences
-// the finding tests anchor to (slice 1b: a lens finding is rejected unless its
-// --quote quote is present in the report). One generous body covers the tokens
+// the tests anchor to (an act is rejected unless its --quote quote is present in
+// the report). One generous body covers the tokens
 // the suite uses (§1..§3, the parser quote, sec 1, a quoted sentence).
 func seedBlueReport(t *testing.T, runDir string) {
 	t.Helper()
@@ -329,11 +328,11 @@ func TestEveryVerbRequiresRunAndSeatID(t *testing.T) {
 		args    []string
 		wantErr string
 	}{
-		{"lens finding without --run", []string{"finding", "--seat-id", "red-lens-evidence"}, "--run <runDir> is required"},
+		{"lens register without --run", []string{"register", "--seat-id", "red-lens-evidence"}, "--run <runDir> is required"},
 		// WITHOUT AN IDENTITY THERE IS NO TREE, so the refusal is about the identity rather
 		// than about the verb. That is the contract now: the surface is scoped to whoever is
 		// asking, and nothing can be shown — or refused — until that is answered.
-		{"a verb with no identity at all", []string{"finding", "--run", "X"}, "--seat-id IS REQUIRED HERE"},
+		{"a verb with no identity at all", []string{"register", "--run", "X"}, "--seat-id IS REQUIRED HERE"},
 		// EACH CASE CARRIES THE VERB'S OTHER REQUIRED FLAGS. Cobra refuses a missing required
 		// flag at PARSE, before Begin reaches the run and seat-id checks, so a case that omits
 		// them measures whichever refusal fires first rather than the one it is named for.
@@ -383,7 +382,7 @@ func TestEveryVerbRequiresRunAndSeatID(t *testing.T) {
 }
 
 // The verb set is the role boundary — and it is now the WHOLE of it. The chair may not mint: a
-// gap is a lens's finding put on the board by the lens that found it (plans/roundless.md
+// gap is a defect put on the board by the lens that found it (plans/roundless.md
 // §III.B.3), and the chair coalesces nothing. The reason is not a runtime check comparing a seat
 // id against a role in the path: the verb is not in the chair's tree. So the refusal names the
 // seat that does hold `mint` rather than the role the caller failed to be.
@@ -515,18 +514,12 @@ func TestBoardVerbsExistOnlyInTheLensRole(t *testing.T) {
 			t.Errorf("the lens role is missing the board verb %q", board)
 		}
 		for _, other := range []string{"chair", "blue", "bench"} {
-			if other == "bench" && board == "regrade" {
-				if !verbs[other][board] {
-					t.Errorf("the bench role is missing %q — a ruling would rule on a grade it holds wrong, with no act to set it", board)
-				}
-				continue
-			}
 			if verbs[other][board] {
-				t.Errorf("the %s role has the board verb %q — a gap would have a writer other than the lens that minted it", other, board)
+				t.Errorf("the %s role has the board verb %q — a gap would have a writer other than its assignee", other, board)
 			}
 		}
 	}
-	// The chair's duties are the chair's alone: the lens that minted a gap does not carry it,
+	// The chair's duties are the chair's alone: a gap's assignee does not carry it,
 	// sample the archive, or pronounce on the run.
 	for _, duty := range []string{"carry", "spot-check", "verdict", "dispatch"} {
 		if !verbs["chair"][duty] {
@@ -557,9 +550,8 @@ func TestBoardVerbsExistOnlyInTheLensRole(t *testing.T) {
 
 // ---- the write path, end to end ----
 
-func TestRegisterThenFindingWritesTheRecord(t *testing.T) {
+func TestAFirstRegistrationNamesTheSeatAndNothingElse(t *testing.T) {
 	runDir := newRun(t)
-	seedBlueReport(t, runDir)
 	seatID := "red-lens-evidence"
 
 	out, err := run(t, "register", "--run", runDir, "--seat-id", seatID)
@@ -575,107 +567,29 @@ func TestRegisterThenFindingWritesTheRecord(t *testing.T) {
 	if strings.Contains(out, "nonce") || strings.Contains(out, "dispatch") {
 		t.Errorf("a FIRST registration should say nothing beyond the seat: %q", out)
 	}
-
-	out, err = run(t, "finding", "--run", runDir, "--seat-id", seatID,
-		"--key", "F1", "--severity", "high", "--likelihood", "medium", "--impact", "high",
-		"--quote", "§2", "--reason", "the finding prose")
-	if err != nil {
-		t.Fatal(err)
-	}
-	// The ID leads the message now: it is what the chair will name, and a seat told only
-	// "recorded" has to invent a way to refer to this later.
-	ev := lastBody(t, runDir, &recordpb.Finding{})
-	if got := ev.GetId(); !regexp.MustCompile(`^F-[0-9a-f]{8}$`).MatchString(got) {
-		t.Errorf("id = %q, want F-<8 hex>", got)
-	}
-	// The id is printed WITH the area that raised it: a random id says nothing about whose
-	// finding it is, so the line carries both, exactly.
-	if want := "finding recorded: " + ev.GetId() + " (evidence) "; !strings.HasPrefix(out, want) {
-		t.Errorf("finding said %q, want it to open %q", out, want)
-	}
-	if got := ev.GetSeverity(); got != recordpb.Grade_GRADE_HIGH {
-		t.Errorf("severity = %q", recordpb.Word(got))
-	}
-	if got := ev.GetText(); got != "the finding prose" {
-		t.Errorf("text = %q", got)
-	}
-	// The key lives on the ENVELOPE, not on the body — the body is what the seat said, the
-	// envelope is what the record stamped. The epoch is on neither: it is a window the record
-	// computes over the events (a lens registered and no chair has, so 0). The seat id used to
-	// carry a round; it carries nothing now, and no event stamps one.
-	env := lastOfType(t, runDir, recordpb.EventType_EVENT_TYPE_FINDING)
-	if m, err := record.MergedEvents(runtest.Open(t, runDir)); err != nil {
-		t.Fatal(err)
-	} else if got := m.At.CurrentEpoch(m.Events); got != 0 {
-		t.Errorf("epoch = %d, want 0 — no chair has registered in this run", got)
-	}
-	if env.GetKey() != seatID+":finding:"+ev.GetId() {
-		t.Errorf("key = %q", env.GetKey())
-	}
 }
 
 // A flag the seat never passed must not appear in the event at all — the
 // absent/present distinction the record format rests on.
 func TestUnpassedFlagsAreAbsentFromThePayload(t *testing.T) {
 	runDir := newRun(t)
-	seedBlueReport(t, runDir)
-	seatID := "red-lens-evidence"
-	// --quote and --reason are required (1b); likelihood/impact are still optional,
-	// so they are the unpassed flags whose absence this pins.
-	if _, err := run(t, "finding", "--run", runDir, "--seat-id", seatID,
-		"--key", "F1", "--severity", "high", "--quote", "§1", "--reason", "t"); err != nil {
+	gap := mintGap(t, runDir, "G1", "spec_underspecification")
+	// A regrade names the axes it moves; likelihood and impact are the unpassed flags whose absence
+	// this pins.
+	if _, err := run(t, "regrade", "--run", runDir, "--seat-id", lensSeat, "--id", gap,
+		"--severity", "high", "--reason", "t"); err != nil {
 		t.Fatal(err)
 	}
-	// `reason` is the FLAG; the field it lands in is `text`. setFields reads the schema, so it
+	// `reason` is the FLAG; the field it lands in is `basis`. setFields reads the schema, so it
 	// reports what the record holds rather than what the seat typed.
-	keys := setFields(lastBody(t, runDir, &recordpb.Finding{}))
-	if !keys["id"] || !keys["severity"] || !keys["text"] {
+	keys := setFields(lastBody(t, runDir, &recordpb.Regrade{}))
+	if !keys["gap_id"] || !keys["severity"] || !keys["basis"] {
 		t.Errorf("a passed flag is missing from the body: %v", keys)
 	}
 	for _, absent := range []string{"likelihood", "impact"} {
 		if keys[absent] {
 			t.Errorf("%q appears in the payload though the seat never passed it", absent)
 		}
-	}
-}
-
-// THE CSV FIELDS ARE ALWAYS RENDERED, even empty, because an absent key reads as "lineage
-// unknown" where the truth is "lineage none".
-//
-// THE QUESTION MOVED FROM THE BODY TO THE PROJECTION, and it had to. This asserted that the mint
-// EVENT carried `supersedes` and `found_by` as present-but-empty keys — a distinction a payload
-// map could hold and a proto message cannot: a repeated field has no presence, so an empty list
-// and an unset one are the same bytes. There is nothing on the body left to assert.
-//
-// What a reader actually sees is the projection, and there the distinction is real and preserved:
-// viewjson seeds both as `[]string{}` so they render as `[]` rather than being omitted. That is
-// the guarantee this test was always about, asked where it can still be answered — and where it
-// would fail if someone dropped the seeding.
-func TestListFieldsAreAlwaysRenderedEvenWhenEmpty(t *testing.T) {
-	// newRun, not a bare TempDir: a run stages its gap-class vocabulary, and a mint against a run
-	// with no registry is refused rather than waved through.
-	runDir := newRun(t)
-	seatID := lensSeat
-	registerChairOnce(t, runDir)
-	registerLensOnce(t, runDir)
-	if _, err := run(t, "mint", "--about-kind", "section", "--about", "Findings", "--run", runDir, "--seat-id", seatID,
-		"--class", "policy_without_mechanism", "--check-kind", "document", "--check", "c", "--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
-		t.Fatal(err)
-	}
-	b, err := record.BoardJSONBytes(runtest.Open(t, runDir))
-	if err != nil {
-		t.Fatal(err)
-	}
-	s := string(b)
-	for _, want := range []string{`"supersedes": []`, `"found_by": []`} {
-		if !strings.Contains(s, want) {
-			t.Errorf("the board does not render %s — an absent lineage key reads as \"lineage unknown\" "+
-				"where the truth is \"lineage none\":\n%s", want, s)
-		}
-	}
-	// And a gap that HAS lineage renders it, so the check above is not passing on an empty board.
-	if strings.Count(s, `"supersedes"`) != 1 {
-		t.Errorf("expected exactly one gap on the board, got %d supersedes keys", strings.Count(s, `"supersedes"`))
 	}
 }
 
@@ -765,9 +679,9 @@ func TestMintAssignsAnIDPerGapAndIsIdempotentByKey(t *testing.T) {
 // not by parsing prose), a failure is a structured error (branch on ok:false), and the
 // default mode stays byte-identical prose because the template renders the same fields.
 // AN ACT'S RESULT NAMES ITS ID BY KIND. mint, regrade and close carry `gap_id`,
-// inquiry propose `inquiry_id`, compute `computation_id`, motion file and rule `motion_id`; finding carried a
-// bare `id` and closing named its gap `id`. m25 ev472: a lens read the mint it had just made at the
-// finding's `.result.id`, got null for a mint that landed, and recovered the id from `show work`.
+// inquiry propose `inquiry_id`, compute `computation_id`, motion file and rule `motion_id`, and no act
+// carries a bare `id`. m25 ev472: a lens read the mint it had just made at `.result.id`, got null for a
+// mint that landed, and recovered the id from `show work`.
 func TestActResultsNameTheirIDByKind(t *testing.T) {
 	runDir := newRun(t)
 	seedBlueReport(t, runDir)
@@ -789,14 +703,8 @@ func TestActResultsNameTheirIDByKind(t *testing.T) {
 		}
 		return r
 	}
-	f := result("finding", "--run", runDir, "--seat-id", lensSeat, "--key", "F1", "--severity", "low",
-		"--likelihood", "low", "--impact", "low", "--quote", "§1", "--reason", "r")
-	fid, _ := f["finding_id"].(string)
-	if want := lastBody(t, runDir, &recordpb.Finding{}).GetId(); fid != want {
-		t.Errorf("finding --json result %v, want finding_id %s", f, want)
-	}
 	g := result("mint", "--about-kind", "section", "--about", "Findings", "--run", runDir, "--seat-id", lensSeat, "--key", "G1", "--class", "spec_underspecification", "--check-kind", "document",
-		"--check", "c", "--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "p", "--found-by", fid)
+		"--check", "c", "--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "p")
 	gid, _ := g["gap_id"].(string)
 	if gid != handleText(t, runDir, "G1") {
 		t.Errorf("mint --json result %v, want gap_id G1", g)
@@ -999,38 +907,6 @@ func TestCloseRequiresItsAnchor(t *testing.T) {
 	}
 }
 
-func TestCloseWithRegressionRequiresASuccessor(t *testing.T) {
-	runDir := findingsRun(t)
-	seatID := lensSeat // the lens that mints is the one that closes
-	registerChairOnce(t, runDir)
-	registerLensOnce(t, runDir)
-	if _, err := run(t, "mint", "--about-kind", "section", "--about", "Findings", "--run", runDir, "--seat-id", seatID,
-		"--class", "spec_underspecification", "--check-kind", "document", "--check", "c", "--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
-		t.Fatal(err)
-	}
-	// The successor must EXIST: a successor is a reference like any other and is checked
-	// at write time now, so the fixture mints the gap it will name.
-	succOut, err := run(t, "mint", "--about-kind", "section", "--about", "Findings", "--run", runDir, "--seat-id", seatID,
-		"--key", "successor-gap", "--class", "spec_underspecification", "--check-kind", "document", "--check", "c",
-		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "p")
-	if err != nil {
-		t.Fatal(err)
-	}
-	successor := regexp.MustCompile(`G-[0-9a-f]{8}`).FindString(succOut)
-	if successor == "" {
-		t.Fatalf("could not read the successor id from %q", succOut)
-	}
-	base := []string{"close", "--run", runDir, "--seat-id", seatID, "--id", "G1",
-		"--verified-by", "L1", "--verified-with", "t", "--verified-against", "x",
-		"--reason", "verified", "--as", "repaired_with_regression"}
-	if _, err := runAt(t, base...); err == nil {
-		t.Fatal("repaired_with_regression was accepted without a successor — lineage dropped")
-	}
-	if _, err := runAt(t, append(base, "--superseded-by", successor)...); err != nil {
-		t.Fatalf("a successor'd regression close was refused: %v", err)
-	}
-}
-
 // close --file carries the full closure record; a missing one is an error.
 func TestCloseRecordsItsProse(t *testing.T) {
 	runDir := findingsRun(t)
@@ -1075,11 +951,6 @@ func TestVerbsThatRefuseWithoutTheirReason(t *testing.T) {
 			if _, err := run(t, "mint", "--about-kind", "section", "--about", "Findings", "--run", runDir, "--seat-id", seatID,
 				"--key", "k", "--class", "spec_underspecification", "--check-kind", "document", "--check", "c",
 				"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
-				t.Fatal(err)
-			}
-			if _, err := run(t, "finding", "--run", runDir, "--seat-id", "red-lens-evidence",
-				"--key", "F1", "--quote", "the parser accepts an empty body in this line.", "--reason", "t",
-				"--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
 				t.Fatal(err)
 			}
 			// EVERY OTHER VALUE IS ONE THE VERB TAKES, or the refusal is of that value and the
@@ -1143,11 +1014,8 @@ func TestBlueVerbContracts(t *testing.T) {
 // The bench rules with reasons or it does not rule: each field the verb enforces is refused when
 // omitted, and the refusal names the missing flag.
 //
-// IT IS `motion docket rule` NOW. The contract is the deleted `bench opinion`'s, unchanged: the
-// same six words, the same "name the flag a seat can type" duty. What moved is the carrier and
-// what `--id` MEANS — it named the gap on the old verb and names the MOTION here, because the
-// gap rides the filing. That is why the fixture files a docket motion first: without it the
-// refusal under test would be the dangling-motion one.
+// `--id` names the DOCKETING, which carries the gap: the fixture files a docket motion and the
+// tool dockets it, so the refusal under test is the omitted field's, not the dangling-docketing one.
 func TestBenchDocketRuleRequiresEachUnconditionalField(t *testing.T) {
 	runDir := docketRun(t)
 	seatID := "judge"
@@ -1161,11 +1029,11 @@ func TestBenchDocketRuleRequiresEachUnconditionalField(t *testing.T) {
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := runAt(t, "motion", "docket", "file", "--run", runDir, "--seat-id", "red-chair",
-		"--id", "G1", "--reason", "contested, and not mine to close"); err != nil {
-		t.Fatalf("the docket filing was refused, so the ruling has nothing to answer: %v", err)
-	}
-	benchSitsOn(t, runDir, "G1")
+	g := onlyID(t, runDir, "G")
+	exchangeOn(t, runDir, g)
+	m := proposeClose(t, runDir, blueSeat, g, "not_a_defect", "contested, and not mine to close")
+	k := docketNow(t, runDir, g, recordpb.DocketingCause_DOCKETING_CAUSE_PROPOSAL, m)
+	conveneBench(t, runDir, g)
 	// EVERY ENTRY IN `required` IS UNCONDITIONALLY REQUIRED, because the loop below omits each in
 	// turn and asserts the refusal names it. --direction is NOT unconditional (a remand's alone, as
 	// --reopens-on and --final are a closing ruling's), so it is supplied separately for every call
@@ -1173,7 +1041,7 @@ func TestBenchDocketRuleRequiresEachUnconditionalField(t *testing.T) {
 	//
 	// --tension, --review-flag and --settled are required by PRESENCE (#1234): an omitted one is
 	// refused, and an empty one is an answer — TestBenchDocketRuleTakesAnHonestBlank holds that half.
-	full := map[string]string{"id": "M1", "as": "remanded", "principle": "correctness first",
+	full := map[string]string{"id": k, "principle": "correctness first",
 		"tension": "correctness vs economy", "review-flag": "no",
 		"settled": "blue must repair C-65ca0a9e"}
 	// THE FOUR DocketRuling FIELDS ARE REFUSED BY THE RECORD WRITE, with the schema's own `why`,
@@ -1191,7 +1059,7 @@ func TestBenchDocketRuleRequiresEachUnconditionalField(t *testing.T) {
 			// Without it the record refuses on the direction first, and only a refusal that carried
 			// the verb's whole help page could still name the omitted flag.
 			args := []string{"motion", "docket", "rule", "--run", runDir, "--seat-id", seatID,
-				"--reason", "the rationale", "--direction", "a reproduction on a clean tree"}
+				"--reason", "the rationale", "--remand", "--direction", "a reproduction on a clean tree"}
 			for k, v := range full {
 				if k != missing {
 					args = append(args, "--"+k, v)
@@ -1224,7 +1092,7 @@ func TestBenchDocketRuleRequiresEachUnconditionalField(t *testing.T) {
 		for k, v := range full {
 			args = append(args, "--"+k, v)
 		}
-		args = append(args, "--direction", "a reproduction on a clean tree")
+		args = append(args, "--remand", "--direction", "a reproduction on a clean tree")
 		if _, err := runAt(t, args...); err == nil {
 			t.Fatal("a ruling with no reasoning was accepted — a verdict the losing party cannot answer")
 		} else if !strings.Contains(err.Error(), "reason") {
@@ -1233,7 +1101,7 @@ func TestBenchDocketRuleRequiresEachUnconditionalField(t *testing.T) {
 	})
 
 	args := []string{"motion", "docket", "rule", "--run", runDir, "--seat-id", seatID,
-		"--reason", "the rationale", "--direction", "a reproduction on a clean tree"}
+		"--reason", "the rationale", "--remand", "--direction", "a reproduction on a clean tree"}
 	for k, v := range full {
 		args = append(args, "--"+k, v)
 	}
@@ -1241,7 +1109,7 @@ func TestBenchDocketRuleRequiresEachUnconditionalField(t *testing.T) {
 	if err != nil {
 		t.Fatalf("a complete docket ruling was refused: %v", err)
 	}
-	if !strings.Contains(out, handleText(t, runDir, "motion M1 ruled remanded")) {
+	if !strings.Contains(out, "docketing "+k+" ruled remanded") {
 		t.Errorf("the docket ruling said %q", out)
 	}
 	// THE RULER'S ARGUMENT IS `MotionRule.opinion` — the prose channel every subject's ruling
@@ -1268,7 +1136,7 @@ func TestBenchDocketRuleRefusesABlankTensionOrReviewFlagAndADirectionlessRemand(
 	}
 	rule := func(t *testing.T, runDir, m string, set map[string]string, final bool) error {
 		args := []string{"motion", "docket", "rule", "--run", runDir, "--seat-id", "judge",
-			"--id", m, "--as", "remanded", "--principle", "correctness first", "--reason", "the rationale"}
+			"--id", m, "--remand", "--principle", "correctness first", "--reason", "the rationale"}
 		for _, f := range []string{"--tension", "--review-flag", "--settled", "--direction", "--reopens-on"} {
 			if v, ok := set[f]; ok {
 				args = append(args, f, v)
@@ -1289,9 +1157,11 @@ func TestBenchDocketRuleRefusesABlankTensionOrReviewFlagAndADirectionlessRemand(
 			"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 			t.Fatal(err)
 		}
-		m := docketFile(t, runDir, "red-chair", "G1", "contested, and not mine to close")
-		benchSitsOn(t, runDir, "G1")
-		return runDir, m
+		g := onlyID(t, runDir, "G")
+		m := docketFile(t, runDir, blueSeat, g, "contested, and not mine to close")
+		k := docketNow(t, runDir, g, recordpb.DocketingCause_DOCKETING_CAUSE_PROPOSAL, m)
+		conveneBench(t, runDir, g)
+		return runDir, k
 	}
 	// with is the stated set with f answered v; omitting is the stated set with f never passed.
 	with := func(f, v string) map[string]string {
@@ -1313,13 +1183,13 @@ func TestBenchDocketRuleRefusesABlankTensionOrReviewFlagAndADirectionlessRemand(
 		{"whitespace --tension", "requires --tension to say something", with("--tension", "  \t "), false},
 		{"blank --review-flag", "requires --review-flag to say something", with("--review-flag", ""), false},
 		{"whitespace --review-flag", "requires --review-flag to say something", with("--review-flag", "\n "), false},
-		{"remand with --final", "--as remanded requires --direction", omitting("--direction"), true},
-		{"remand with a direction and --final", "--as remanded requires --direction, and never --reopens-on or --final", stated, true},
-		{"remand with a direction and --reopens-on", "--as remanded requires --direction, and never --reopens-on or --final", with("--reopens-on", "new evidence"), false},
-		{"remand with neither", "--as remanded requires --direction", omitting("--direction"), false},
+		{"remand with --final", "a remand requires --direction", omitting("--direction"), true},
+		{"remand with a direction and --final", "a remand requires --direction, and never --reopens-on or --final", stated, true},
+		{"remand with a direction and --reopens-on", "a remand requires --direction, and never --reopens-on or --final", with("--reopens-on", "new evidence"), false},
+		{"remand with neither", "a remand requires --direction", omitting("--direction"), false},
 		{"a blank --reopens-on is not an absent one", "--reopens-on is empty", with("--reopens-on", ""), false},
-		{"remand with a blank direction", "--as remanded requires --direction", with("--direction", ""), false},
-		{"remand with a whitespace direction", "--as remanded requires --direction", with("--direction", " \t"), false},
+		{"remand with a blank direction", "a remand requires --direction", with("--direction", ""), false},
+		{"remand with a whitespace direction", "a remand requires --direction", with("--direction", " \t"), false},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			runDir, m := docket(t)
@@ -1347,11 +1217,10 @@ func TestBenchDocketRuleRefusesABlankTensionOrReviewFlagAndADirectionlessRemand(
 	})
 }
 
-// THE SUBJECT IS ASKED BEFORE THE FIELDS. A docket ruling naming a PETITION motion, with a
-// required docket field omitted, is refused for the subject: the field's refusal would send the
-// seat to supply a flag for a ruling it cannot make under this subgroup at all (#1236). A
-// parse-time requirement on the flag would answer first, which is why the four are refused at the
-// write instead (#1234).
+// WHAT IS ANSWERED IS ASKED BEFORE THE FIELDS. A docket ruling naming a PETITION motion, with a
+// required docket field omitted, is refused for its id: the field's refusal would send the seat to
+// supply a flag for a ruling it cannot make on that id at all (#1236). A parse-time requirement on
+// the flag would answer first, which is why the four are refused at the write instead (#1234).
 func TestBenchDocketRuleNamesTheWrongSubjectBeforeAMissingField(t *testing.T) {
 	runDir := newRun(t)
 	registerLensOnce(t, runDir)
@@ -1360,7 +1229,7 @@ func TestBenchDocketRuleNamesTheWrongSubjectBeforeAMissingField(t *testing.T) {
 	for _, omit := range []string{"principle", "tension", "review-flag", "settled"} {
 		t.Run("omitted --"+omit, func(t *testing.T) {
 			args := []string{"motion", "docket", "rule", "--run", runDir, "--seat-id", "judge",
-				"--id", m, "--as", "remanded", "--direction", "a reproduction on the shipped binary", "--reason", "the rationale"}
+				"--id", m, "--remand", "--direction", "a reproduction on the shipped binary", "--reason", "the rationale"}
 			for k, v := range map[string]string{"principle": "p", "tension": "t", "review-flag": "r", "settled": "s"} {
 				if k != omit {
 					args = append(args, "--"+k, v)
@@ -1370,8 +1239,8 @@ func TestBenchDocketRuleNamesTheWrongSubjectBeforeAMissingField(t *testing.T) {
 			if err == nil {
 				t.Fatal("a docket ruling on a petition motion was accepted")
 			}
-			if !strings.Contains(err.Error(), "filed as a petition motion") || strings.Contains(err.Error(), "--"+omit) {
-				t.Errorf("the refusal is not the subject's, first and alone: %v", err)
+			if !strings.Contains(err.Error(), "a docketing id is D-") || strings.Contains(err.Error(), "--"+omit) {
+				t.Errorf("the refusal is not the id's, first and alone: %v", err)
 			}
 		})
 	}
@@ -1535,7 +1404,7 @@ func TestVerdictPASSRefusedOverOpenGaps(t *testing.T) {
 			t.Errorf("the refusal must name the open gaps, got: %v", err)
 		}
 	}
-	// The originator closes: the lens that minted the gaps is the seat that closes them.
+	// The assignee closes: the lens that minted the gaps is their assignee and the seat that closes them.
 	for _, id := range strings.Fields(handleText(t, runDir, "G1 G2")) {
 		if _, err := run(t, "close", "--run", runDir, "--seat-id", lensSeat,
 			"--id", id, "--as", "repaired",
@@ -1875,8 +1744,8 @@ func fieldText(t *testing.T, body proto.Message, name string) string {
 	m := body.ProtoReflect()
 	fd := m.Descriptor().Fields().ByName(protoreflect.Name(name))
 	if fd == nil {
-		// THE SUBSTANCE MAY BE ON A ONEOF ARM. A motion's `proposed` grade lives on GradeMotion
-		// and a ruling's verdict on the MotionRule_Grade arm — that separation is what makes a
+		// THE SUBSTANCE MAY BE ON A ONEOF ARM. A petition's `class` lives on PetitionMotion
+		// and a ruling's verdict on the MotionRule_Petition arm — that separation is what makes a
 		// ruling from the wrong subject's vocabulary unrepresentable. A seat thinks of them as
 		// fields of the act, so the lookup descends into whichever arm is set.
 		if arm, af := setArmField(m, name); af != nil {
@@ -1900,7 +1769,7 @@ func fieldText(t *testing.T, body proto.Message, name string) string {
 // setArmField finds a field on whichever message-typed oneof arm is set.
 //
 // The record models a motion's substance on its subject's arm rather than flat on the message, so
-// "the motion proposed `low`" is GradeMotion.proposed. A test table states the fact the way a seat
+// "the petition's class is `safety`" is PetitionMotion.class. A test table states the fact the way a seat
 // would, and this is the one join between the two.
 func setArmField(m protoreflect.Message, name string) (protoreflect.Message, protoreflect.FieldDescriptor) {
 	md := m.Descriptor()
@@ -2013,12 +1882,13 @@ func moveReportHead(t *testing.T, dir string) {
 	}
 }
 
-// castNewRun is newRun on the cast setup writes for the whole roster: a stale area is a cast lens's.
+// castNewRun is newRun on the cast setup writes for the whole roster and the lane seedReferents's
+// cases file from: a stale area is a cast lens's, and a lane registers only in the cast.
 func castNewRun(t *testing.T) string {
 	t.Helper()
 	dir := newRun(t)
 	recordtest.Seed(t, dir, recordtest.At(t, record.HarnessSeat, "harness:cast:1",
-		&recordpb.Cast{SeatIds: seatclass.SeatIDs()}))
+		&recordpb.Cast{SeatIds: append(seatclass.SeatIDs(), "blue-lane-1")}))
 	return dir
 }
 
@@ -2056,7 +1926,7 @@ func findingsRun(t *testing.T) string {
 }
 
 // docketRun is findingsRun on a cast run: the bench rules a docket motion only in a sitting a dispatch
-// convened on its gap (benchSitsOn), and only a cast run has a dispatch.
+// convened on its gap (conveneBench), and only a cast run has a dispatch.
 func docketRun(t *testing.T) string {
 	t.Helper()
 	dir := newRun(t)

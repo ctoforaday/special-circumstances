@@ -118,7 +118,7 @@ func planEpochs(plan map[string]any) (epoch, maxEpochs int) {
 //   - lens: the named lens owes an audit of its area (an upheld_position blocker), which readies it
 //     at the next chair sitting until it is served the report in a sitting opened after the ruling.
 //   - gaps: each named gap goes back for one more exchange — a remand whose plan readies blue until
-//     it has acted, and then the gap's minting lens alone, whose re-audit closes it.
+//     it has acted, and then the gap's assignee alone, whose re-audit closes it.
 //   - overruled: the chair's next sitting decides on the PASS, and dispatches nobody first.
 //
 // The bench's position sitting falls inside the withholding epoch: the engine convenes it before the
@@ -219,7 +219,7 @@ func (r *runner) mintHeldTrifle(seatID string) {
 // mint to the next sitting.
 const trifleMintTries = 3
 
-// closeNamedOnTurn is the minting lens's turn on a gap the bench named upholding a position: once
+// closeNamedOnTurn is the assignee's turn on a gap the bench named upholding a position: once
 // blue has answered it, the lens audits the answer and closes it as any satisfied gap is closed. A
 // gap that is not material is routed to nobody once its remand's exchange has begun, so the lens is
 // readied by blue's answer as news, not engaged on the gap, and the engaged loop never reaches it.
@@ -232,7 +232,7 @@ func (r *runner) closeNamedOnTurn(seatID string, engaged []string) {
 		if !slices.Contains(open, g) || slices.Contains(engaged, g) || r.minterOf(g) != seatID || !r.closableNow(g) {
 			continue
 		}
-		r.closeGap(seatID, g, false)
+		r.closeGap(seatID, g)
 	}
 }
 
@@ -678,18 +678,19 @@ func TestTheDrivesChairDecidesThePassAfterAnOverruling(t *testing.T) {
 func TestTheDrivesBenchRulesTheForcedPosition(t *testing.T) {
 	for _, form := range []string{"lens", "gaps", "overruled"} {
 		t.Run(form, func(t *testing.T) {
-			r, _ := converseRun(t, redClosesAndWithholds)
-			r.forcePosition = form
 			// THE GAPS RUN'S LENS HOLDS A GAP OPEN for the bench to name: one of a class never
-			// material, minted at a sitting after the first where it holds none of its own.
+			// material, minted at a sitting after the first where it holds none of its own, and before
+			// the final sitting, which admits closings alone. A forced-VERIFIED run's mint is one blue
+			// repairs and its lens closes.
+			path := redClosesAndWithholds
 			if form == "gaps" {
-				// A forced-VERIFIED run's mint is one blue repairs and its lens closes.
-				r.forceVerified = true
-				r.dispatchSits("lens", converseLens)
-				r.mintHeldTrifle(converseLens)
-				r.dispatchReturns(converseLens, false)
+				path = redHoldsATrifleAndWithholds
+			}
+			r, _ := converseRun(t, path)
+			r.forcePosition = form
+			if form == "gaps" {
 				if !r.heldTrifle || len(r.openGaps()) != 1 {
-					t.Fatalf("the lens held %v open (minted: %t; %s), want the one gap it mints for the bench to name", r.openGaps(), r.heldTrifle, r.actErr)
+					t.Fatalf("the lens held %v open (minted: %t; %s; refused %q), want the one gap it mints for the bench to name", r.openGaps(), r.heldTrifle, r.actErr, r.trifleRefusals)
 				}
 				bs, err := record.PassBlockers(r.run())
 				if err != nil {
@@ -723,18 +724,6 @@ func TestTheDrivesBenchRulesTheForcedPosition(t *testing.T) {
 				t.Errorf("the oracle's failure carries no evidence of the named gap's route: %q", m)
 			case form != "gaps" && m != "":
 				t.Errorf("the oracle fired over a %s ruling: %s", form, m)
-			}
-			// AND THE LENS'S TURN CLOSES IT: blue has answered the named gap, and its minting lens,
-			// readied on that news rather than engaged on the gap, audits the answer and closes it.
-			if form == "gaps" {
-				g := r.positionNamedGaps[0]
-				r.presented.add(g)
-				r.dispatchSits("lens", converseLens)
-				r.closeNamedOnTurn(converseLens, nil)
-				r.dispatchReturns(converseLens, false)
-				if m := r.forcedPositionOracle(); m != "" || r.actErr != "" {
-					t.Errorf("the lens's turn left the named gap open: %s %s", m, r.actErr)
-				}
 			}
 		})
 	}

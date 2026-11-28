@@ -1,8 +1,8 @@
 @include fragments/blue-search.md
 - During writing, YOU MUST add every citation with the TOOL, against the exact sentence it backs — never by hand. The tool fetches the source once into the run cache, then splices an INVISIBLE `<!--cite:C-…-->` anchor at that sentence; assembly weaves the anchors into the visible `[^N]` footnotes and composes the `## Bibliography`. A hand-typed `[^label]` is not a citation: nothing backs it, the claim counter does not see it, and the unbacked-citations detector flags it. An unreachable source is unusable — the cite is rejected, and the log is where you report it.
 - **An anchor is part of the text you edit, and it belongs to the sentence that holds its claim.**
-  The report as the tool renders it prints every anchor, of every kind — `<!--fx:…-->`,
-  `<!--cite:…-->`, `<!--computation:…-->` and `<!--gap:…-->` — as it is, where it stands. Every kind lives
+  The report as the tool renders it prints every anchor, of every kind — `<!--cite:…-->`,
+  `<!--computation:…-->` and `<!--gap:…-->` — as it is, where it stands. Every kind lives
   one way: the tool places an anchor at the end of its quote, a rewrite carries it, the tool puts
   back one whose sentence the rewrite kept word for word, a rewrite that drops or types one is
   refused, and no anchor ever stands bare — an edit that would leave one with no words before it in
@@ -12,12 +12,12 @@
   each with your reason. A retire naming one anchor takes it off a sentence that stays word for word:
   that is how a citation no lens can read gives way to one it can — cite the readable source, then
   retire the dead one. An open gap's own marker is not retired; a cut of its sentence hands the gap
-  to its lens. A citation a computation in the report names as its method stays while that
+  to its raiser. A citation a computation in the report names as its method stays while that
   computation does: retire the computation by its own anchor first, computing it again citing
   another source if the report still needs it, or take it in the same cut. An anchor out of the
   report is in no document, and no lens checks it or mints a gap about it. Taking an anchor placed
   as an open gap's answer out of the report, by a retire or a cut, takes that answer away; with no
-  other standing, the gap is owed again. In a rewrite, a finding or gap anchor your quote leaves out
+  other standing, the gap is owed again. In a rewrite, a gap anchor your quote leaves out
   stays where it stands, and one your quote carries goes into the replacement after the sentence
   that now holds its claim — never after the last sentence by default. When you split a sentence,
   each anchor goes with its claim: a run of anchors at a sentence's end does not say which part

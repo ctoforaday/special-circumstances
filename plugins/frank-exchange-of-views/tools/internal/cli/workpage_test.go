@@ -37,7 +37,6 @@ func TestShowWorkCarriesTheParagraphsOfTheRoleItIsRenderedFor(t *testing.T) {
 		{"ON THE CHAIR'S LIST a blocking item holds a PASS", []string{"chair"}},
 		{"FOR EACH GAP OF YOURS WHOSE TURN HAS COME", []string{"lens"}},
 		{"A DOCKETED GAP IS OFF YOUR LIST UNTIL THE BENCH RULES IT", []string{"lens", "blue"}},
-		{"AN ACCEPTED GRADE MOTION WAITS FOR THE MINTING LENS'S REGRADE", []string{"lens"}},
 		{"WHERE THE LENS PRESCRIBED EXACT TEXT", []string{"lens", "blue"}},
 		{"`engaged` IS BLUE'S RESPONSE SITTING'S", []string{"blue"}},
 		// Every seat's: its work arrives one item at a time, cut from this list; what an item is, what
@@ -47,7 +46,7 @@ func TestShowWorkCarriesTheParagraphsOfTheRoleItIsRenderedFor(t *testing.T) {
 		{"EVERY ITEM SAYS WHAT IT IS", every},
 		{"An item with `blocks: false` is work nobody will refuse you for skipping", every},
 		{"`open` holds OPEN gaps only", every},
-		{"`estopped` IS WHAT YOU MAY NOT RE-RAISE", every},
+		{"`estopped` IS WHAT NO SEAT MAY RE-RAISE", every},
 	}
 	for _, role := range every {
 		page := workPageOf(t, NewRootFor(record.SampleSeatOf(role)))

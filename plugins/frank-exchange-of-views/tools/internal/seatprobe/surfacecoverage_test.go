@@ -178,9 +178,9 @@ func TestEveryExpectationIsReachableOnItsBoard(t *testing.T) {
 		what string
 		has  func(Board) bool
 	}{
-		"motion grade rule":    {"a filed grade motion", func(b Board) bool { return hasMotion(b, "grade", false) }},
 		"motion petition rule": {"a filed petition motion", func(b Board) bool { return hasMotion(b, "petition", false) }},
 		"motion docket rule":   {"a filed docket motion", func(b Board) bool { return hasMotion(b, "docket", false) }},
+		"motion docket accept": {"a docket motion standing on the seat's gap", func(b Board) bool { return hasMotion(b, "docket", false) }},
 		"inquiry check":        {"a settled inquiry", func(b Board) bool { return slices.ContainsFunc(b.Inquiries, settled) }},
 		"question split":       {"a question split into no part", func(b Board) bool { return b.Unsplit }},
 		"question cover": {"a question part with no coverage", func(b Board) bool {
@@ -191,6 +191,7 @@ func TestEveryExpectationIsReachableOnItsBoard(t *testing.T) {
 		}},
 		"reproduce":   {"a recorded computation", func(b Board) bool { return len(b.Computations) > 0 }},
 		"regrade":     {"a gap whose grade can move", func(b Board) bool { return len(b.Gaps) > 0 }},
+		"amend":       {"a gap whose wording can be restated", func(b Board) bool { return len(b.Gaps) > 0 }},
 		"close":       {"an open gap", func(b Board) bool { return len(b.Gaps) > 0 }},
 		"closing":     {"a gap to argue about", func(b Board) bool { return len(b.Gaps) > 0 }},
 		"spot-check":  {"a CLOSED gap in the archive", func(b Board) bool { return anyClosed(b) }},

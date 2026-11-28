@@ -169,8 +169,8 @@ extend google.protobuf.EnumValueOptions {
 
 // A CONSTRAINT THAT DEPENDS ON ANOTHER FIELD BELONGS ON THE MESSAGE.
 //
-// `required` is a property of ONE field and lives on it. "repaired_with_regression requires a
-// successor" is not: it is a rule about two fields together, and no annotation on either can say
+// `required` is a property of ONE field and lives on it. "a close that is not a carry states its
+// argument" is not: it is a rule about two fields together, and no annotation on either can say
 // it. Those rules were hand-written `if` blocks in validate — the app refusing what the database
 // would happily store, which for a record that is EVIDENCE is a real gap: anything writing SQL
 // directly could create a state the tool forbids, and the row would look exactly like a legitimate
@@ -261,10 +261,13 @@ enum EventType {
   EVENT_TYPE_BLUE_EDIT = 4 [(means) = "a change to the report, recorded as old and new so the edit itself is auditable"];
   EVENT_TYPE_CERTIFY = 5 [(means) = "a seat's signed statement about its own work — what it asserts on the record"];
   EVENT_TYPE_CITE = 6 [(means) = "a source brought into the debate, with the hash of its copy and the time that copy was fetched, which make it re-checkable"];
-  EVENT_TYPE_CLOSE = 8 [(means) = "red closing a gap on a verified repair — red's half of the closing vocabulary"];
-  EVENT_TYPE_CLOSING = 9 [(means) = "a party's argument to the bench on one docketed gap — its minting lens's or blue-respond's"];
+  EVENT_TYPE_CLOSE = 8 [(means) = "a gap's raiser closing it on a verified repair — the raiser's half of the closing vocabulary"];
+  EVENT_TYPE_CLOSING = 9 [(means) = "a party's argument to the bench on one docketed gap — its raiser's or its subject's author's — with the statement of what the subject should become"];
   EVENT_TYPE_DECLARE = 10 [(means) = "the bench stating a holding that later sittings are expected to apply"];
-  EVENT_TYPE_FINDING = 11 [(means) = "something red found, graded but not yet minted as a gap"];
+  // 11 was EVENT_TYPE_FINDING: a lens reports a defect as a gap, and a small defect is a gap
+  // graded below what holds the gate. Reserved: a stored event carries its type's number.
+  reserved 11;
+  reserved "EVENT_TYPE_FINDING";
   EVENT_TYPE_LOG = 12 [(means) = "an entry addressed to the operator who can retool the seat — a defect, a request or friction — never a clean sitting, which is derived from having sat and filed no log entry"];
   EVENT_TYPE_HALT = 14 [(means) = "the bench ending the run on a safety, ethics, consent or integrity boundary"];
   // 15 was EVENT_TYPE_MANIFEST_ROW: a repair's record is its edit, which names the gap it answers,
@@ -272,7 +275,7 @@ enum EventType {
   reserved 15;
   reserved "EVENT_TYPE_MANIFEST_ROW";
   EVENT_TYPE_MINT = 16 [(means) = "a gap put on the board — the act that creates the entity every other act refers to"];
-  EVENT_TYPE_MOTION = 17 [(means) = "a motion filed: a grade contested, a petition to the bench, or a gap docketed for the bench"];
+  EVENT_TYPE_MOTION = 17 [(means) = "a motion filed: a petition to the bench, or a gap docketed with the act the filer proposes"];
   // 7 was EVENT_TYPE_CLASS_NEW, 18 EVENT_TYPE_MOTION_APPEAL, 28 EVENT_TYPE_REVISION and 39
   // EVENT_TYPE_CORRECTION: a gap's class is a value of the closed GapClass set, a ruling stands as
   // made, a report's change is its edits, and a wrong act is answered by a new act.
@@ -315,6 +318,9 @@ enum EventType {
   EVENT_TYPE_INQUIRY_CHECK = 45 [(means) = "the owning lens's judgement that an inquiry's latest fate is sound as the report's account of it, with the reason it holds — a settled inquiry holds the PASS until one stands"];
   EVENT_TYPE_QUESTION_PART = 46 [(means) = "a question part: one part of the question the run was asked, as blue split it, and each coverage recorded on it — covered, not obtained or excluded, with the reason"];
   EVENT_TYPE_QUESTION_PART_CHECK = 47 [(means) = "the logic lens's judgement that a question part's latest coverage stands as the report's account of it — every part holds the PASS until one stands"];
+  EVENT_TYPE_TOMBSTONE = 48 [(means) = "the tool marking a gap's text final — a bench ruling but a remand on it, or the author's verbatim application of the raiser's stated text — or ending that mark at the subject's next change by its author; written in the act's own transaction, by no verb"];
+  EVENT_TYPE_DOCKETING = 49 [(means) = "the tool putting a gap before the bench — at impasse, for the board's grade movement, or for the author's proposal its raiser did not accept; written by the dispatch, by no verb"];
+  EVENT_TYPE_AMEND = 50 [(means) = "a gap's minter restating its wording — problem, required fix, acceptance check or prescription — on its open gap, with the reason; the gap keeps its id, and each amend is a version in its history"];
 }
 
 // Grade is the canonical grade set. `realized` contributes zero mass by design — it is a grade,
@@ -505,9 +511,12 @@ enum GapClass {
 enum Disposition {
   DISPOSITION_UNSPECIFIED = 0;
   DISPOSITION_REPAIRED = 1 [(means) = "the repair was verified at the leaf and nothing regressed", (closes) = true];
-  DISPOSITION_REPAIRED_WITH_REGRESSION = 2 [(means) = "repaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward", (closes) = true];
-  DISPOSITION_AMENDS_PRIOR = 3 [(means) = "a defect found BETWEEN two repairs that each closed clean earlier — its lineage is the supersedes the gap was minted with; the close itself carries none and nothing checks it", (closes) = true];
-  DISPOSITION_NOT_A_DEFECT = 4 [(means) = "blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be", (closes) = true];
+  // 2 was repaired_with_regression and 3 amends_prior: a close names no gap carrying its remainder,
+  // so a repair that broke something else is a repair, and the regression is a gap of its own.
+  // Reserved: a stored close carries the number.
+  reserved 2, 3;
+  reserved "DISPOSITION_REPAIRED_WITH_REGRESSION", "DISPOSITION_AMENDS_PRIOR";
+  DISPOSITION_NOT_A_DEFECT = 4 [(means) = "the author argued the gap was wrong and the argument held; nothing was repaired because nothing needed to be", (closes) = true];
   DISPOSITION_DEFECT_ACCEPTED = 5 [(means) = "the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record", (closes) = true];
   DISPOSITION_DEFECT_OWED_ELSEWHERE = 6 [(means) = "a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped", (closes) = true];
 
@@ -516,12 +525,12 @@ enum Disposition {
   // `remanded` is reachable by the BENCH only: red closing a gap is asserting a repair, and
   // "I repaired it by carrying it" is not a sentence. The subset is enforced, not documented —
   // see Close.closure_class, whose `subset: "closes"` generates the CHECK from this annotation.
-  DISPOSITION_REMANDED = 7 [(means) = "NOT a closure: the gap goes back to the debate for ONE more exchange — the dispatch readies blue on it, owing the research direction the ruling states, and its minting lens once blue has acted — a remand closes nothing, so it states a direction and never --final. The exchange begins only when blue records an act on the gap. If it leaves the gap at impasse it is docketed again, to be closed — a second remand at impasse is refused — and if it moves the gap the gap's limits count afresh from it", (closes) = false];
+  DISPOSITION_REMANDED = 7 [(means) = "NOT a closure: the gap goes back to the debate for ONE more exchange — the dispatch readies the author of its subject on it, owing the research direction the ruling states, and its raiser once the author has acted — a remand closes nothing, so it states a direction and never --final. The exchange begins only when the author records an act on the gap. If it leaves the gap at impasse it is docketed again, to be closed — a second remand at impasse is refused — and if it moves the gap the gap's limits count afresh from it", (closes) = false];
   // MOOT IS NOT not_a_defect, AND THAT DISTINCTION IS WHY IT EXISTS (#847).
   //
-  // `not_a_defect` asserts that blue argued the finding was wrong and the argument HELD — a
+  // `not_a_defect` asserts that blue argued the gap was wrong and the argument HELD — a
   // claim about an exchange that happened. `repaired` asserts a repair verified at the leaf.
-  // Moot asserts neither: nobody won an argument and nobody verified a fix, the text the finding
+  // Moot asserts neither: nobody won an argument and nobody verified a fix, the text the gap
   // attached to simply is not in the report any more.
   //
   // It was an ENGINE word with no record word. The debate script offered the bench `moot` in its
@@ -637,13 +646,16 @@ enum InquiryStatus {
 // the rulings are separate enums below rather than one flat set.
 enum MotionSubject {
   MOTION_SUBJECT_UNSPECIFIED = 0;
-  MOTION_SUBJECT_GRADE = 1 [(means) = "you contest a gap's grade on one dimension", (ruled_by) = "chair"];
+  // 1 was the grade subject: a dispute of a gap's grade is a docket motion proposing the regrade.
+  // Reserved: a stored motion carries the number.
+  reserved 1;
+  reserved "MOTION_SUBJECT_GRADE";
   MOTION_SUBJECT_PETITION = 2 [(means) = "you ask the bench to intervene — the constitutional short-circuit available to any party seat", (ruled_by) = "bench"];
   // 3 was the inquiry subject: an inquiry's quality is its owning lens's check, and a shortfall is a
   // gap about it. Reserved: a stored motion carries the number.
   reserved 3;
   reserved "MOTION_SUBJECT_INQUIRY";
-  MOTION_SUBJECT_DOCKET = 4 [(means) = "a gap put before the BENCH for disposition: the filer states the case, the bench rules and its word decides the gap's fate", (ruled_by) = "bench"];
+  MOTION_SUBJECT_DOCKET = 4 [(means) = "the author's proposed act on a gap: its raiser may accept it by its own act at its next sitting, else the bench answers it on the gap's docketing", (ruled_by) = "bench"];
   // A WITHHELD PASS IS HEARD (gblock, 2026-10-30). The chair's position at a sitting that withheld a
   // PASS its plan permitted readies the bench on it, and the bench rules it: upheld names the work,
   // overruled sends the PASS back to the chair's next sitting. The id is the POSITION's own, because
@@ -652,23 +664,12 @@ enum MotionSubject {
 }
 
 // The ruling sets, one per subject. A single flat set cannot express this: one motion-rule
-// event carries granted|denied for a petition and accepted|rejected for a grade, and a ruling
+// event carries granted|denied for a petition and upheld|overruled for a position, and a ruling
 // nothing recognizes reads as no ruling at all — so a refusal silently becomes permission.
 //
 // Each `(means)` is the sentence the ruler reads in `motion <subject> rule --as`: MotionVerdicts
 // in record/motion.go is built from these values (evsOf), so an edit here is the edit the chair
 // and the bench see.
-enum GradeRuling {
-  GRADE_RULING_UNSPECIFIED = 0;
-  // ACCEPTING MOVES NOTHING. This value read "the proposed grade stands" while no code applied a
-  // proposed grade: the originating lens moves it with `regrade`, MotionVerdicts tells the chair
-  // so, and the lens's own work list carries the owed regrade until it is filed. On the b9 run the
-  // chair ruled M1 accepted and wrote that the minting lens owns applying it; the record holds no
-  // regrade after the ruling, which is the duty the old sentence would have called satisfied.
-  GRADE_RULING_ACCEPTED = 1 [(means) = "the filer is right and the grade should move. The ruling moves nothing itself: the gap's originating lens moves it with `regrade`, so say in --reason which grade and to what"];
-  GRADE_RULING_REJECTED = 2 [(means) = "the grade stands. Your --reason is what a seat that disagrees argues against before the bench, so it carries the argument, not the conclusion"];
-}
-
 enum PetitionRuling {
   PETITION_RULING_UNSPECIFIED = 0;
   PETITION_RULING_GRANTED = 1 [(means) = "the objection holds. The relief BINDS the seats that come after, so state it as an instruction they can follow"];
@@ -680,7 +681,7 @@ enum PetitionRuling {
 // sitting, which records a verdict.
 enum PositionRuling {
   POSITION_RULING_UNSPECIFIED = 0;
-  POSITION_RULING_UPHELD = 1 [(means) = "the objection holds and the debate continues on the work you name: a lens of the cast, a retired one included, readied to audit its area for the defect the position argues, or open gaps, each sent back for one more exchange, begun by blue's act on it and audited by its minting lens after — a remand, and the gap's one remand at impasse. Name one or the other, with --direction stating the work"];
+  POSITION_RULING_UPHELD = 1 [(means) = "the objection holds and the debate continues on the work you name: a lens of the cast, a retired one included, readied to audit its area for the defect the position argues, or open gaps, each sent back for one more exchange, begun by its subject's author's act on it and audited by its raiser after — a remand, and the gap's one remand at impasse. Name one or the other, with --direction stating the work"];
   POSITION_RULING_OVERRULED = 2 [(means) = "the objection does not hold: the PASS goes back to the chair, whose next sitting owes it: the ruling binds, and a position there is refused. It names no work, and it is refused on a position whose class is always material: the class decides that materiality, so such a position is upheld"];
 }
 
@@ -775,7 +776,6 @@ message Event {
     Closing closing = 33;
     Regrade regrade = 34;
     SpotCheck spot_check = 35;
-    Finding finding = 37;
     Anchor anchor = 39;
     Cite cite = 40;
     Verify verify = 41;
@@ -797,6 +797,9 @@ message Event {
     InquiryCheck inquiry_check = 64;
     QuestionPart question_part = 65;
     QuestionPartCheck question_part_check = 66;
+    Tombstone tombstone = 67;
+    Docketing docketing = 68;
+    Amend amend = 69;
   }
 
   // 60-80 are reserved for bodies not yet needed. Numbers are permanent, so the block is
@@ -804,14 +807,15 @@ message Event {
   // `report_part`, 53-54 for the sitting span, 55-56 for the cast and the dispatch
   // (plans/roundless.md §III.B.1), 57 for the sitting limit, 58 for the correction and 59 for the
   // plan, 60 for the stale refusal, 62 for the report read, 63 for the envelope admission, 64 for the
-  // inquiry check, 65-66 for the question part and its check, which is what the reserve is for — the
-  // block shrinks and nothing is renumbered.
-  reserved 67 to 80;
+  // inquiry check, 65-66 for the question part and its check, 67 for the tombstone, 68 for the
+  // docketing and 69 for the amend, which is what the reserve is for — the block shrinks and nothing is
+  // renumbered.
+  reserved 70 to 80;
 
   // These held the bodies whose types are reserved above, and are reserved for the same reason:
   // a stored event carries the bytes.
-  reserved 29, 31, 38, 46, 48, 51, 57, 58, 61;
-  reserved "motion_appeal", "class_new", "observe", "revision", "correction", "inquiry_review", "manifest_row", "sitting_limit";
+  reserved 29, 31, 37, 38, 46, 48, 51, 57, 58, 61;
+  reserved "motion_appeal", "class_new", "observe", "finding", "revision", "correction", "inquiry_review", "manifest_row", "sitting_limit";
 
   // 36 HELD `Opinion`, and it is reserved for the reason the block above is: the number is
   // permanent even though the message is gone. The bench's disposition is a docket motion's
@@ -842,8 +846,11 @@ message TelemetryLine {
   optional NewMint new_mint = 5;
   optional double mass = 6;
   optional int32 realized_open = 7;
-  optional RepairRegression repair_regression = 8;
-  optional EdgeDeltas edge_deltas = 9;
+  // 8 held repair_regression, the closures an epoch made against the mints that superseded a gap, and
+  // 9 edge_deltas, each successor's mass less its ancestor's: a gap names no gap it replaces, so
+  // neither has an input. Reserved: a stored telemetry line carries the bytes.
+  reserved 8, 9;
+  reserved "repair_regression", "edge_deltas";
 
   // 10 IS DELIBERATELY UNUSED. `accepted_deltas` was a telemetry key no writer produced, read as
   // []any by the cost and dashboard surfaces, which rendered "no accepted deltas" where the truth
@@ -888,19 +895,6 @@ message SeverityTally {
   optional int32 count = 2;
 }
 
-message RepairRegression {
-  optional int32 closures = 1;
-  optional int32 lineage_mints = 2;
-  // ratio is absent when there were no closures to divide by — not 0.0, which would read as
-  // "closures happened and none had lineage".
-  optional double ratio = 3;
-}
-
-message EdgeDeltas {
-  optional double down_mass = 1;
-  optional double up_mass = 2;
-}
-
 // Mint records a gap. `gap_id` is ASSIGNED by the tool, never chosen by the seat.
 message Mint {
   // A GAP NO CLASS FITS SAYS WHY. `unclassified` is the catch-all, and its reason is the only
@@ -915,14 +909,14 @@ message Mint {
   // THE RECORD'S PRIMARY ENTITY, and until this annotation nothing enforced that it existed.
   //
   // Every other gap_id in the schema now references this column, which is only possible because it
-  // is unique and present. Before, a close, an opinion, a regrade or a grade motion could name a
+  // is unique and present. Before, a close, an opinion, a regrade or a motion could name a
   // gap that had never been minted, and the file-backed record met that case with an
   // ANOMALY — a defect discovered on read, per reader, after the fact. As a foreign key it is not
   // discoverable at all: the row cannot be written.
   optional string gap_id = 1 [(sql) = {
     required: true
     unique: true
-    why: "the gap id is what every later act refers to; a mint without one is a finding nothing can cite, close or rule on"
+    why: "the gap id is what every later act refers to; a mint without one is a gap nothing can cite, close or rule on"
   }];
   optional string mint_key = 2;
 
@@ -938,19 +932,13 @@ message Mint {
   // location is the defect's span, quoted verbatim from the report and matched against it.
   optional string location = 8;
 
-  // WHAT THIS GAP IS ABOUT, when it is not about a sentence — the same pair a lens finding carries,
-  // resolved by the same code and spelled with the same two flags.
+  // WHAT THIS GAP IS ABOUT, when it is not about a sentence (AboutKind).
   //
-  // It exists because the alternative was written down in mint's own help: "for a gap about
-  // something MISSING, quote the sentence where it SHOULD be". That instruction asks a seat to
-  // point at prose it is not objecting to, and the anchor it produces is a handle rather than a
-  // subject — the defect Finding.about_kind was added to remove. A gap minted FROM such a finding
-  // inherited it, so removing it on one verb and not the other left the concept half-landed.
+  // The alternative is a quote of the sentence where the missing thing SHOULD be: it points a seat
+  // at prose it is not objecting to, and the anchor it produces is a handle rather than a subject.
   //
-  // A gap has ONE subject, as a finding does: a non-blank `location` or this pair, never both and
-  // never neither — the write refuses a gap with no subject (requireMintSubject).
-  //
-  // A gap takes every kind a finding takes.
+  // A gap has ONE subject: a non-blank `location` or this pair, never both and never neither — the
+  // write refuses a gap with no subject (requireMintSubject).
   optional AboutKind about_kind = 23;
   optional string about_ref = 24;
   optional string problem = 9 [(sql) = {
@@ -1004,13 +992,11 @@ message Mint {
   }];
   optional Grade complexity_cost = 19;
 
-  // ALWAYS PRESENT, even empty: a gap with no ancestors records an empty list, because an absent
-  // key would read as "lineage unknown" where the truth is "lineage none". Each names a gap already
-  // minted: the gap's demand lineage is written at its mint, so an ancestor minted later could never join it.
-  repeated string supersedes = 20 [(sql) = { references: "mint.gap_id" }];
-  repeated string found_by = 21;
-  // 26 is reserved: a stored mint may carry its bytes.
-  reserved 26;
+  // 20, 21, 26 and 27 are reserved: a stored mint may carry their bytes. 20 held the ancestors as a
+  // list and 27 the one ancestor: a gap names no gap it replaces, and its minter restates its wording
+  // by its own amend.
+  reserved 20, 21, 26, 27;
+  reserved "found_by", "supersedes";
 
   // mint_reason is RED'S ARGUMENT FOR THE GAP, which is not the same fact as `problem`.
   //
@@ -1039,21 +1025,11 @@ message Mint {
 
 // Close ends a gap on verified repair.
 message Close {
-  // LINEAGE NEVER DROPS. A regression closure that names no successor loses the thread from the
-  // defect to the gap now carrying it, and the repair_regression denominator counts a closure that
-  // resolved nothing. It was an `if` in validate, which left the DATABASE willing to store the very
-  // state the tool refused.
-  option (check) = {
-    expr: "\"closure_class\" <> 'repaired_with_regression' OR \"successor\" IS NOT NULL"
-    why: "a closure that reports a regression must name the gap carrying it forward — lineage never drops"
-  };
-
   // THE CLOSURE ARGUMENT, KEPT AS A WALL WHILE IT STOPPED BEING A FIELD RULE.
   //
   // `prose` was `required: true`, which is unconditional and therefore refused a CARRY before
   // validate's exemption for one could run. Dropping the marking fixed the carry and made the
-  // column nullable — and that would have handed the database the state the tool refuses, which
-  // is exactly the hole the regression check above exists to close. Stated here instead, where a
+  // column nullable — and that would have handed the database the state the tool refuses. Stated here instead, where a
   // rule about two fields together belongs: everything that is not a carry owes an argument.
   option (check) = {
     expr: "\"carried_from\" IS NOT NULL OR \"prose\" IS NOT NULL"
@@ -1082,12 +1058,10 @@ message Close {
   optional string anchor_target = 5;
   optional string carried_from = 6;
 
-  // successor carries the unresolved remainder forward. Required by CLOSED_WITH_REGRESSION,
-  // because lineage never drops — and now it must name a gap that EXISTS. "Lineage never drops"
-  // was enforced as "the field is not empty", which a typo satisfies: the closure recorded a
-  // successor, the successor pointed at nothing, and the remainder was carried forward to a gap
-  // id no board has ever had.
-  optional string successor = 7 [(sql) = { references: "mint.gap_id" }];
+  // 7 held successor, the gap a close named as carrying its remainder: a regression a repair caused
+  // is a gap of its own. Reserved: a stored close carries the bytes.
+  reserved 7;
+  reserved "successor";
 
   // prose is the closure's ARGUMENT: what was verified and why it holds. The report renders it
   // and the re-audit reads it.
@@ -1113,6 +1087,11 @@ message Close {
   // anchor it never read is the dishonesty that audit exists to find. Empty is "verified with no
   // anchor", and the audit then reads anchor_target's prose.
   repeated string anchors = 9;
+
+  // accepts is the author's docket motion whose proposed close this close is: the raiser taking the
+  // proposal by its own act, the motion's stored act applied (--accept). It answers the motion, and
+  // the docketing that holds it ends with no ruling.
+  optional string accepts = 10 [(sql) = { references: "motion.motion_id" }];
 }
 
 // Closing is the closing argument on a docket-bound gap, read by the bench.
@@ -1123,6 +1102,43 @@ message Closing {
     flag: "reason"
     why: "the closing argument for this gap — the report renders it under the gap's docket"
   }, (prose) = true];
+
+  // RED'S TEXT, ITS STATEMENT AT A DOCKETING whose question takes text: one road — the pair, or the
+  // anchor's retire — or none with no_text, where every road red can state is refused. The pair is
+  // planned as `blue edit --accept` would apply it on the report as it stands, and a for-raiser answer
+  // applies it as the bench's edit. Blue's closing carries no road.
+  //
+  // location is the span of the report as it stands, ending at the gap's marker (the mint's sense).
+  optional string location = 3 [(prose) = false, (sql) = { flag: "quote" }];
+  // fix_new is what that span becomes (the mint's sense).
+  optional string fix_new = 4 [(sql) = { flag: "new" }];
+  // retire is, on a gap about a citation or a computation, that anchor's retire.
+  optional bool retire = 5 [(sql) = { flag: "retire" }];
+
+  // BLUE'S WORD, ITS STATEMENT AT AN IMPASSE DOCKETING: the closing word a for-author answer writes;
+  // where blue states none, `not_a_defect` — blue's text stands. The word a close records (Close's
+  // own field and flag), admitted on blue's closing on an impasse docketing only.
+  optional Disposition closure_class = 6 [(sql) = {
+    subset: "closes"
+    flag: "as"
+    why: "blue's statement at an impasse docketing: the closing word a for-author answer writes"
+  }];
+
+  // RED STATES NO TEXT ON THIS DOCKETING. Recorded only when TRUE: on a red closing whose docketing's
+  // question takes text, exactly one of a road and this is set, so an omitted road is never read as a
+  // statement of none.
+  optional bool no_text = 7 [(sql) = { flag: "no-text" }];
+
+  // THE RAISER'S STATEMENT ON A GAP ABOUT A GAP: what the gap it is about should become — its
+  // wording (Amend's fields, in the mint's sense), its grades (Regrade's), or both. A for-raiser
+  // answer applies it as the bench's Amend and Regrade of that gap.
+  optional string problem = 8 [(prose) = true];
+  optional string required_fix = 9 [(prose) = true];
+  optional string acceptance_check = 10 [(prose) = true];
+  optional Grade severity = 11;
+  optional Grade likelihood = 12;
+  optional Grade impact = 13;
+  optional Grade complexity_cost = 14;
 }
 
 // Regrade moves a grade, with its reason. A grade decides what happens NEXT to a gap, so moving
@@ -1149,6 +1165,65 @@ message Regrade {
   optional Grade result_likelihood = 8;
   optional Grade result_impact = 9;
   optional Grade result_complexity_cost = 10;
+
+  // accepts is the author's docket motion whose proposed regrade this regrade is: the raiser taking
+  // the proposal by its own act, the motion's stored grades applied (--accept). It answers the motion,
+  // and the docketing that holds it ends with no ruling.
+  optional string accepts = 11 [(sql) = { references: "motion.motion_id" }];
+  // answers is the open gap about this gap that the regrade answers (BlueEdit.answers' sense): set on
+  // the minter's regrade of its own gap, or the bench's application in a gap-on-gap ruling.
+  optional string answers = 12 [(sql) = { references: "mint.gap_id" }];
+  // accepted is the author's concession of the docketing standing on `answers`, set by --accept.
+  optional bool accepted = 13;
+}
+
+// Amend restates a gap's wording, with its reason: its minter's change to the demand on its open gap.
+// The gap keeps its id, so every act naming it — docketings, proposals, tombstones, anchors and
+// tokens, closings, dispatch rows — keeps naming it; the log stays append-only, and the gap's wording
+// at an event is the latest amend at or before it, else the mint. Shaped as Regrade: the fields it
+// names change, and the write stamps the whole wording once it stands. It changes no class, subject,
+// location or check kind: those are what the gap is about, and a different one is another gap.
+message Amend {
+  // AN AMEND CHANGES SOMETHING. A reason alone restates nothing, and a version with no change is a
+  // history row no reader can tell from a real one.
+  option (check) = {
+    expr: "\"problem\" IS NOT NULL OR \"required_fix\" IS NOT NULL OR \"acceptance_check\" IS NOT NULL OR \"fix_new\" IS NOT NULL"
+    why: "an amend restates at least one of the gap's problem, required fix, acceptance check or prescription"
+  };
+  optional string gap_id = 1 [(sql) = {
+    required: true
+    flag: "id"
+    references: "mint.gap_id"
+    why: "which gap this amends"
+  }];
+  // The wording the amend states, each in the mint's sense; a field left absent keeps the gap's
+  // current one.
+  optional string problem = 2 [(sql) = { flag: "problem" }, (prose) = true];
+  optional string required_fix = 3 [(sql) = { flag: "required-fix" }, (prose) = true];
+  optional string acceptance_check = 4 [(sql) = { flag: "acceptance-check" }, (prose) = true];
+  optional string fix_new = 5 [(sql) = { flag: "fix-new" }];
+  // fix_basis is stamped with fix_new by the write, as the mint's is.
+  optional string fix_basis = 6;
+  optional string basis = 7 [(sql) = {
+    required: true
+    flag: "reason"
+    why: "a change to a gap's demand is recorded with its reason"
+  }, (prose) = true];
+  // answers is the open gap about this gap that the amend answers (BlueEdit.answers' sense).
+  optional string answers = 8 [(sql) = { references: "mint.gap_id" }];
+  // accepted is the author's concession of the docketing standing on `answers`, set by --accept.
+  optional bool accepted = 9;
+
+  // THE GAP'S WORDING ONCE THIS AMEND STANDS, stamped by the write path and never by a seat
+  // (recordsql.stampAmendResult). On each field: this amend's where it names one, else the gap's
+  // wording before it — the result of its latest earlier amend, or the mint's. Both inputs are fixed
+  // once this amend is written, so the stored wording is the gap's from this amend until the next,
+  // and the gap view reads it rather than deriving it.
+  optional string result_problem = 10;
+  optional string result_required_fix = 11;
+  optional string result_acceptance_check = 12;
+  optional string result_fix_new = 13;
+  optional string result_fix_basis = 14;
 }
 
 // SpotCheck re-reads archived closures and names the stale areas read before a PASS. THE ARCHIVE'S
@@ -1187,63 +1262,26 @@ message SpotCheck {
   reserved "notes";
 }
 
-// Finding is a lens observation. The label is TOOL-assigned (L{lens}-F{n}); an unlabelled
-// finding can never be named in a gap's found_by and its work is lost.
-// FindingAbout is WHAT A FINDING IS ANCHORED TO when the thing it names is not on the page.
+// AboutKind is WHAT A GAP IS ANCHORED TO when the thing it names is not on the page.
 //
 // A defect about an ABSENCE has no sentence to quote, and a quote borrowed as a handle points a
-// reader of the gap list at prose the finding itself calls fine.
+// reader of the gap list at prose the gap itself calls fine.
 //
 // IT MATTERS TO THE STEELMAN DUTY IN PARTICULAR. Red's duty is to audit the REASONS declined and
-// abandoned inquiries were set aside, and the strongest such findings are arguments against a
+// abandoned inquiries were set aside, and the strongest such gaps are arguments against a
 // reason — which is not report prose at all.
 //
 // The targets below are REFERENCES THE RECORD CAN CHECK, which a borrowed quote is not: an
 // inquiry id either names an inquiry this run proposed or it does not.
-//
-// IT IS `AboutKind` AND NOT `FindingAbout` BECAUSE A GAP ANCHORS THE SAME WAY. `lens mint` took
-// `--quote` and told the seat, in its own help, to "quote the sentence where it SHOULD be — that
-// is how a lens finding anchors an omission". Naming this after the finding would leave the seat
-// spelling one act two ways across two verbs, which is a worse failure for the reader of the help
-// than a slightly longer enum name is for anyone.
 enum AboutKind {
   ABOUT_KIND_UNSPECIFIED = 0;
-  ABOUT_KIND_SECTION = 1 [(means) = "a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there"];
+  ABOUT_KIND_SECTION = 1 [(means) = "a report section, by its heading, for something MISSING from it — the anchor a quote cannot provide, because the text you object to is not there; the gap's token ends the heading"];
   ABOUT_KIND_INQUIRY = 2 [(means) = "an inquiry, by its id: an objection to the inquiry as the record holds it and the report prints it — the REASON it was declined, deferred or abandoned, the METHOD its fate states, or a fate the report's text or a computation contradicts. The steelman duty's own anchor"];
-  ABOUT_KIND_GAP = 3 [(means) = "a gap already on the board, by its id: a dispute with its grade, its fix, or whether it stands"];
   ABOUT_KIND_QUESTION = 6 [(means) = "the question the run was asked, by a question part's id, or by no id for a part the record does not hold: an objection to the part's coverage as the record states it, or to a part of the question no part covers — class coverage_misstated"];
   ABOUT_KIND_ANCHOR = 5 [(means) = "a citation or computation, by anchor, whose check failed: a computation judged unsound, a citation whose work went unread, or whose source your reading finds to say otherwise than its sentence — a cited source's defect names the citation, never the sentence"];
+  ABOUT_KIND_GAP = 3 [(means) = "another lens's open gap, by its id: a defect in its printed wording or its grades, which its minter answers"];
   reserved 4;
   reserved "ABOUT_KIND_CONTRADICTION";
-}
-
-message Finding {
-  // id is the finding's one name: the tool mints it, a gap's found_by names it by it, and the
-  // finding's anchor carries it. The lens that filed it is the event's seat, never part of the id.
-  //
-  // A finding with no id CANNOT BE ADDRESSED, and every one must get a fate. Measured on the
-  // 2026-07-18 run: 8 finding/observe events carried no name at all, so the chair could not name
-  // them even to decline them — they sat in the undisposed set forever.
-  optional string id = 11 [(sql) = {
-    required: true
-    unique: true
-    why: "the tool mints it; a finding with none can never be credited in a gap's found_by and its work is lost"
-  }];
-  optional string finding_key = 2;
-  reserved 1, 3;
-  reserved "finding_id", "label";
-  optional string location = 4;
-  optional string text = 5;
-  optional Grade severity = 6;
-  optional Grade likelihood = 7;
-  optional Grade impact = 8;
-
-  // WHAT THIS FINDING IS ABOUT, when it is not about a sentence. Exactly one of `location` (a live
-  // report quote, which places a marker) or this pair is set — a finding anchored to nothing is
-  // the state the verb refuses, and one anchored to BOTH is claiming two subjects.
-  //
-  optional AboutKind about_kind = 9;
-  optional string about_ref = 10;
 }
 
 // Anchor is a marker placed in the report: the marker of the act `id` names, at the end of its
@@ -1527,7 +1565,7 @@ message Computation {
   optional string text = 7 [(prose) = true, (sql) = { flag: "reason" }];
   // exit is the first run's.
   optional int32 exit = 10;
-  // location is the anchoring quote this computation backs — the same `--quote` cite and finding
+  // location is the anchoring quote this computation backs — the same `--quote` cite and mint
   // record. The Anchor appended after it carries it and places the marker; held here as well, it is
   // the computation's own statement of its site, which a retry places an owed Anchor at.
   optional string location = 11 [(prose) = false, (sql) = { flag: "quote" }];
@@ -1664,6 +1702,9 @@ message QuestionPart {
   // reason is why the coverage holds, required on every record of coverage: the logic lens judges
   // the coverage against it.
   optional string reason = 5 [(prose) = true];
+  // answers is the gap a coverage or split responds to (BlueEdit.answers' sense): the author's answer
+  // to it. A coverage or split naming none is the gap's raiser's turn.
+  optional string answers = 6;
 }
 
 // QuestionPartCheck is the logic lens's judgement that a question part's latest coverage stands as
@@ -1710,6 +1751,9 @@ message Inquiry {
   // A declined, deferred or abandoned inquiry requires a reason: the road not taken is worthless
   // without why, and a deferral with none is indistinguishable from forgetting.
   optional string reason = 7 [(prose) = true];
+  // answers is the gap a record of a fate responds to (BlueEdit.answers' sense): the author's answer
+  // to it. A fate naming none is the gap's raiser's turn.
+  optional string answers = 8;
 }
 
 // ReportPart is one lane's part of the report, stored VERBATIM at ingest. The report is a fold of
@@ -1738,7 +1782,7 @@ message BlueEdit {
   optional bool applied_verbatim = 6;
 
   // reopened are the anchors whose SENTENCE this edit rewrote and that still stand — of every kind,
-  // citations, computations, findings and gap markers, whose referent moved under them. An anchor a cut took is in
+  // citations, computations and gap markers, whose referent moved under them. An anchor a cut took is in
   // removed_anchors, never here: it left the report with its sentence.
   //
   // THE ANCHOR AND ITS REFERENT ARE TWO CONCERNS AND ONLY ONE WAS ENFORCED. An anchor is never
@@ -1839,6 +1883,10 @@ message Retire {
   // answer to that gap, and a reader joining the gap to blue's answers (`show changes --id`, the
   // lens's answered list) reads it here. Empty for a retire answering no gap.
   optional string answers = 7;
+
+  // accepted is a retire the tool applied from the raiser's stated retire (--accept): the author's
+  // concession of the docketing standing on `answers`, as BlueEdit.accepted is an edit's.
+  optional bool accepted = 8;
 }
 
 // LogSource is WHO recorded the entry, and LogType is WHAT IT ASSERTS. They are two axes and were
@@ -1885,7 +1933,7 @@ enum LogType {
   // THE ENGINE'S OWN STOP IS ONE TOO, under the harness seat: the engine threw, and the lead wrote
   // the error with the operator's `engine-stopped`. No outcome goes with it, so the run stays open.
   LOG_TYPE_FAILURE = 7 [(seat_may_file) = false, (means) = "a call FAILED where no verb could see it. A seat's tool call, recorded under that seat as the harness saw it: the tool, what it was aimed at, and the error's first line. Or the ENGINE's own stop, recorded under `harness` with the error it threw: a run the engine stopped, as against one that was cut off. Recorded by the tool, not filed by a seat; a refusal the record tool gave is `refusal`, not this"];
-  LOG_TYPE_ESTOPPEL = 5 [(seat_may_file) = false, (means) = "the TOOL refused a mint because the defect lives in text blue applied verbatim from red's own --fix-new. Recorded by the tool, not filed by the seat: argue it on the original gap, or mint with --supersedes so the lineage is explicit"];
+  LOG_TYPE_ESTOPPEL = 5 [(seat_may_file) = false, (means) = "the TOOL refused a mint because the defect lives in text the author applied verbatim from the prescribing lens's own --fix-new. Recorded by the tool, not filed by the seat: argue it on the original gap, whose minter restates its wording by amending it"];
 }
 
 // Log is the channel addressed to the OPERATOR WHO CAN RETOOL THE SEAT — not to the debate. It
@@ -1919,14 +1967,14 @@ message Log {
 // with a comment calling that "the one place the (subject, key) keying can live", because the
 // flat EnumFields table could not express it.
 //
-// A single flat Motion message reproduces exactly that defect in a new syntax: `dimension`
-// belongs to a grade motion and `class` to a petition, and a flat message would accept either on
-// either, leaving the pairing to a runtime check nothing generates. So the subject IS a oneof,
-// and the fields that belong to a subject live inside its own message. A grade motion carrying
-// a petition's `class` is then not a validation failure — it is unrepresentable.
+// A single flat Motion message reproduces exactly that defect in a new syntax: `gap_id` belongs
+// to a docket motion and `class` to a petition, and a flat message would accept either on either,
+// leaving the pairing to a runtime check nothing generates. So the subject IS a oneof, and the
+// fields that belong to a subject live inside its own message. A docket motion carrying a
+// petition's `class` is then not a validation failure — it is unrepresentable.
 //
-// THE ARM IS THE SUBJECT, AND NOTHING ELSE CARRIES IT. A grade motion is one whose filing is a
-// GradeMotion; Motion.Subject (recordpb/motionsubject.go) reads the arm, and every reader asks it.
+// THE ARM IS THE SUBJECT, AND NOTHING ELSE CARRIES IT. A docket motion is one whose filing is a
+// DocketMotion; Motion.Subject (recordpb/motionsubject.go) reads the arm, and every reader asks it.
 // A second field holding the same word could only agree with the arm or contradict it.
 message Motion {
   optional string motion_id = 1 [(sql) = {
@@ -1944,31 +1992,34 @@ message Motion {
   optional string relief = 4;
 
   oneof filing {
-    GradeMotion grade = 10;
     PetitionMotion petition = 11;
     DocketMotion docket = 13;
     PositionMotion position = 14;
   }
-  // 12 held the inquiry subject's arm. Reserved: a stored motion carries the bytes.
-  reserved 12;
-  reserved "inquiry";
-}
+  // 10 held the grade subject's arm and 12 the inquiry subject's. Reserved: a stored motion carries
+  // the bytes.
+  reserved 10, 12;
+  reserved "grade", "inquiry";
 
-// GradeMotion contests a gap's grade on one dimension. Both of its checks belonged to the
-// retired `blue dispute` verb and did not come across with it: a motion against a gap that does
-// not exist is dropped at replay, and one against a gap already disposed of asks for a
-// disposition that has already been made.
-message GradeMotion {
-  // A grade motion contests a REAL gap's grade. This is the arm whose foreign keys the generator
-  // dropped entirely until the golden was read; the referent is now enforced with the vocabulary.
-  optional string gap_id = 1 [(sql) = { references: "mint.gap_id" }];
-  optional GradeDimension dimension = 2;
-  optional Grade proposed = 3;
+  // THE ACT A DOCKET MOTION PROPOSES, in that act's own body. It sits beside `filing` rather than
+  // inside the docket arm because the record stores a body's oneof arms as tables keyed on the
+  // body's event, and has no table shape for a message nested inside an arm.
+  option (check) = {
+    expr: "(\"act_case\" IS NULL) = (\"filing_case\" <> 'docket')"
+    why: "a docket motion is a party's proposed act on a gap, so it carries the act it proposes; a petition or a position asks the bench for something no act of a gap's assignee answers, and carries none"
+  };
+  oneof act {
+    Regrade regrade = 15;
+    Close close = 16;
+  }
+  // 17 held a proposed supersede: a gap names no gap it replaces, and its minter restates its wording
+  // by its own amend. Reserved: a stored motion carries the bytes.
+  reserved 17;
+  reserved "supersede";
 }
 
 // GradeDimension is the axes a gap is graded on, and the one home of what each axis means: the
-// flag that sets an axis (`mint`, `regrade`, `finding`) and the menu of the axis a grade motion
-// contests both print the `(means)` here.
+// flags that set an axis (`mint`, `regrade`) print the `(means)` here.
 //
 // Each axis is spelled as the flag that sets it, so a seat learns the pattern from any one of them.
 //
@@ -2005,19 +2056,21 @@ enum PetitionClass {
   reserved "PETITION_CLASS_PROCESS", "PETITION_CLASS_SCOPE";
 
   PETITION_CLASS_UNSPECIFIED = 0;
-  PETITION_CLASS_INTEGRITY = 1 [(means) = "proceeding would require asserting what you believe false, or burying a real finding"];
+  PETITION_CLASS_INTEGRITY = 1 [(means) = "proceeding would require asserting what you believe false, or burying a real defect"];
   PETITION_CLASS_SAFETY = 2 [(means) = "proceeding would create or conceal a hazard"];
   PETITION_CLASS_ETHICAL = 5 [(means) = "proceeding would require acting against the interests of someone the run affects"];
   PETITION_CLASS_CONSTITUTIONAL = 6 [(means) = "the instruction itself conflicts with the rules the run is bound by"];
 }
 
-// DocketMotion puts a GAP before the bench. The filing is the DOCKETING — a seat escalating a gap
-// it cannot settle — and the ruling is the bench's disposition of it.
+// DocketMotion puts a GAP to its assignee and then the bench. The filing is a PROPOSAL — a seat
+// proposing an act on a gap it cannot take itself — and the act it proposes rides the motion's `act`
+// oneof. The answer is a DocketRuling: the assignee's accept, or the bench's answer on the gap's
+// docketing (Docketing), which holds the proposal its assignee did not accept.
 //
 // THE GAP RIDES THE FILING AND NOT THE RULING, which is the whole join. `bench opinion` carried a
 // gap_id on the DISPOSITION and no motion id, so a bench ruling joined to nothing and nothing could
 // ask whether a gap that reached the bench was ever answered. Here the ask names the gap once, the
-// answer names the ask, and the pair is recoverable from either end.
+// answer names the ask or the docketing, and the pair is recoverable from either end.
 message DocketMotion {
   optional string gap_id = 1 [(sql) = {
     required: true
@@ -2026,18 +2079,18 @@ message DocketMotion {
     why: "which gap is being put before the bench — a docket motion that names no gap is an escalation of nothing"
   }];
 
-  // THE NEW GROUNDS A RECONSIDERATION RESTS ON, located the way every act locates what it is about:
-  // an anchor or record id the seats already read (a finding's, a gap's, a citation's or a computation's),
-  // or a quote of the report's current text. Required, exactly one of the two, when the bench has
-  // already ruled the gap closed, and refused otherwise (record.requireNewGrounds): the act it names
-  // is recorded after that ruling and is about this gap, or the motion relitigates what the ruling
-  // settled. A remand closes nothing, so a gap back before the bench after one needs none.
-  optional string grounds = 2;
-  optional string grounds_quote = 3 [(prose) = false, (sql) = { flag: "quote" }];
+  // 2 and 3 held the reconsideration grounds: a bench ruling is final for its gap's text, and a
+  // tombstone row says so until a reword ends it. Reserved: a stored motion may carry the bytes.
+  reserved 2, 3;
+  reserved "grounds", "grounds_quote";
 }
 
-// DocketRuling is the bench's disposition of a docketed gap: the word that decides its fate, and
-// the reasoning that has to travel with it.
+// DocketRuling answers a docketing or a proposal: the bench's answer on a docketing (Docketing) —
+// the side whose statement it applied, what became of the window's moved grades, or a remand — and
+// the reasoning that has to travel with it; or the gap's assignee accepting a proposal standing on its
+// gap, which names the motion and no docketing. The bench writes no word or grade of its own: the
+// tool applies the chosen side's statement in the ruling's transaction and sets the closing word the
+// side stated.
 //
 // IT IS A MESSAGE ARM WHERE ITS THREE SIBLINGS ARE ENUMS, and the reason is these six fields. The
 // enum arms say what was decided; only the bench also records WHY, what it weighed, and what would
@@ -2053,8 +2106,8 @@ message DocketRuling {
   // `--none` made the empty case sayable. The question is a closing ruling's: a remand closes
   // nothing, so it owes a direction instead (below).
   option (check) = {
-    expr: "\"disposition\" = 'remanded' OR \"reopens_on\" IS NOT NULL OR \"final\" IS NOT NULL"
-    why: "a ruling that closes the gap owes what would change its outcome: --reopens-on names it, or --final says nothing would. Saying neither leaves the losing party unable to tell a settled question from an unanswered one, which is the difference between a new motion on new grounds and a wasted sitting"
+    expr: "coalesce(\"disposition\", 'remanded') = 'remanded' OR \"reopens_on\" IS NOT NULL OR \"final\" IS NOT NULL"
+    why: "a ruling that closes the gap owes what would change its outcome: --reopens-on names it, or --final says nothing would. Saying neither leaves the losing party unable to tell a settled question from an unanswered one"
   };
 
   // REFUSED TOGETHER rather than silently preferring one: a ruling that says both "this is final"
@@ -2067,20 +2120,35 @@ message DocketRuling {
 
   // A REMAND STATES ITS DIRECTION AND NOTHING THAT REOPENS. A remand sends the gap back to the
   // debate for one more exchange, and the dispatch hands that exchange's two seats — blue and the
-  // minting lens — the ruling's `direction` as the research they owe. A remand closes nothing, so
+  // assignee — the ruling's `direction` as the research they owe. A remand closes nothing, so
   // neither `reopens_on` nor `final` answers anything on it. A blank is no direction: the check
   // trims what the write path's strings.TrimSpace trims in ASCII (space, tab, newline, carriage
   // return), and a NULL direction fails it, where a bare `trim(NULL) <> ''` would be NULL and pass.
   option (check) = {
-    expr: "\"disposition\" <> 'remanded' OR (coalesce(trim(\"direction\", ' ' || char(9, 10, 13)), '') <> '' AND \"reopens_on\" IS NULL AND \"final\" IS NULL)"
-    why: "a remand sends the gap back for one more exchange, and --direction is the research that exchange owes blue and the minting lens; a blank one is no direction, and --reopens-on and --final answer what would reopen a closed gap — a remand closes nothing"
+    expr: "coalesce(\"disposition\", '') <> 'remanded' OR (coalesce(trim(\"direction\", ' ' || char(9, 10, 13)), '') <> '' AND \"reopens_on\" IS NULL AND \"final\" IS NULL)"
+    why: "a remand sends the gap back for one more exchange, and --direction is the research that exchange owes blue and the assignee; a blank one is no direction, and --reopens-on and --final answer what would reopen a closed gap — a remand closes nothing"
   };
 
   // A DIRECTION IS A REMAND'S. A ruling that closes the gap sends no exchange anywhere, so a
   // direction on it would be research nobody is dispatched to do.
   option (check) = {
-    expr: "\"disposition\" = 'remanded' OR \"direction\" IS NULL"
+    expr: "coalesce(\"disposition\", '') = 'remanded' OR \"direction\" IS NULL"
     why: "--direction is the research a remand's one more exchange owes; a ruling that closes the gap sends no exchange, and what would reopen it is --reopens-on"
+  };
+
+  // AN ANSWER IS EXACTLY ONE OF A SIDE, A GRADE ANSWER AND A REMAND. Each NULL is stated explicitly,
+  // so no row passes by a NULL comparison. Which of the three a docketing admits is its cause's, which
+  // a column cannot see: validate refuses `moved_grades` off a grade-movement docketing, and
+  // `sided_with` on one.
+  option (check) = {
+    expr: "((\"sided_with\" IS NOT NULL) + (\"moved_grades\" IS NOT NULL) + (coalesce(\"disposition\", '') = 'remanded')) = 1"
+    why: "a ruling answers its docketing with exactly one of a side of the docketing's pair, a grade answer (--keep or --restore) at grade movement, or --remand"
+  };
+  // A CLOSING WORD OWES WHAT WOULD REOPEN IT, AND NOTHING ELSE DOES: --reopens-on and --final answer
+  // what would reopen a gap the ruling closed, so a ruling that closes nothing states neither.
+  option (check) = {
+    expr: "coalesce(\"disposition\", 'remanded') <> 'remanded' OR (\"reopens_on\" IS NULL AND \"final\" IS NULL)"
+    why: "--reopens-on and --final say what would reopen a gap the ruling closed; a grade answer, a remand and the assignee's accept close nothing by their own word"
   };
 
   // NO `subset` HERE, AND THAT IS THE POINT OF THE FIELD.
@@ -2089,34 +2157,34 @@ message DocketRuling {
   // disposition EXCEPT `remanded`, the one the bench uses 76 times in 77. A ruling that cannot send
   // a gap back to the debate is not the bench's vocabulary; it is red's. The whole set is legal here, and `closes` is read
   // by the gap view to decide the FATE rather than by the column to decide legality.
+  //
+  // NO FLAG: THE TOOL SETS IT. No flag of the bench's chooses a word. `remanded` on a remand; on an
+  // answer that closes the gap, the statement of the side the bench sided with — `repaired` after the
+  // bench's edit of red's (the assignee's) text, blue's closing's word or `not_a_defect` where it states
+  // none, a close proposal's stored word; none on a grade answer.
   optional Disposition disposition = 1 [(sql) = {
-    required: true
-    flag: "as"
-    why: "the bench's word, which decides the gap's fate — `remanded` sends it back to the debate for one more exchange between its minting lens and blue, everything else ends it"
+    why: "the closing word the tool writes from the side the ruling sided with, or `remanded` — which sends the gap back to the debate for one more exchange between its assignee and blue; every other word ends it"
   }];
 
   optional string principle = 2 [(sql) = {
-    required: true
     why: "the rule the bench applied, stated so a later sitting can apply the same one"
   }, (prose) = true];
 
-  // STATED, NEVER BLANK. An empty tension or review flag cannot be told from a bench that skipped
-  // the question, so each `why` names what is true to write when the bench has no conflict, or
-  // nothing for a human, to report.
+  // THE BENCH'S OPINION: principle, tension, review_flag and settled. Required of a ruling the bench
+  // writes and refused on the assignee's accept (record.requireBenchOpinion): a column cannot see
+  // the writer. STATED, NEVER BLANK: an empty tension or review flag cannot be told from a bench that
+  // skipped the question, so each `why` names what is true to write when the bench has no conflict,
+  // or nothing for a human, to report; `settled` alone may be empty.
   optional string tension = 3 [(sql) = {
-    required: true
     why: "the values that pulled against each other — or, where none did, the ruling's weakest point: what a party would argue against the rule you applied"
   }, (prose) = true];
 
   optional string review_flag = 4 [(sql) = {
-    required: true
     flag: "review-flag"
     why: "what a human should look at again — or, where nothing needs a human, what on the record already settles it"
   }, (prose) = true];
 
   optional string settled = 5 [(sql) = {
-    required: true
-    allow_empty: true
     why: "what the losing party may no longer assert, as one sentence — not the gap id, and not the disposition"
   }, (prose) = true];
 
@@ -2130,12 +2198,54 @@ message DocketRuling {
   // checks above are what make "neither" and "both" unrepresentable.
   optional bool final = 7;
 
-  // THE RESEARCH A REMAND'S ONE MORE EXCHANGE OWES blue and the minting lens. Every reader of a
+  // THE RESEARCH A REMAND'S ONE MORE EXCHANGE OWES blue and the assignee. Every reader of a
   // remand reads this (the "remand" view, the dispatch plan's remand_owed, the work lists).
   optional string direction = 8 [(sql) = {
     flag: "direction"
-    why: "on a remand: the research direction its one more exchange owes blue and the minting lens"
+    why: "on a remand: the research direction its one more exchange owes blue and the assignee"
   }, (prose) = true];
+
+  // 9 held `accepted`, an answer to a proposed act as true or false. A stored side replaces it
+  // (sided_with): a new number, since the type changes. Reserved: a stored ruling may carry the bytes.
+  reserved 9;
+  reserved "accepted";
+
+  // THE DOCKETING THIS RULING ANSWERS: set on every bench docket ruling and on nothing else — the
+  // assignee's accept answers a proposal, not a docketing. One ruling per docketing, refused at the
+  // column as well as at the write.
+  optional string docketing_id = 10 [(sql) = {
+    references: "docketing.docketing_id"
+    unique: true
+    why: "the docketing the bench rules on — one ruling per docketing"
+  }];
+
+  // THE PARTY WHOSE STATEMENT THIS RULING APPLIED, as the answer named it: set on every bench ruling
+  // but a remand and a grade-movement answer. Every other body in the ruling's transaction is that
+  // party's statement. "Did the held proposal's act apply" reads AUTHOR on a ruling naming a motion.
+  optional SidedWith sided_with = 11;
+
+  // WHAT THE RULING DID WITH THE WINDOW'S MOVED GRADES, set exactly on a grade-movement docketing's
+  // ruling: kept, or restored to the recorded prior grades by a bench regrade the tool writes.
+  optional MovedGrades moved_grades = 12;
+}
+
+// SidedWith is the party whose statement a bench ruling applied, as the answer named it: a gap's two
+// parties are its raiser, the lens that minted it, and the author of the subject it stands on.
+enum SidedWith {
+  SIDED_WITH_UNSPECIFIED = 0;
+  SIDED_WITH_RAISER = 1 [(means) = "the raiser's position: the statement its closing states, applied by the bench as the act that makes the subject what the raiser stated"];
+  SIDED_WITH_AUTHOR = 2 [(means) = "the author's position: its subject as it stands, with its closing's word, or the proposal it filed"];
+  // 3 and 4 held a third party's filing on another lens's gap, and that gap's minter against it. A
+  // gap has two parties, and only its author files on it.
+  reserved 3, 4;
+  reserved "SIDED_WITH_FILER", "SIDED_WITH_ASSIGNEE";
+}
+
+// MovedGrades is what a ruling on a grade-movement docketing did with the window's moved grades.
+enum MovedGrades {
+  MOVED_GRADES_UNSPECIFIED = 0;
+  MOVED_GRADES_KEPT = 1 [(means) = "the window's moved grades stand"];
+  MOVED_GRADES_RESTORED = 2 [(means) = "the gap's recorded prior grades are restored, by a bench regrade the tool writes in the ruling's transaction"];
 }
 
 // PositionMotion is the position subject's filing arm, and nothing writes it: the chair's position
@@ -2177,20 +2287,26 @@ message PositionHearing {
   // THE WORK'S DIRECTION. The dispatch hands it to the readied seats, as a remand's.
   optional string direction = 4 [(sql) = {
     flag: "direction"
-    why: "on an upheld ruling: the research the named work owes — what the lens audits for, or what each gap's one more exchange owes blue and its minting lens"
+    why: "on an upheld ruling: the research the named work owes — what the lens audits for, or what each gap's one more exchange owes blue and its assignee"
   }, (prose) = true];
 }
 
 // MotionRule is the ruling, and its verdict set is keyed on the subject in the same way — one
-// motion-rule event carries granted|denied for a petition and accepted|rejected for a grade.
+// motion-rule event carries granted|denied for a petition and upheld|overruled for a position.
 // An unrecognized ruling reads as no ruling at all, so a refusal silently becomes permission.
 message MotionRule {
   // THE CONSTRAINT THE SHARDED LOG COULD NOT HAVE. Filing and ruling are written by different seats
   // into different files, and replay merged them by timestamp — so a ruling could replay BEFORE its
   // filing, which record/motion.go records in capitals and works around with a second pass. Here it
   // is simply unwritable.
+  //
+  // NOT REQUIRED BY THE COLUMN, AND THE REASON IS THE THIRD CASE. A petition or position ruling names
+  // its motion, the assignee's accept names the proposal it accepts, and a bench ruling answering a
+  // docketing that holds a proposal names it; a bench ruling of a docketing with no proposal standing
+  // (at impasse, at grade movement) answers the docketing (DocketRuling.docketing_id) and names no
+  // motion. Which case a ruling is, the column cannot see: requireSubjectMatches asks it per subject,
+  // and for a docket ruling per docketing.
   optional string motion_id = 1 [(sql) = {
-    required: true
     // `--id`, the word every verb uses for the thing it is acting on. Without it the flag was
     // derived as `--motion-id`, which no command registers — so the contract gate read the
     // requirement as invisible, and it was right.
@@ -2200,7 +2316,7 @@ message MotionRule {
     // `references: "motion.motion_id"` would read right and be false for one subject: a POSITION
     // ruling has no motion row. The position IS the filing — `motion position rule` names the
     // position's own id, so the referent is a `position`, not a `motion`, and the foreign key would
-    // refuse every position ruling.
+    // refuse every position ruling. A bench ruling of a docketing with no proposal names none at all.
     //
     // A conditional foreign key is not expressible (a CHECK cannot hold a subquery), and a trigger
     // could enforce it while saying nothing useful — RAISE takes a static string, so a seat would
@@ -2210,7 +2326,7 @@ message MotionRule {
     //
     // A constraint that is wrong for a third of the cases is worse than none: it refuses correct
     // work, and it reads as a guarantee.
-    why: "the motion this answers — a ruling that names no motion is an answer to nothing, and the join it belongs to is the whole of #312"
+    why: "the motion this answers: a petition's, a position's, the proposal the assignee accepts, or the proposal a docketing holds — a bench ruling of a docketing with no proposal answers the docketing and names none"
   }];
   // 2 held the subject, which the ruling's arm states (MotionRule.Subject). Reserved: a stored
   // ruling carries the bytes.
@@ -2234,14 +2350,14 @@ message MotionRule {
   }, (prose) = true];
 
   oneof ruling {
-    GradeRuling grade = 10;
     PetitionRuling petition = 11;
     DocketRuling docket = 13;
     PositionHearing position = 14;
   }
-  // 12 held the inquiry subject's ruling. Reserved: a stored ruling carries the bytes.
-  reserved 12;
-  reserved "inquiry";
+  // 10 held the grade subject's ruling and 12 the inquiry subject's. Reserved: a stored ruling
+  // carries the bytes.
+  reserved 10, 12;
+  reserved "grade", "inquiry";
 
   // binds is what the ruling OBLIGES of the coming seats. Enumerated on the ruling side, which
   // the old table could not police: the filing's copy of the enum loop had always existed and
@@ -2562,7 +2678,7 @@ message Plan {
 }
 
 // Stale is the tool's refusal of a seat's act on a gap that changed since the seat's sitting opened
-// (gblock ruling B, 2026-10-19): the act asserts something about the gap — a finding about it, its
+// (gblock ruling B, 2026-10-19): the act asserts something about the gap — its
 // grade, a motion on it — and the seat's read of the gap is the one its sitting opened with, while
 // other seats sit concurrently. The refusal shows the seat each act on the gap since, and this event
 // is the record that it did.
@@ -2580,9 +2696,91 @@ message Stale {
   optional int64 through = 2 [(sql) = { references: "events.id" }];
 }
 
+// Docketing is the tool putting a gap before the bench, written by the dispatch (and by the bench's
+// register at the exit, for a proposal no docketing holds) and by no verb: at impasse, for the board's
+// grade movement, or for a proposal its assignee did not accept in its window. The bench's ruling
+// answers it (DocketRuling.docketing_id), once; a non-carry Close of the gap written after it ends it
+// unanswered. A docketing holds a proposal exactly when its cause is PROPOSAL, and that proposal is
+// the one standing on the gap at its write.
+message Docketing {
+  option (check) = {
+    expr: "(\"cause\" = 'proposal') = (\"motion_id\" IS NOT NULL)"
+    why: "a docketing holds a proposal exactly when its cause is the proposal its assignee did not accept; at impasse and at grade movement it holds none"
+  };
+  optional string docketing_id = 1 [(sql) = {
+    required: true
+    unique: true
+    why: "the id the bench's ruling and every reader of the docketing join on — the tool assigns it"
+  }];
+  optional string gap_id = 2 [(sql) = {
+    required: true
+    references: "mint.gap_id"
+    why: "the gap put before the bench"
+  }];
+  optional DocketingCause cause = 3 [(sql) = {
+    required: true
+    why: "why the gap is before the bench: impasse, grade movement, or a proposal its assignee did not accept"
+  }];
+  // The proposal the docketing holds, on a PROPOSAL docketing and on nothing else.
+  optional string motion_id = 4 [(sql) = { references: "motion.motion_id" }];
+  // THE WORDS THE BENCH RULES ON: the impasse's, the grade movement's, or the unaccepted proposal's
+  // line. Read by the bench's work list and the docket, by no check.
+  optional string basis = 5 [(prose) = true];
+}
+
+// DocketingCause is why a gap is before the bench.
+enum DocketingCause {
+  DOCKETING_CAUSE_UNSPECIFIED = 0;
+  DOCKETING_CAUSE_IMPASSE = 1 [(means) = "the gap's exchanges reached k stalled or k-max in all"];
+  DOCKETING_CAUSE_GRADE_MOVEMENT = 2 [(means) = "the open gaps' grade movement passed its threshold"];
+  DOCKETING_CAUSE_PROPOSAL = 3 [(means) = "the author's proposal its raiser did not accept in its window"];
+}
+
+// Tombstone is a gap's text marked final, written by the tool in the transaction of the act that owes
+// it (record.writeTombstones) and by no verb. A bench ruling but a remand places a RULING row on the
+// ruled gap; blue's verbatim application of a gap's prescription places an ESTOPPEL row on that gap;
+// a later act that rewords the gap's text writes an end row on the same (gap_id, kind). A tombstone
+// stands while the latest row on its pair places it (the `tombstone_standing` view).
+//
+// NO ROW CARRIES AN events.id: readers key on the stable ids, so a replay that moves ids moves nothing
+// a row names.
+message Tombstone {
+  option (check) = {
+    expr: "(\"kind\" = 'ruling' AND \"ends\" IS NULL) = (\"docketing_id\" IS NOT NULL)"
+    why: "a ruling tombstone names the docketing whose ruling placed it; an estoppel row and an end row name none"
+  };
+  option (check) = {
+    expr: "\"ends\" IS NULL OR \"ends\" = 1"
+    why: "an end row says so; a placing row carries no ends"
+  };
+  optional string gap_id = 1 [(sql) = {
+    required: true
+    references: "mint.gap_id"
+    why: "the gap the tombstone stands on: the ruled gap for a ruling, the prescribing gap for estoppel"
+  }];
+  optional TombstoneKind kind = 2 [(sql) = {
+    required: true
+    why: "which finality the row marks: a bench ruling's, or estoppel's"
+  }];
+  // The docketing whose ruling placed it, on a ruling placement and on nothing else: every bench
+  // ruling answers a docketing, and only some hold a proposal.
+  optional string docketing_id = 3 [(sql) = { references: "docketing.docketing_id" }];
+  // Recorded only when TRUE: this row ends the tombstone standing on (gap_id, kind).
+  optional bool ends = 4;
+}
+
+// TombstoneKind is what a tombstone marks final.
+enum TombstoneKind {
+  TOMBSTONE_KIND_UNSPECIFIED = 0;
+  TOMBSTONE_KIND_RULING = 1 [(means) = "a bench ruling but a remand is final for the ruled gap's subject"];
+  TOMBSTONE_KIND_ESTOPPEL = 2 [(means) = "the author applied the raiser's stated text verbatim, so the prescribing lens may not re-raise the text it prescribed"];
+}
+
+// ReportRead is the tool serving a lens the whole report: the bare and the --json form of the
+// report's read with no selector, at the head it served. The seat and the sitting are the envelope's.
 // ReportRead is the tool handing a delivery's last report-text item into the seat's context; every
 // item of it was cut from the report at `head`. The delivery writer appends it, one per seat and
-// sitting, for a lens, the chair or the bench; a read through `show report` writes none. The seat and
+// sitting, for a lens or the chair; a read through `show report` writes none. The seat and
 // the sitting are the envelope's.
 //
 // IT IS EVIDENCE THE TEXT WAS DELIVERED, NOT THAT IT WAS READ. Nothing the tool holds can say a seat

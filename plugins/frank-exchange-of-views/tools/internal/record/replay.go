@@ -3,6 +3,8 @@ package record
 import (
 	"fmt"
 
+	"google.golang.org/protobuf/proto"
+
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
@@ -153,12 +155,8 @@ type Gap struct {
 	//
 	// WATCH THE NIL TEST. `g.Closure != nil` used to mean "closed by anything" and now means
 	// "closed by a `close` event". HasClosed is the unchanged answer to "closed at all".
-	Closure      *recordpb.Close
-	BenchClosure *recordpb.DocketRuling
-	// SupersededBy is the successor whose mint closed the gap by naming it in `supersedes` (the gap
-	// view's `superseded_by`), "" where no supersession closed it. Such a gap has no closing body of
-	// its own: the successor's mint is its closing act.
-	SupersededBy   string
+	Closure        *recordpb.Close
+	BenchClosure   *recordpb.DocketRuling
 	Regrades       []*recordpb.Regrade
 	Severity       recordpb.Grade
 	Likelihood     recordpb.Grade
@@ -166,8 +164,7 @@ type Gap struct {
 	ComplexityCost recordpb.Grade
 	// ClosedByBench distinguishes a JUDICIAL closure from one red made: whether the act that
 	// ENDED the gap — its first standing closing act — was the bench's. Red cannot close a
-	// bench-closed gap itself without double-counting closure history and corrupting the
-	// repair_regression denominator, so the projection has to record WHO closed it, not merely
+	// bench-closed gap itself without double-counting closure history, so the projection has to record WHO closed it, not merely
 	// that it is closed. A ruling on a docket motion that stood unruled after the lens closed the
 	// gap does not make the bench its closer.
 	ClosedByBench bool
@@ -178,14 +175,53 @@ type Gap struct {
 	// current severity against the floor. It is the gap view's "material" column, which FamilyOf
 	// reads.
 	Material bool
+	// Amends is the gap's amends in record order, each with its stamped resulting wording, and
+	// amendAt their events.id: the versions of its wording after the mint's (WordingAt).
+	Amends  []*recordpb.Amend
+	amendAt []int64
+}
+
+// Current is the gap's wording now: the mint with its latest amend's stamped wording.
+func (g *Gap) Current() *recordpb.Mint {
+	if len(g.Amends) == 0 {
+		return g.Mint
+	}
+	return versionOf(g.Mint, g.Amends[len(g.Amends)-1])
+}
+
+// WordingAt is the gap's wording as it stood at event id: the mint with the problem, required fix,
+// acceptance check and prescription the latest amend at or before id stamped (Amend.result_*), else
+// the mint's own. Every other field is the mint's — an amend restates wording only. nil for a gap
+// with no mint.
+func (g *Gap) WordingAt(id int64) *recordpb.Mint {
+	if g.Mint == nil {
+		return nil
+	}
+	var a *recordpb.Amend
+	for i, at := range g.amendAt {
+		if at <= id {
+			a = g.Amends[i]
+		}
+	}
+	return versionOf(g.Mint, a)
+}
+
+// versionOf is mint with amend a's stamped wording, the version a leaves; mint itself for no a.
+func versionOf(mint *recordpb.Mint, a *recordpb.Amend) *recordpb.Mint {
+	if a == nil || mint == nil {
+		return mint
+	}
+	m := proto.CloneOf(mint)
+	m.Problem, m.RequiredFix, m.AcceptanceCheck = a.ResultProblem, a.ResultRequiredFix, a.ResultAcceptanceCheck
+	m.FixNew, m.FixBasis = a.ResultFixNew, a.ResultFixBasis
+	return m
 }
 
 // GradeAt returns the gap's grade on ONE axis, and whether that axis is one this binary knows.
 //
 // THE SECOND RETURN IS LOAD-BEARING. A dimension added to the enum and not added here would
-// otherwise yield the zero Grade, which differs from any real proposal — so the no-op-motion
-// check below would silently start accepting everything on the new axis. That is the
-// plausible-zero shape: the miss and the healthy answer are the same value. Callers must treat
+// otherwise yield the zero Grade, which differs from every real grade — so a reader comparing
+// against it would silently misread everything on the new axis. That is the plausible-zero shape: the miss and the healthy answer are the same value. Callers must treat
 // !ok as "cannot answer", never as "no grade".
 func (g *Gap) GradeAt(d recordpb.GradeDimension) (recordpb.Grade, bool) {
 	switch d {
@@ -255,59 +291,12 @@ func (g *Gap) ClosureReason() string {
 		}
 		return recordpb.Word(g.Closure.GetClosureClass())
 	}
-	// A SUPERSESSION IS THE LENS'S CLOSING ACT, and no close of the lens's can follow it: the gap is
-	// closed from the successor's mint on.
-	if g.SupersededBy != "" {
-		return ClosedSuperseded
-	}
 	if g.Closure != nil {
 		if w := recordpb.Word(g.Closure.GetClosureClass()); w != "" {
 			return w
 		}
 	}
 	return recordpb.Word(g.BenchClosure.GetDisposition())
-}
-
-// ClosedSuperseded is the word that says a gap closed because a successor's mint superseded it. It
-// is no Disposition — no seat types it — and every reader of ClosureReason meets it beside them.
-const ClosedSuperseded = "superseded"
-
-// Successor is the gap carrying this one forward: the successor whose mint closed it, else the gap
-// its close names as carrying its regression. "" where neither names one.
-func (g *Gap) Successor() string {
-	if g == nil {
-		return ""
-	}
-	if g.SupersededBy != "" {
-		return g.SupersededBy
-	}
-	return g.Closure.GetSuccessor()
-}
-
-// DocketGapByMotion indexes each docket motion's gap by the motion's id — the FILING carries the
-// gap, so every reader of a docket RULING has to come back through here to learn what it settled.
-//
-// It is one function rather than a fold repeated at each reader because it was three: the replay,
-// the debate projection and the closure states each recovered the same pairing, and three copies
-// of a join are three chances to disagree about which gap a ruling closed. A caller passes the
-// stream it already holds; a stream without the MOTION events yields an empty index, which is why
-// every caller's typed read asks for MOTION alongside MOTION_RULE.
-func DocketGapByMotion(evs []*Event) map[string]string {
-	out := map[string]string{}
-	for _, e := range evs {
-		f, ok := recordpb.BodyAs[*recordpb.Motion](e)
-		if !ok {
-			continue
-		}
-		d, isDocket := f.GetFiling().(*recordpb.Motion_Docket)
-		if !isDocket {
-			continue
-		}
-		if id := f.GetMotionId(); id != "" {
-			out[id] = d.Docket.GetGapId()
-		}
-	}
-	return out
 }
 
 // GradeStr is a grade as the SEAT TYPES IT and the MASS TABLE KEYS ON IT.
@@ -343,24 +332,6 @@ func GradeOf(word string) (recordpb.Grade, bool) {
 		return recordpb.Grade_GRADE_UNSPECIFIED, false
 	}
 	return recordpb.Grade(vd.Number()), true
-}
-
-// Observation is a lens FINDING as replayed. The name is historical: it once covered both
-// findings and `observe` notes, and carried the chair's `dispose` fate for each.
-//
-// Both retired (#327). A finding's fate is now COALESCENCE and only coalescence — it is
-// addressed by being named in some gap's found_by — so there is no Disposition to carry and
-// no second kind to distinguish. A finding named nowhere is the report's "Lens findings not
-// raised to a gap", which is where that work reaches the reader.
-type Observation struct {
-	SeatID string
-	Key    string
-	// Kind is the event type's word, and it is DERIVED from the event rather than written as the
-	// literal "finding" that is currently its only possible value. The literal would be a fact
-	// composed into a string at one end and compared at the other; derived, it cannot disagree
-	// with the event it came from if a second kind ever returns.
-	Kind    string
-	Finding *recordpb.Finding
 }
 
 // NO GO FOLD OF THE RECORD EXISTS (plans/board-as-views.md wave 7). Every reader derives from

@@ -86,7 +86,7 @@ func TestInvocationPositionsAreRewritten(t *testing.T) {
 		`feov-record blue position --reason x`,
 		`"/c/bin/feov-record" merge mint --id G1`,
 		`/usr/local/bin/feov-record verify`,
-		`true; feov-record lens finding --key F1`,
+		`true; feov-record lens mint --key K1`,
 		`false || feov-record bench opinion --id G1`,
 		"cd /tmp\nfeov-record blue register",
 	} {

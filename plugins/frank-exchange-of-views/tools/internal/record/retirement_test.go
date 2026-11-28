@@ -171,18 +171,6 @@ func TestNoLensReadyBeforeIngest(t *testing.T) {
 	}
 }
 
-func TestLineageMintIsNotFresh(t *testing.T) {
-	// Sitting 1 mints fresh material; the three after it mint only successors of it — lineage, not
-	// discovery — so they are barren and the lens retires.
-	b := retBoard(t).sit(2, evLens).add(evLens, freshHigh("G1")).
-		sit(2, evLens).add(evLens, cmMint("G2", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "high", "G1")).
-		sit(2, evLens).add(evLens, cmMint("G3", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "high", "G2")).
-		sit(2, evLens).add(evLens, cmMint("G4", recordpb.ClassMaterial_CLASS_MATERIAL_BY_GRADE, "high", "G3"))
-	if f := lensStateOf(t, b.seed()); f.barren != retiresAfter {
-		t.Fatalf("sittings that minted only lineage are barren: %+v", f)
-	}
-}
-
 func TestNeverClassMintIsNotFresh(t *testing.T) {
 	b := retBoard(t).sit(2, evLens).add(evLens, cmMint("G1", recordpb.ClassMaterial_CLASS_MATERIAL_NEVER, "high")).
 		sit(2, evLens).add(evLens, cmMint("G2", recordpb.ClassMaterial_CLASS_MATERIAL_NEVER, "high")).

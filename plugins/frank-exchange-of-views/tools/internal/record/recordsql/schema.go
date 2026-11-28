@@ -227,15 +227,30 @@ CREATE TABLE "report_checkpoint" (
 // column scans the whole table, which is what planguard refuses on a growing table. An index
 // lands here when a guarded read path narrows by the column; it is authored, like ViewsDDL,
 // because which questions get asked is a decision, not a derivation.
-const QueryIndexDDL = `
+var QueryIndexDDL = `
 -- A gap's latest regrade, whose stored result grades the write path overlays the next regrade on
 -- (recordsql.stampRegradeResult).
 CREATE INDEX "regrade_gap" ON "regrade" ("gap_id", "event_id");
+-- A gap's latest amend, whose stored result wording the write path overlays the next amend on
+-- (recordsql.stampAmendResult) and the refresh reads as the current wording.
+CREATE INDEX "amend_gap" ON "amend" ("gap_id", "event_id");
+-- A party's concession of a docketing or a proposal on a gap (gap_refresh's standing docketing and
+-- proposal, and the ruling's trigger): the raiser's act taking the author's motion (accepts), and the
+-- author's act answering the gap (answers), on each body that carries one.
+CREATE INDEX "regrade_accepts" ON "regrade" ("accepts");
+CREATE INDEX "close_accepts" ON "close" ("accepts");
+CREATE INDEX "regrade_answers" ON "regrade" ("answers", "event_id");
+CREATE INDEX "amend_answers" ON "amend" ("answers", "event_id");
+CREATE INDEX "blue_edit_answers" ON "blue_edit" ("answers", "event_id");
+CREATE INDEX "retire_answers" ON "retire" ("answers", "event_id");
 -- A motion's rulings: motion_answers, inquiry_state, gap_refresh's unruled docket filing, and the
 -- bench's docket readers.
 CREATE INDEX "motion_rule_motion" ON "motion_rule" ("motion_id");
 -- The docket motions on a gap: the bench's latest ruling on it and its unruled filing.
 CREATE INDEX "motion_docket_gap" ON "motion_docket" ("gap_id");
+-- The docketings on a gap: the refresh's standing docketing and every reader of a gap's docketings.
+-- The ruling of a docketing reads motion_rule_docket ("docketing_id") through its UNIQUE index.
+CREATE INDEX "docketing_gap" ON "docketing" ("gap_id", "event_id");
 -- The evidence anchors placed as a gap's answer, which gap_refresh's live-answer demand and the
 -- closing and estoppel checks ask per gap: a computation's and a citation's.
 CREATE INDEX "computation_answers" ON "computation" ("answers");
@@ -249,11 +264,10 @@ CREATE INDEX "blue_edit_removed_anchors_value" ON "blue_edit_removed_anchors" ("
 -- cut, of that citation is refused over (record.requireCitationUncited).
 CREATE INDEX "computation_cites" ON "computation" ("cites");
 -- The gaps minted about an evidence anchor, read on the gap's side of a removal's reach — a
--- retire, or a cut of its sentence (record.reachingRemovalsOf) and by the demand_reach view gap_refresh and the gap-state markers read.
+-- retire, or a cut of its sentence (record.reachingRemovalsOf) and by the demand_reach view gap_refresh and the gap-state markers read;
+-- and the gaps about the question, which the logic lens's item for a part's check and blue-respond's
+-- question item list (record.questionGapsAt).
 CREATE INDEX "mint_about" ON "mint" ("about_kind", "about_ref");
--- The findings about the question, which the logic lens's item for a part's check and blue-respond's
--- question item list (record.questionFindingsAt).
-CREATE INDEX "finding_about" ON "finding" ("about_kind", "about_ref");
 -- The harness brackets naming a seat: the other half of a seat's latest sitting
 -- (recordsql.LatestSitting).
 CREATE INDEX "sitting_open_seat" ON "sitting_open" ("seat_id");
@@ -263,16 +277,15 @@ CREATE INDEX "sitting_open_agent" ON "sitting_open" ("agent_id");
 -- An agent's registrations: the seat it registered as (RegisteredSeatOfAgent) and the sitting it
 -- holds (registeredSitting).
 CREATE INDEX "register_agent" ON "register" ("agent_id");
--- A seat's keyed retry of an act, found by the key it sent (ExistingBlueEditByKey, FindingByKey,
+-- A seat's keyed retry of an act, found by the key it sent (ExistingBlueEditByKey,
 -- ExistingMintByKey, ExistingCiteByKey, ExistingComputationByKey, ExistingProposalByText).
 CREATE INDEX "blue_edit_key" ON "blue_edit" ("edit_key");
-CREATE INDEX "finding_key" ON "finding" ("finding_key");
 CREATE INDEX "mint_key" ON "mint" ("mint_key");
 CREATE INDEX "cite_key" ON "cite" ("cite_key");
 CREATE INDEX "computation_key" ON "computation" ("key");
 CREATE INDEX "inquiry_question" ON "inquiry" ("question");
 -- The anchors an act names, each checked to exist: a citation by its label and a computation by
--- its id (requireAboutAnchor, requireComputationAnchor, requireNewGrounds), an inquiry by its id
+-- its id (requireAboutAnchor, requireComputationAnchor), an inquiry by its id
 -- (requireInquiry, requireInquiryRef, requireClosureAnchors).
 CREATE INDEX "cite_label" ON "cite" ("label");
 CREATE INDEX "computation_id" ON "computation" ("computation_id");
@@ -285,14 +298,14 @@ CREATE INDEX "question_part_check_id" ON "question_part_check" ("part_id", "even
 CREATE INDEX "reproduce_bundle" ON "reproduce" ("bundle_sha");
 -- A gap's closures (priorClosureEpochs, requireNoStandingDocket).
 CREATE INDEX "close_gap" ON "close" ("gap_id");
--- The mints naming a gap in their supersedes, in order: the first is the one that supersedes it
--- (gap_refresh's supersede_event) and passes its demand on (the demand_lineage_supersedes trigger).
-CREATE INDEX "mint_supersedes_value" ON "mint_supersedes" ("value", "event_id");
+-- A gap's tombstones of one kind, in order (tombstone_standing; the readers by gap, every standing
+-- ruling row, every standing estoppel row): each read knows its kind.
+CREATE INDEX "tombstone_kind_gap" ON "tombstone" ("kind", "gap_id", "event_id");
 -- The edits whose reopened names an anchor, in order: the latest is the last edit that changed its
 -- sentence, whose stamped old paragraphs still hold it, and the first after a head is the change that
 -- touched it since; an edit that took its sentence lists it in removed_anchors instead.
 CREATE INDEX "blue_edit_reopened_value" ON "blue_edit_reopened" ("value", "event_id");
-`
+` + evidenceCheckIndexesSQL()
 
 func Schema() (string, error) {
 	var b strings.Builder
@@ -320,7 +333,6 @@ func Schema() (string, error) {
 		b.WriteString(ddl)
 	}
 	b.WriteString(QueryIndexDDL)
-	b.WriteString(DemandLineageDDL)
 	b.WriteString(GapStateDDL)
 	return b.String(), nil
 }
@@ -781,7 +793,7 @@ CREATE TABLE %q (
 // oneofColumns models a real oneof.
 //
 // Scalar and enum arms become nullable columns with a CHECK that at most one is present — the
-// schema saying, structurally, that a grade motion cannot carry a petition's verdict.
+// schema saying, structurally, that a docket motion cannot carry a petition's verdict.
 //
 // Message arms cannot be columns, so each becomes its own table and the parent carries a `_case`
 // discriminator. The exactly-one rule then spans tables and is enforced on the write instead; that
@@ -1019,4 +1031,16 @@ func messageCheckExprs(md protoreflect.MessageDescriptor) ([]string, error) {
 func MessageChecks(md protoreflect.MessageDescriptor) []*recordpb.SqlCheck {
 	out, _ := proto.GetExtension(md.Options(), recordpb.E_Check).([]*recordpb.SqlCheck)
 	return out
+}
+
+// evidenceCheckIndexesSQL is one index per recordsql.EvidenceTables row, on its check table's anchor
+// column and event: a seat's latest check of an anchor (gap_refresh's checks), and the checks
+// of the anchor one gap's demand reaches, asked per anchor.
+func evidenceCheckIndexesSQL() string {
+	var b strings.Builder
+	for _, t := range EvidenceTables {
+		b.WriteString(`CREATE INDEX "` + t.CheckTable + `_` + t.CheckIDColumn + `" ON "` + t.CheckTable +
+			`" ("` + t.CheckIDColumn + `", "event_id");` + "\n")
+	}
+	return b.String()
 }

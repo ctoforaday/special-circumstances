@@ -32,6 +32,9 @@ func TestARequiredFieldIsRefusedWhenAbsent(t *testing.T) {
 	}
 }
 
+// benchOpinion is the four fields the bench states on a docket ruling (record.requireBenchOpinion).
+var benchOpinion = []protoreflect.Name{"principle", "tension", "review_flag", "settled"}
+
 // PRESENT AND EMPTY IS NOT ABSENT, and the distinction is one a seat relies on.
 //
 // `--settled ""` is a legitimate ruling: the bench bars no proposition, which is what a remand
@@ -46,7 +49,7 @@ func TestAnEmptyValueTheSeatPassedSatisfiesTheRequirement(t *testing.T) {
 		Settled:     proto.String(""), // said, and said to be nothing
 		ReopensOn:   proto.String("a reproduction on the shipped binary"),
 	}
-	if err := CheckRequired(body); err != nil {
+	if err := CheckSaid(body, benchOpinion, "settled"); err != nil {
 		t.Errorf("an explicitly empty settled was refused: %v", err)
 	}
 }
@@ -63,7 +66,7 @@ func TestAWhitespaceValueIsRefusedWhereEmptyIs(t *testing.T) {
 			Settled:     proto.String(""),
 			ReopensOn:   proto.String("a reproduction on the shipped binary"),
 		}
-		if err := CheckRequired(body); err == nil || !strings.Contains(err.Error(), "--tension to say something") {
+		if err := CheckSaid(body, benchOpinion, "settled"); err == nil || !strings.Contains(err.Error(), "--tension to say something") {
 			t.Errorf("a tension of %q was taken as an answer: %v", blank, err)
 		}
 	}

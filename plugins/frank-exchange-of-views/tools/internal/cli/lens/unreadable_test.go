@@ -62,9 +62,9 @@ type emptyFamily struct{}
 func (emptyFamily) Family() (record.Family, error) { return record.Family{}, nil }
 
 func TestAMintWhoseEstoppelCannotBeAskedIsRefused(t *testing.T) {
-	wantRefusalNaming(t, requireNotEstopped(failingFamily{}, "Seven is prime.", nil),
-		"whether this location is text red prescribed")
-	if err := requireNotEstopped(emptyFamily{}, "Seven is prime.", nil); err != nil {
+	wantRefusalNaming(t, requireNotEstopped(failingFamily{}, "red-lens-logic", "Seven is prime."),
+		"whether this location is text you prescribed")
+	if err := requireNotEstopped(emptyFamily{}, "red-lens-logic", "Seven is prime."); err != nil {
 		t.Errorf("a mint over a readable record with no prescription was refused: %v", err)
 	}
 }

@@ -15,7 +15,7 @@ func sampleVocabulary() vocabulary {
 	zero := 0
 	party := reflect.TypeFor[sampleParty]()
 	return vocabulary{
-		grades: []string{"low", "high"}, dimensions: []string{"severity"},
+		grades:    []string{"low", "high"},
 		outcomes:  []string{"VERIFIED"},
 		benchSeat: "judge", lensOrBlue: []string{"blue-respond", "red-lens-evidence"},
 		party:         party,
@@ -34,7 +34,7 @@ func sampleVocabulary() vocabulary {
 				{Name: "Note", JSON: "note", Type: "string", Optional: true},
 			}},
 			{Name: "Ceiling", JSON: "ceiling", Type: "boolean"},
-			{Name: "ToFile", JSON: "to_file", Type: "array", Elem: "string", Optional: true},
+			{Name: "Labels", JSON: "labels", Type: "array", Elem: "string", Optional: true},
 		},
 	}
 }
@@ -50,7 +50,6 @@ func TestTheVocabularyRegionStatesEachSetAndThePlanAsDeclared(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := `const GRADE = { type: 'string', enum: ['low', 'high'] }
-const DISPUTE_DIMENSION = { type: 'string', enum: ['severity'] }
 const RUN_OUTCOME = { type: 'string', enum: ['VERIFIED'] }
 const BENCH_HEARINGS = ['petition']
 const GAP_ID = { type: 'string', pattern: '^(?:G-)[0-9a-f]{8}$' }
@@ -82,7 +81,7 @@ const PLAN = {
     parties: { type: 'array', items: { anyOf: [BENCH_PARTY, LENS_OR_BLUE_PARTY] } },
     debts: { type: 'array', description: "what the run's owed", items: { type: 'object', required: ['kind', 'why'], additionalProperties: false, properties: { kind: { type: 'string', enum: ['infra', 'source'] }, why: { type: 'string', pattern: '\\S', description: 'never blank' }, note: { type: 'string' } } } },
     ceiling: { type: 'boolean' },
-    to_file: { type: 'array', items: { type: 'string' } },
+    labels: { type: 'array', items: { type: 'string' } },
   },
   if: { required: ['ceiling'], properties: { ceiling: { type: 'boolean', enum: [true] } } },
   else: { required: ['debts'], properties: { debts: { type: 'array', minItems: 1 } } },

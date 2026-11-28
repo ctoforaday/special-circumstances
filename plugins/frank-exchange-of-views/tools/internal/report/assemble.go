@@ -12,7 +12,7 @@
 //
 //   - TOOL-COMPOSED FROM THE RECORD: the verdict (the terminal `outcome` event), the risk
 //     matrix (the board), the three research areas (inquiry events by fate), the red
-//     findings (the board's gaps), and the debate transcript (position/closing/motion/
+//     gaps (the board), and the debate transcript (position/closing/motion/
 //     motion-rule/halt/certify events). The event log is the source of truth; the
 //     rendered projection .md files are in-run artifacts for the seats, NOT read here.
 //
@@ -34,6 +34,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportheading"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/verify"
 )
 
@@ -349,6 +350,16 @@ func urlDest(u string) string {
 	return strings.NewReplacer(`\`, `\\`, "(", `\(`, ")", `\)`, "&", "&amp;").Replace(u)
 }
 
+// amendedNote is the tool marker on a report row of a gap its minter amended: ` **[amended ×N]**`, N
+// its amends, so a demand restated after the mint — a check relaxed and then closed included — is
+// visible on the row; `show changes --id` holds each version (picked 2026-11-26, "Mark it on the row").
+func amendedNote(g *record.Gap) string {
+	if n := len(g.Amends); n > 0 {
+		return fmt.Sprintf(" **[amended ×%d]**", n)
+	}
+	return ""
+}
+
 // abstractNote is what the reader is told about a citation that rests on the work's abstract
 // alone — the copy the run held was the abstract page, so what the text draws from it is what the
 // abstract says, not what the study shows. In the note and in the Bibliography for the reason
@@ -568,8 +579,8 @@ func outcomeStamp(o *recordpb.Outcome) string {
 		//
 		// PENDING, NOT A DEFECT. Every assembly before the bench's last sitting has no outcome to
 		// stamp — an operator reading `ops assembled` mid-run sees this line — and "NONE (no
-		// terminal outcome on the record)" read as a finding: a lens on the 2026-10-17 smoke filed
-		// one against it, at a line no seat can change. Capture re-assembles at the close, so a run
+		// terminal outcome on the record)" read as a defect: a lens on the 2026-10-17 smoke reported
+		// it as one, at a line no seat can change. Capture re-assembles at the close, so a run
 		// whose bench recorded an outcome ships with it stamped.
 		return outcomeLine + " PENDING (no outcome on the record yet — the bench records it at the run's exit)"
 	}
@@ -718,8 +729,12 @@ func riskMatrix(bj record.BoardJSON) string {
 		if strings.TrimSpace(risk) == "" {
 			risk = g.ID
 		}
+		marker := ""
+		if g.Amends > 0 {
+			marker = fmt.Sprintf(" **[amended ×%d]**", g.Amends)
+		}
 		b.WriteString(fmt.Sprintf("| %s | %s | %s | %s | %s |\n",
-			cell(anchor.Concise(risk)), grade(g.Likelihood), grade(g.Impact), grade(g.ComplexityCost), cell(anchor.Concise(g.RequiredFix))))
+			cell(anchor.Concise(risk))+marker, grade(g.Likelihood), grade(g.Impact), grade(g.ComplexityCost), cell(anchor.Concise(g.RequiredFix))))
 	}
 	b.WriteString(riskMatrixFooter())
 	return b.String()
@@ -813,38 +828,6 @@ func endSentence(prose string) string {
 	return prose + "."
 }
 
-// provenance renders which lens findings surfaced a gap, IN THE FINDING'S OWN WORDS.
-//
-// This was `surfaced by:` and a list of finding names, nothing else. Nothing in the report defines
-// those names: unmintedFindings renders a finding's text only when NO gap claims it, so the
-// instant the chair acted on a finding, the leaf-level evidence that produced it left the
-// document and the citation dangled.
-//
-// It is the wrong half to drop. A gap's `problem` is the chair's RESTATEMENT; the finding is what
-// red actually observed at the leaf, and the two sitting together is what lets a reader see a
-// restatement drift from its evidence. Unresolvable ids are kept as bare ids rather than
-// silently dropped — an unresolvable citation is itself worth seeing.
-func provenance(g *record.Gap, findings map[string]*record.Event) string {
-	fb := g.Mint.GetFoundBy()
-	if len(fb) == 0 {
-		return ""
-	}
-	var lines []string
-	for _, lbl := range fb {
-		f, ok := recordpb.BodyAs[*recordpb.Finding](findings[lbl])
-		if !ok {
-			lines = append(lines, "- "+lbl+": (no finding with this id is on the record)")
-			continue
-		}
-		loc := oneLine(f.GetLocation())
-		if loc != "" {
-			loc = " (" + loc + ")"
-		}
-		lines = append(lines, fmt.Sprintf("- %s%s: %s", record.FindingRef(lbl, record.AreaOf(findings[lbl].GetSeatId())), loc, inItem(f.GetText(), "  ")))
-	}
-	return "\nsurfaced by:\n" + strings.Join(lines, "\n")
-}
-
 // boardSection composes the board from the replayed gaps: every open gap with its grades and
 // required fix, then the closure index — and, appended below, red's spot-checks. This is the ledger's content, drawn from the replayed board rather
 // than read back from the projection file.
@@ -853,13 +836,6 @@ func provenance(g *record.Gap, findings map[string]*record.Event) string {
 // and spot-checks the closures, and the bench disposes of what reaches it. Naming it for one
 // attributes the other's output to that one.
 func boardSection(run record.Run, fam record.Family) string {
-	// Id -> the finding event it names, so a gap can quote the evidence it was minted from.
-	findings := map[string]*record.Event{}
-	for _, e := range fam.Events {
-		if f, ok := recordpb.BodyAs[*recordpb.Finding](e); ok {
-			findings[f.GetId()] = e
-		}
-	}
 	read := readingsBehind(run, fam)
 	var open, closed []string
 	for _, g := range fam.Gaps {
@@ -868,20 +844,6 @@ func boardSection(run record.Run, fam record.Family) string {
 		}
 		if g.Open {
 			regraded := regradeHistory(g)
-			// Provenance: which lens findings surfaced this gap, IN THE FINDING'S OWN WORDS.
-			//
-			// This was `surfaced by:` and a list of finding names, nothing else. Nothing in the
-			// report defines those names: unmintedFindings renders a finding's text only when
-			// NO gap claims it, so the moment the chair acts on a finding, the leaf-level
-			// evidence that produced it leaves the document and the citation dangles. The fuzz
-			// found runs where EVERY finding was minted and red's words appeared nowhere at all.
-			//
-			// It is the wrong half to drop. A gap's `problem` is the chair's RESTATEMENT; the
-			// finding is what red actually observed at the leaf, and the two sitting together is
-			// what lets a reader see a restatement drift from its evidence. Unresolvable ids
-			// (a found_by naming no finding on the record) are kept as bare ids rather than
-			// silently dropped — an unresolvable citation is itself worth seeing.
-			foundBy := provenance(g, findings)
 			// `class` is a GapClass word, not a grade — it goes through `grade` only for that
 			// helper's em-dash-when-empty arm. `grade` takes `any` and asserts a string, so the
 			// enum is converted to its word HERE: passed bare it compiles and prints `—`.
@@ -889,17 +851,16 @@ func boardSection(run record.Run, fam record.Family) string {
 			// the location, the grades, the demanded fix and the check that would settle it —
 			// render as ONE sentence-shaped paragraph, because that is what markdown does with
 			// a single newline. Forty-five kilobytes of the archived docket read that way.
-			open = append(open, fmt.Sprintf("### %s — %s\n%s  \nseverity %s | %s x %s | cx %s | class %s%s  \nrequired_fix: %s%s  \nacceptance_check: %s%s%s%s",
-				g.ID, oneLine(g.Mint.GetProblem()),
+			open = append(open, fmt.Sprintf("### %s — %s\n%s  \nseverity %s | %s x %s | cx %s | class %s%s  \nrequired_fix: %s%s  \nacceptance_check: %s%s%s",
+				g.ID, oneLine(g.Current().GetProblem())+amendedNote(g),
 				oneLine(g.Mint.GetLocation()),
 				gradeWord(g.Severity), gradeWord(g.Likelihood), gradeWord(g.Impact), gradeWord(g.ComplexityCost), grade(recordpb.Word(g.Mint.GetClass())),
 				regraded,
-				oneLine(g.Mint.GetRequiredFix()),
-				fixProposal(g.Mint),
-				oneLine(g.Mint.GetAcceptanceCheck()),
+				oneLine(g.Current().GetRequiredFix()),
+				fixProposal(g.Current()),
+				oneLine(g.Current().GetAcceptanceCheck()),
 				mintReason(g.Mint),
-				readFor(read[g.ID], "  \n"),
-				foundBy))
+				readFor(read[g.ID], "  \n")))
 		} else {
 			// THE `close` EVENT'S CLASS, and the fallback covers the gap a BENCH DISPOSITION
 			// closed.
@@ -920,17 +881,7 @@ func boardSection(run record.Run, fam record.Family) string {
 			if cc == "" {
 				cc = "closed (no recorded class)"
 			}
-			succ := g.Successor()
-			if succ == "" {
-				succ = "-"
-			}
-			// THE EVIDENCE TRAVELS WITH THE CLOSED ENTRY TOO. This was scoped out on the argument
-			// that a closed gap's open question is how it was settled — but the finding's text
-			// then reached NO reader at all, because unmintedFindings skips anything a gap
-			// claimed. A run where every finding was minted and every gap closed printed red's
-			// leaf-level words nowhere. The closure answers what happened; it does not restate
-			// what was observed, and an audit of a closure needs both.
-			closed = append(closed, fmt.Sprintf("- %s | %s | %s | successor %s%s%s%s", g.ID, cc, oneLine(g.Mint.GetProblem()), succ, regradeHistory(g), closureDetail(g, read[g.ID]), provenance(g, findings)))
+			closed = append(closed, fmt.Sprintf("- %s | %s | %s%s%s", g.ID, cc, oneLine(g.Current().GetProblem())+amendedNote(g), regradeHistory(g), closureDetail(g, read[g.ID])))
 		}
 	}
 	var b strings.Builder
@@ -948,14 +899,6 @@ func boardSection(run record.Run, fam record.Family) string {
 		b.WriteString(strings.Join(closed, "\n"))
 	}
 
-	// Lens findings the chair did NOT raise to a gap — red's leaf audit that fell short of a
-	// mint but still carries substance (a claimed failure mode shown inapplicable, a resilient
-	// result confirmed). A finding is "minted" when its id appears in some gap's
-	// found_by; the rest are dropped on the floor by every report before this one. Surfaced
-	// here, subordinate to the gaps, so red's voice is not silently lost (#77).
-	if un := unmintedFindings(fam); un != "" {
-		fmt.Fprintf(&b, "\n\n%s", un)
-	}
 	if sc := spotChecks(fam); sc != "" {
 		fmt.Fprintf(&b, "\n\n%s", sc)
 	}
@@ -1025,8 +968,8 @@ func closureDetail(g *record.Gap, read []string) string {
 	for _, r := range read {
 		add(readForLabel, r)
 	}
-	add("required_fix", g.Mint.GetRequiredFix())
-	add("acceptance_check", g.Mint.GetAcceptanceCheck())
+	add("required_fix", g.Current().GetRequiredFix())
+	add("acceptance_check", g.Current().GetAcceptanceCheck())
 	if c := g.Closure; c != nil {
 		att := oneLine(c.GetProse())
 		if att == "" {
@@ -1157,63 +1100,6 @@ func regradeHistory(g *record.Gap) string {
 	return fmt.Sprintf(" · regraded x%d%s", len(g.Regrades), strings.Join(rows, ""))
 }
 
-// unmintedFindings renders the lens findings whose id is named in NO gap's found_by, or
-// "" if every finding earned a gap. Ordered by the event log so the section is deterministic.
-func unmintedFindings(fam record.Family) string {
-	minted := map[string]bool{}
-	for _, g := range fam.Gaps {
-		if g == nil || g.Mint == nil {
-			continue
-		}
-		for _, lbl := range g.Mint.GetFoundBy() {
-			minted[lbl] = true
-		}
-	}
-	var rows []string
-	for _, e := range fam.Events {
-		f, ok := recordpb.BodyAs[*recordpb.Finding](e)
-		if !ok {
-			continue
-		}
-		if minted[f.GetId()] {
-			continue
-		}
-		head := record.FindingRef(f.GetId(), record.AreaOf(e.GetSeatId()))
-		loc := oneLine(f.GetLocation())
-		if loc != "" {
-			loc = " — " + loc
-		}
-		// A finding is addressed by COALESCENCE and nothing else: its id named in some gap's
-		// found_by. What a finding reaching this section means is therefore ONE fact — no gap
-		// names it — and NOT the second fact this comment used to assert, that "the merge
-		// weighed it and did not mint it".
-		//
-		// NOTHING ON THE RECORD SAYS THE CHAIR WEIGHED ANYTHING. Deliberation is not an event;
-		// declining to mint writes nothing. Measured (#747): across one run three findings
-		// reached this section with no recorded reason, and one of them — a medium-severity
-		// allegation, with a reproducible `grep -ic` behind it, that blue had fabricated a
-		// verbatim quote — was dropped in the same epoch the chair closed the gap that very text
-		// was repairing. Rendering that as "weighed and declined" is the sentence that makes a
-		// silent drop read as a considered decision, which is the whole of the harm.
-		//
-		// So the section states the join and stops. `internal/view/view.go` says the same thing
-		// about the same set, and said something different until this change.
-		//
-		// `--reason` LANDS ON `text`: Finding's only prose channel, the same flag/field split
-		// recordpb/required.go declares for Verify.text and Close.prose.
-		rows = append(rows, fmt.Sprintf("### %s%s\nseverity %s | %s x %s | %s  \n%s",
-			head, loc,
-			gradeWord(f.GetSeverity()), gradeWord(f.GetLikelihood()), gradeWord(f.GetImpact()),
-			e.GetSeatId(),
-			ownBlock(f.GetText())))
-	}
-	if len(rows) == 0 {
-		return ""
-	}
-	return fmt.Sprintf("### Lens findings no gap was minted from (%d)\n\nRed's leaf audit that no gap on the board names in its found_by. Whether each was considered and declined, or never reached the chair at all, is NOT recorded — declining to mint writes nothing. Kept for the record, and not a gate on the verdict.\n\n%s",
-		len(rows), strings.Join(rows, "\n\n"))
-}
-
 // debate composes the one transcript from the event log: per epoch, the parties' positions
 // and closings, the chair's spot-checks, the grade disputes and their answers, then the bench's docket dispositions and
 // petition rulings; then the terminal bench disposition (halt / certify). Everything the parties and
@@ -1235,11 +1121,12 @@ func debate(fam record.Family, coverage partsAt) string {
 	}
 
 	// ONE PAIRING, READ MANY TIMES. A docket ruling names the gap it settles only through its
-	// motion's FILING, so the join is computed once here — record.DocketGapByMotion is the one place
-	// it lives, and recovering it a second way is how two renderers come to disagree.
-	docketGapOf := record.DocketGapByMotion(fam.Events)
+	// docketing, so the join is computed once here — record.DocketRulingGap is the one place it
+	// lives, and recovering it a second way is how two renderers come to disagree.
+	docketGapOf := record.DocketRulingGap(fam.Events)
 	archive := record.ArchiveOf(fam.Gaps)
 	kept := record.KeptGrades(fam.Events, fam.At)
+	author := record.AuthorsOn(fam.Events)
 
 	var parts []string
 	for _, r := range order {
@@ -1277,16 +1164,16 @@ func debate(fam record.Family, coverage partsAt) string {
 		// recordpb/required.go ("the closing argument for this gap").
 		for _, l := range re {
 			e := l
-			// THE POSITION IS THE CHAIR'S, AND A CLOSING ITS PARTY'S: the gap's minting lens (RED) or
-			// blue-respond (BLUE). The write path admits no other (record.PositionRefusal,
-			// record.ClosingRefusal), so each renders as the record holds it.
+			// THE POSITION IS THE CHAIR'S, AND A CLOSING ITS PARTY'S: the gap's assignee (RED) or its
+			// subject's author (BLUE, record.ClosingByAuthor). The write path admits no other
+			// (record.PositionRefusal, record.ClosingRefusal), so each renders as the record holds it.
 			if p, ok := recordpb.BodyAs[*recordpb.Position](e); ok {
 				epoch = append(epoch, redHead+"\n"+ownBlock(p.GetText()))
 				continue
 			}
 			if c, ok := recordpb.BodyAs[*recordpb.Closing](e); ok {
 				side := "RED"
-				if record.PartyOf(e) == "blue" {
+				if record.ClosingByAuthor(e, author) {
 					side = "BLUE"
 				}
 				epoch = append(epoch, fmt.Sprintf("### %s CLOSING — %s\n%s", side, c.GetGapId(), ownBlock(c.GetText())))
@@ -1330,18 +1217,19 @@ func debate(fam record.Family, coverage partsAt) string {
 				continue
 			}
 			d, isDocket := mr.GetRuling().(*recordpb.MotionRule_Docket)
-			if !isDocket {
+			// THE BENCH'S RULINGS ONLY: a gap's assignee accepting a proposed act is its own act.
+			if !isDocket || seatclass.RoleOfSeat(l.GetSeatId()) != "bench" {
 				continue
 			}
 			// `--reason` LANDS ON `MotionRule.opinion` — the ruler's prose channel, declared in
 			// recordpb/required.go ("a disposition with no stated reasoning is
 			// indistinguishable from a default"). THE GAP IS NOT ON THE RULING: it rides the
-			// docket motion's filing, so it comes from the join built above.
+			// docketing, so it comes from the join built above.
 			lead = append(lead, "- "+fmt.Sprintf("%s: %s — principle: %s; tension: %s; review: %s",
 				// The vocabulary's word, not the generated constant name — see view.go's
 				// disposition renderer, where the same substitution was needed for the same
 				// reason.
-				docketGapOf[mr.GetMotionId()], recordpb.Word(d.Docket.GetDisposition()),
+				docketGapOf(mr), record.RulingWord(mr),
 				oneLine(d.Docket.GetPrinciple()), oneLine(d.Docket.GetTension()), oneLine(d.Docket.GetReviewFlag()))+"\n"+ownBlock(mr.GetOpinion()))
 		}
 		if len(lead) > 0 {

@@ -37,7 +37,7 @@
 // the fall it explains.
 //
 // Only a kind whose row in the anchor kinds table backs its sentence counts — a citation or a
-// computation; a finding or gap anchor never does. The claim
+// computation; a gap anchor never does. The claim
 // unit is a sentence as anchor.Sentences splits one: a list item is its own block, so a cited
 // list emits one claim per item, and a sentence soft-wrapped over two lines is one claim. Excluded,
 // because none is a declarative claim: fenced code, footnote definitions ("[^L1]: https://..."),
@@ -97,7 +97,7 @@ func Count(md string) int {
 
 // HasProse reports whether a segment says anything besides its anchors: a letter or a digit
 // once every anchor token, of every kind in the table, is removed. Whitespace, list markers and
-// punctuation are not prose — "- <!--fx:f-1-->?" is an emptied bullet, not a sentence.
+// punctuation are not prose — "- <!--gap:G-1-->?" is an emptied bullet, not a sentence.
 func HasProse(seg string) bool {
 	for _, r := range StripAnchors(seg) {
 		if unicode.IsLetter(r) || unicode.IsDigit(r) {

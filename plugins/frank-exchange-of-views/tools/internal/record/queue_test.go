@@ -8,10 +8,10 @@ import (
 // THE QUEUE IS THE LIST IN ORDER, KEYED BY FIELDS. The audit comes first while the lens has not been
 // served the report since it was behind, then what the seat owes in list order, then the gaps the
 // dispatch readies it on — material first, then by mass, then in mint order — with the items about
-// each folded in, then the regrades and findings left over. Nothing else is queued.
+// each folded in. Nothing else is queued.
 func TestTheQueueOrdersTheListByItsFields(t *testing.T) {
 	gap := func(id string, material, turn bool, l, i string) WorkGapJSON {
-		return WorkGapJSON{ID: id, Material: material, YourTurn: turn, Likelihood: l, Impact: i, MintedBy: "red-lens-logic", RegradesOwed: []OwedRegradeJSON{}}
+		return WorkGapJSON{ID: id, Material: material, YourTurn: turn, Likelihood: l, Impact: i, Assignee: "red-lens-logic"}
 	}
 	w := WorkJSON{
 		Open: []WorkGapJSON{
@@ -27,10 +27,9 @@ func TestTheQueueOrdersTheListByItsFields(t *testing.T) {
 				{Kind: ItemLog, What: "the log is open"},
 				{Kind: ItemAudit, Subject: about(SubjectReport, "9"), What: "audit"},
 				gapItem(ItemReaudit, "G-3", "G-3 was answered"),
-				gapItem(ItemRegradeOwed, "G-3", "G-3 regrade owed"),
+				gapItem(ItemAwaitingEvidence, "G-3", "G-3 awaits its evidence"),
 				{Kind: ItemKind(BlockerFailedCheck), Subject: about(SubjectAnchor, "c-7"), Blocks: true, What: "c-7 read nothing"},
 				gapItem(ItemNews, "G-9", "G-9's answers are retired"),
-				gapItem(ItemFindingOnGap, "G-4", "a finding about G-4"),
 				{Kind: ItemKind(BlockerUnchecked), Subject: about(SubjectAnchor, "c-8"), What: "c-8 is unchecked — no check can reach it"},
 				{Kind: ItemLaw, What: "law"},
 			},
@@ -48,14 +47,13 @@ func TestTheQueueOrdersTheListByItsFields(t *testing.T) {
 		"reaudit:gap:G-2", // material, low mass
 		"reaudit:gap:G-1", // not material, high mass
 		"reaudit:gap:G-5",
-		"finding_on_gap:gap:G-4",
 	}
 	if !slices.Equal(keys, want) {
 		t.Fatalf("queue = %q\nwant    %q", keys, want)
 	}
 	g3 := q[2]
-	if g3.Gap == nil || g3.Gap.ID != "G-3" || len(g3.Items) != 2 || g3.Items[0].Kind != ItemReaudit || g3.Items[1].Kind != ItemRegradeOwed {
-		t.Errorf("the readied gap G-3 carries %+v, want its row and its reaudit and regrade items folded in", g3)
+	if g3.Gap == nil || g3.Gap.ID != "G-3" || len(g3.Items) != 2 || g3.Items[0].Kind != ItemReaudit || g3.Items[1].Kind != ItemAwaitingEvidence {
+		t.Errorf("the readied gap G-3 carries %+v, want its row and its reaudit and awaiting-evidence items folded in", g3)
 	}
 	if !q[1].Blocks || q[2].Blocks {
 		t.Errorf("an entry blocks exactly when an item it carries does: %v %v", q[1].Blocks, q[2].Blocks)

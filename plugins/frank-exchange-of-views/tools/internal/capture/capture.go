@@ -43,6 +43,7 @@ import (
 	// spellings would shadow each other at exactly the call site that needs the constant.
 	reportdoc "github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/scorecard"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/view"
 )
 
@@ -616,7 +617,7 @@ func StrayRecordsAudit(project, runDir string) Audit {
 
 // RecordParityAudit holds what the record owes the bench to the record: the chair's POSITION at each
 // sitting that withheld a PASS its plan permitted (record.PositionSittings), and each party's CLOSING
-// on each docketing (record.ClosingDuties) — the gap's minting lens and blue-respond.
+// on each docketing (record.ClosingDuties) — the gap's assignee and blue-respond.
 //
 // THIS AUDIT IS THE READER THAT REPORTS AN ARGUMENT THAT WAS NOT FILED. The transcript prints the
 // positions and closings that were, and gives a sitting that holds none no section.
@@ -674,7 +675,11 @@ func recordParityAt(evs []*record.Event, win record.WindowIndex, when record.Rea
 		owed++
 	}
 	for _, d := range duties {
-		name := fmt.Sprintf("%s's closing on %s (docket motion %s)", d.Party, d.GapID, d.Motion)
+		before := "docketing " + d.Docketing
+		if d.Docketing == "" {
+			before = "proposal " + d.Proposal
+		}
+		name := fmt.Sprintf("%s's closing on %s (%s)", d.Party, d.GapID, before)
 		switch d.State {
 		case record.ClosingNotOwed:
 			notOwed++
@@ -1429,12 +1434,12 @@ func rulingsFromRecord(evs []*record.Event) []ruling {
 		}
 	}
 
-	// THE GAP A DISPOSITION SETTLES RIDES THE FILING, never the ruling — a `motion-rule` carries
-	// the ask's id and nothing else that identifies its subject matter. record.DocketGapByMotion is
-	// that filing join, the one gap_refresh's bench arm makes in SQL; harvesting the gap any other way keys every
-	// disposition on the empty string, which is the shape of the defect this function was written
-	// to escape.
-	docketGapOf := record.DocketGapByMotion(evs)
+	// THE GAP A DISPOSITION SETTLES RIDES THE DOCKETING, never the ruling — a `motion-rule` carries
+	// the docketing's id (or, for the assignee's accept, the ask's) and nothing else that identifies
+	// its subject matter. record.DocketRulingGap is that join, the one gap_refresh's bench arm makes in
+	// SQL; harvesting the gap any other way keys every disposition on the empty string, which is the
+	// shape of the defect this function was written to escape.
+	docketGapOf := record.DocketRulingGap(evs)
 
 	var out []ruling
 	for _, e := range evs {
@@ -1464,13 +1469,18 @@ func rulingsFromRecord(evs []*record.Event) []ruling {
 			}
 			switch ruled := r.GetRuling().(type) {
 			case *recordpb.MotionRule_Docket:
+				// THE BENCH'S RULINGS ONLY: a gap's assignee accepting a proposed act is its own act,
+				// and no precedent.
+				if seatclass.RoleOfSeat(e.GetSeatId()) != "bench" {
+					continue
+				}
 				// The bench disposing of a docketed gap. Its argument is `MotionRule.opinion` —
 				// the prose channel every subject's ruling carries — and the gap comes from the
 				// join above, because the ruling does not hold it.
 				out = append(out, ruling{
 					kind:        "docket",
-					gapID:       docketGapOf[r.GetMotionId()],
-					disposition: recordpb.Word(ruled.Docket.GetDisposition()),
+					gapID:       docketGapOf(r),
+					disposition: record.RulingWord(r),
 					rationale:   r.GetOpinion(),
 				})
 			case *recordpb.MotionRule_Petition:

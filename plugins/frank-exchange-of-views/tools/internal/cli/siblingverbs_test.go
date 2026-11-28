@@ -83,7 +83,7 @@ func TestSplitVerbsNameEachOtherInTheirHelp(t *testing.T) {
 
 	// AND AN EXPLICIT ANNOTATION IS WHAT MARKS THE SPLIT, not a shared leaf name.
 	//
-	// The chair's `motion grade rule` and the bench's `motion petition rule` both write a ruling and
+	// The bench's `motion docket rule` and its `motion petition rule` both write a ruling and
 	// neither carries the split annotation: they are ONE contract applied to two subjects, parallel by
 	// design, and a seat picks between them by naming the subject it is ruling rather than by
 	// weighing two boundaries. Demanding they cross-reference would be this gate firing on the

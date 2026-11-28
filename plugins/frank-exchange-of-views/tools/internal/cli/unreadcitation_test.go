@@ -51,14 +51,14 @@ func TestAnUnreadVerifySaysTheCitationStaysUnreadAndTheGapIsOwed(t *testing.T) {
 // --ANCHOR RETIRES ONE ANCHOR STANDING ON A SENTENCE, OF ANY KIND, AND NOTHING ELSE. Each refusal
 // names what it was given and records nothing. The retire that lands changes no text, so it renders in
 // no CHANGELOG section (lead call 11-26: anchor changes go to the work lists); `show changes` lists it
-// as an anchor removal by retire. A finding anchor retires the same way.
+// as an anchor removal by retire. A closed gap's marker retires the same way.
 func TestARetireTakesOneAnchorOffASentence(t *testing.T) {
 	runDir := citedRun(t, "https://sky/1", "https://grass/1")
 	registerChairOnce(t, runDir)
 	registerLensOnce(t, runDir)
 	sky := citeSentence(t, runDir, "The sky is blue.", "https://sky/1")
 	grass := citeSentence(t, runDir, "The grass is green.", "https://grass/1")
-	finding, _ := markerOfKind(t, runDir, "finding", "Fire is hot.")
+	gap, _ := markerOfKind(t, runDir, "gap", "Fire is hot.")
 	retire := func(anchors string) error {
 		_, err := run(t, "retire", "--run", runDir, "--seat-id", blueSeat, "--anchor", anchors, "--reason", "unreadable")
 		return err
@@ -84,10 +84,14 @@ func TestARetireTakesOneAnchorOffASentence(t *testing.T) {
 		t.Fatalf("retire --anchor %s: %v", sky, err)
 	}
 	refused("a retired citation", retire(sky), "the report holds no", sky)
-	if err := retire(finding); err != nil {
-		t.Fatalf("retire --anchor %s (a finding): %v", finding, err)
+	// AN OPEN GAP'S MARKER IS NOT RETIRED (F14); once its lens closes the gap, the marker may go.
+	if err := lensClose(t, runDir, lensSeat, gap, "not_a_defect"); err != nil {
+		t.Fatalf("close %s: %v", gap, err)
 	}
-	if md := readReport(t, runDir); !strings.Contains(md, "The sky is blue.") || strings.Contains(md, sky) || strings.Contains(md, finding) || !strings.Contains(md, "Fire is hot.") {
+	if err := retire(gap); err != nil {
+		t.Fatalf("retire --anchor %s (a closed gap's marker): %v", gap, err)
+	}
+	if md := readReport(t, runDir); !strings.Contains(md, "The sky is blue.") || strings.Contains(md, sky) || strings.Contains(md, gap) || !strings.Contains(md, "Fire is hot.") {
 		t.Errorf("the retires did not take the two anchors off sentences that stay:\n%s", md)
 	}
 	a, err := report.Assemble(runtest.Open(t, runDir))
@@ -99,7 +103,7 @@ func TestARetireTakesOneAnchorOffASentence(t *testing.T) {
 	if err != nil && !os.IsNotExist(err) {
 		t.Fatal(err)
 	}
-	for _, w := range []string{sky, finding, "The sky is blue", "Fire is hot", "retired from it"} {
+	for _, w := range []string{sky, gap, "The sky is blue", "Fire is hot", "retired from it"} {
 		if strings.Contains(string(changelog), w) {
 			t.Errorf("the changelog lists the anchor-only retire (%q); it changes no text:\n%s", w, changelog)
 		}
@@ -108,7 +112,7 @@ func TestARetireTakesOneAnchorOffASentence(t *testing.T) {
 	if err != nil {
 		t.Fatalf("show changes: %v", err)
 	}
-	for _, id := range []string{sky, finding} {
+	for _, id := range []string{sky, gap} {
 		if !strings.Contains(changes, id) {
 			t.Errorf("show changes does not list the retire of %s:\n%s", id, changes)
 		}

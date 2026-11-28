@@ -1,5 +1,5 @@
 // Package scorecard is the Go port of scorecards.mjs's COMPUTE + RENDER: it turns a run's
-// record (board/findings/debate views, read IN-PROCESS through package record — not by spawning
+// record (board/debate views, read IN-PROCESS through package record — not by spawning
 // the tool), its journal envelopes, and its board telemetry into the per-card scorecard
 // rows, and renders the markdown section the operator's `scorecard` prints.
 //
@@ -181,29 +181,6 @@ func anchoredClosures(fam *record.Family) (anchored, total int, ok bool) {
 func blueRows(run record.Run, results []map[string]any, telemetry []*recordpb.TelemetryLine, fam *record.Family) []Row {
 	var rows []Row
 
-	// repair_regression_ratio
-	var ratios []float64
-	for _, t := range telemetry {
-		// ABSENT RATIO IS NOT ZERO. An epoch that closed nothing has no ratio to report, and the
-		// message says so by leaving the field unset — averaging a 0.0 in its place would report
-		// perfect repair durability for an epoch that repaired nothing. The map read this replaces
-		// got the same answer by a weaker route: a missing key failed the type assertion.
-		if rr := t.GetRepairRegression(); rr != nil && rr.Ratio != nil {
-			ratios = append(ratios, rr.GetRatio())
-		}
-	}
-	if len(ratios) > 0 {
-		sum := 0.0
-		for _, r := range ratios {
-			sum += r
-		}
-		rows = append(rows, Row{Clause: "Durable repairs", Metric: "repair_regression_ratio", Cls: "benchmark",
-			Value: sum / float64(len(ratios)),
-			Joint: "reads WITH red rigour: a low ratio under a lax adversary means nothing"})
-	} else {
-		rows = append(rows, Row{Clause: "Durable repairs", Metric: "repair_regression_ratio", Cls: "benchmark", Note: "no telemetry epochs with closures"})
-	}
-
 	// THE LOG IS NOT SCORED FOR PRESENCE. A sitting that hit nothing files nothing — clean is derived
 	// from having sat and filed nothing — so a metric counting sittings without an entry scores the
 	// correct behaviour as a failure, and seats read their own scorecard. Two such metrics lived here
@@ -338,26 +315,24 @@ func redRows(run record.Run, results []map[string]any, telemetry []*recordpb.Tel
 		rows = append(rows, Row{Clause: "Attestation-format invariant", Metric: "anchored_closures_pct", Cls: "benchmark", Note: n})
 	}
 
-	// CITATION YIELD BY EPOCH HAS NO ROW. It bucketed findings by the W2i-era lens numbers
-	// (`L1`-`L4` citation, `L5` logic, `L6` dark-side) to retune a cap on citation lenses that
-	// dispatched fewer of them in later epochs. No record carries those numbers — a lens's area is
-	// its name, and migrate renames the old numbers — and no such cap exists, so the row printed
-	// "no findings on the record yet" over every run, including smoke 07d's 21 findings. Findings
-	// per area per epoch are the findings view's own rows.
+	// CITATION YIELD BY EPOCH HAS NO ROW. No record carries per-lens numbers to bucket by — a
+	// lens's area is its name — and no cap on citation lenses exists for it to retune. Gaps per
+	// area per epoch are the board's own rows.
 
-	rows = append(rows, Row{Clause: "Certification: earned PASS", Metric: "finding_precision", Cls: "benchmark",
-		Note: "needs adjudication outcomes per finding; the judge ruled on <5% of gaps in runs 4-5, so the denominator is not yet meaningful"})
+	rows = append(rows, Row{Clause: "Certification: earned PASS", Metric: "gap_precision", Cls: "benchmark",
+		Note: "needs adjudication outcomes per gap; the judge ruled on <5% of gaps in runs 4-5, so the denominator is not yet meaningful"})
 	return rows
 }
 
-// docketRulings are the bench's live docket rulings on the record: every docket motion with a
-// ruling that stands. The record refuses a disposition outside the vocabulary at the write, so
-// each word here is one the reader knows.
-func docketRulings(fam *record.Family) []*record.Motion {
-	var out []*record.Motion
-	for _, m := range record.MotionsOf(fam.Events, fam.At) {
-		if m.Subject == "docket" && m.Ruled() {
-			out = append(out, m)
+// docketRulings are the bench's docket rulings on the record: every docketing with its ruling
+// (record.DocketingsOf). A gap's assignee accepting a proposed act is its own act, and answers no
+// docketing. The record refuses an answer outside the vocabulary at the write, so each word here is
+// one the reader knows.
+func docketRulings(fam *record.Family) []*record.Docketing {
+	var out []*record.Docketing
+	for _, d := range record.DocketingsOf(fam.Events) {
+		if d.Ruled() {
+			out = append(out, d)
 		}
 	}
 	return out
@@ -372,13 +347,13 @@ func benchRows(fam *record.Family) []Row {
 	const unread = "the record could not be read — not measured"
 
 	// remanded_share
-	var rulings []*record.Motion
+	var rulings []*record.Docketing
 	if fam != nil {
 		rulings = docketRulings(fam)
 	}
 	remanded := 0
 	for _, r := range rulings {
-		if r.Ruling == record.DispositionRemanded {
+		if r.Word() == record.DispositionRemanded {
 			remanded++
 		}
 	}
@@ -405,7 +380,7 @@ func benchRows(fam *record.Family) []Row {
 		declaredReads := 0
 		decl := regexp.MustCompile(`(?i)trajector|inspect|tool call`)
 		for _, r := range rulings {
-			if decl.MatchString(r.Opinion + " " + r.Principle) {
+			if decl.MatchString(r.Ruling.GetOpinion() + " " + r.Docket().GetPrinciple()) {
 				declaredReads++
 			}
 		}
@@ -470,7 +445,7 @@ type RowJSON struct {
 // CardJSON converts computed rows to their wire form.
 //
 // objJSON IS ALREADY JSON AND MUST NOT BE MARSHALLED AGAIN. It is a string type holding a rendered
-// object (citation yield by role, findings bucketed by role); json.Marshal would quote and escape
+// object (inquiries counted by status); json.Marshal would quote and escape
 // it, handing the reader a string that has to be parsed a second time to get at the numbers. It is
 // passed through as RawMessage instead, which is the one case that makes this function more than a
 // struct tag — and TestAnAlreadyJSONValuePassesThroughAsAnObject fails if it is lost.

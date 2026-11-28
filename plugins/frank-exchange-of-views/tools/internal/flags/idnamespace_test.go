@@ -32,6 +32,7 @@ func idShapes() map[string]func() *ShapedValue {
 	return map[string]func() *ShapedValue{
 		"gap-id":             GapID,
 		"motion-id":          MotionID,
+		"docketing-id":       DocketingID,
 		"inquiry-id":         InquiryID,
 		"anchor":             AnchorID,
 		"citation-anchor":    CitationAnchor,
@@ -43,18 +44,18 @@ func idShapes() map[string]func() *ShapedValue {
 // matrix below is exact in both directions: a shape missing from a row must refuse the kind.
 //
 // A kind in two shapes is a SPECIALISATION, an allowance with a reason and never a tolerated
-// overlap: a citation is an anchor and `lens verify` takes a source, so it must refuse a finding;
+// overlap: a citation is an anchor and `lens verify` takes a source, so it must refuse a gap;
 // a gap's anchor carries the gap's own id.
 var minted = []struct {
 	kind   string
 	shapes []string
 }{
-	{"finding", []string{"anchor"}},
 	{"citation", []string{"anchor", "citation-anchor"}},
 	{"computation", []string{"anchor", "computation-anchor"}},
 	{"gap", []string{"anchor", "gap-id"}},
 	{"inquiry", []string{"inquiry-id"}},
 	{"motion", []string{"motion-id"}},
+	{"docketing", []string{"docketing-id"}},
 }
 
 // mint spells a fresh id of a kind exactly as the record's one minter does: the kind's row of the
@@ -154,9 +155,13 @@ func TestASpecialisationNarrowsAndIsNotMutual(t *testing.T) {
 		}
 		wide, narrow := shapes[m.shapes[0]], shapes[m.shapes[1]]
 		narrowed++
-		// A value of the WIDE kind that the narrow kind must refuse: a finding anchor is an anchor,
-		// and neither a citation nor a gap.
-		wideOnly := mint(t, "finding")
+		// A value of the WIDE kind that the narrow kind must refuse: another kind's anchor is an
+		// anchor, and not of this kind.
+		other := "citation"
+		if m.kind == other {
+			other = "gap"
+		}
+		wideOnly := mint(t, other)
 		if !accepts(wide, wideOnly) {
 			t.Fatalf("%s refuses %q, so it is not the wider kind", m.shapes[0], wideOnly)
 		}

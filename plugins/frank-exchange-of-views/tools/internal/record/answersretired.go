@@ -2,7 +2,6 @@ package record
 
 import (
 	"fmt"
-	"slices"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -10,8 +9,8 @@ import (
 
 // CLOSURES ARE HISTORY (gblock, 2026-11-01). A removal — a retire or a pure cut — moves no closure: a
 // closed gap whose answers have all left the report stays closed for every reader, and what the
-// removal adds is one hop to its minting
-// lens's work list — the gap view's `answers_retired_event`, read through the WORK query. The item
+// removal adds is one hop to its assignee's work list — the gap view's `answers_retired_event`, read
+// through the WORK query. The item
 // blocks nothing, so `complete` and PASS are as they were: no BlockerKind, no lensOwesOf row and no
 // gapNewsOf row reads the column (gapNewsOf holds open gaps).
 //
@@ -20,7 +19,6 @@ import (
 //   - the lens has sat through a sitting opened after the removal (satThrough, as lensOwesOf's `owe`
 //     reads it): it is listed for the whole of that sitting, so the sitting that clears it is one that
 //     read it, and a sitting that never closed does not clear it;
-//   - the lens has minted a gap naming it in `supersedes` after the removal;
 //   - a closing act other than a carry follows the removal: the column is then NULL.
 
 // answersRetiredItems is seatID's items for the closed gaps of gaps it minted whose answers have all
@@ -28,7 +26,7 @@ import (
 func answersRetiredItems(evs []*Event, ids []int64, win WindowIndex, gaps []WorkGapState, seatID string) []Item {
 	var held []WorkGapState
 	for _, g := range gaps {
-		if !g.Open && g.AnswersRetiredEvent != 0 && g.MintedBy == seatID {
+		if !g.Open && g.AnswersRetiredEvent != 0 && g.Assignee == seatID {
 			held = append(held, g)
 		}
 	}
@@ -43,28 +41,15 @@ func answersRetiredItems(evs []*Event, ids []int64, win WindowIndex, gaps []Work
 		if _, sat := firstAfter(ends.through[seatID], n); sat {
 			continue
 		}
-		if supersededBySeatAfter(evs, ids, seatID, g.ID, n) {
-			continue
-		}
 		took, by := retiredAnswersAt(evs, ids, g.ID, n)
 		what := fmt.Sprintf("the answers to gap %s, which you closed, have all left the report, the last by %s at event %d (%s) — the closure stands", g.ID, by, n, strings.Join(took, ", "))
 		if g.benchClosedLast {
 			what = fmt.Sprintf("the answers to gap %s, which the bench closed, have all left the report, the last by %s at event %d (%s) — the closure stands, and what its ruling settled stays barred to you", g.ID, by, n, strings.Join(took, ", "))
 		}
-		what += "; if the defect it closed is still in the report, that is a new gap: mint it, naming " + g.ID + " as the gap it supersedes"
+		what += "; if the defect it closed is still in the report, that is a new gap: mint it"
 		out = append(out, gapItem(ItemNews, g.ID, what))
 	}
 	return out
-}
-
-// supersededBySeatAfter is whether seatID minted a gap naming gap in `supersedes` after the place at.
-func supersededBySeatAfter(evs []*Event, ids []int64, seatID, gap string, at int64) bool {
-	for i, e := range evs {
-		if m, ok := recordpb.BodyAs[*recordpb.Mint](e); ok && ids[i] > at && e.GetSeatId() == seatID && slices.Contains(m.GetSupersedes(), gap) {
-			return true
-		}
-	}
-	return false
 }
 
 // retiredAnswersAt is the anchors placed as gap's answer that the act at the place at took out — a

@@ -82,7 +82,7 @@ func TestOrdinarySubjectProseIsClean(t *testing.T) {
 	}
 }
 
-// THE REFUSED TELLS ARE THE UNAMBIGUOUS ONES (gblock, 2026-09-11): seat and lens ids, finding and gap
+// THE REFUSED TELLS ARE THE UNAMBIGUOUS ONES (gblock, 2026-09-11): seat and lens ids, gap
 // ids wherever they stand, and lane tags are refused; every tell with a reading as subject
 // prose is advised. Each refused sample must be refused, each ambiguous sample matched and NOT
 // refused, and every refused row in the list must be the one some sample reaches — so deleting a row,
@@ -95,11 +95,11 @@ func TestRefusedTellsAreUnambiguous(t *testing.T) {
 		"blue-synthesize certified it",                    // a seat id
 		"blue-synthesize merged two drafts",               // synthesis seat id
 		"blue-lane-2 found the count",                     // lane seat id
-		"as F-7cdcd115 notes, the date is wrong",          // finding id
+		"as G-7cdcd115 notes, the date is wrong",          // gap id
 		"gap G-5e10a3c2 is still open",                    // gap id beside a process word
 		"G-5e10a3c2's fix did not land",                   // gap id, possessive
 		"the bound in G-5e10a3c2 is loose",                // gap id with no process word beside it
-		"F-7cdcd115",                                      // an id and nothing else
+		"G-7cdcd115",                                      // an id and nothing else
 		"the count is 27 [minority: lane-2/practitioner]", // lane tag
 		"a single witness [lane-1]",                       // lane tag
 	}
@@ -143,19 +143,19 @@ func TestRefusedTellsAreUnambiguous(t *testing.T) {
 	}
 }
 
-// A BARE FINDING OR GAP ID IS REFUSED, AND ITS ANCHOR IS NOT. The id shape is the record's handle and
+// A BARE GAP ID IS REFUSED, AND ITS ANCHOR IS NOT. The id shape is the record's handle and
 // no subject's word, so it is refused wherever it stands in prose. An anchor token carries the same id
 // by design — the tool places it — so a span holding only the token reads clean. Each row names the
 // tell it must reach, so a pattern that matches nothing on the id shape fails here.
-func TestABareFindingOrGapIDIsRefusedAndItsAnchorIsNot(t *testing.T) {
+func TestABareGapIDIsRefusedAndItsAnchorIsNot(t *testing.T) {
 	for _, tc := range []struct {
 		text, match string
 	}{
-		{"F-7cdcd115", "F-7cdcd115"},
+		{"G-7cdcd115", "G-7cdcd115"},
 		{"G-5e10a3c2", "G-5e10a3c2"},
-		{"the date in F-7cdcd115 is wrong", "F-7cdcd115"},
+		{"the date in G-7cdcd115 is wrong", "G-7cdcd115"},
 		{"G-5e10a3c2 covers the same ground", "G-5e10a3c2"},
-		{"the claim<!--fx:F-7cdcd115--> is restated by F-0badf00d", "F-0badf00d"},
+		{"the claim<!--gap:G-7cdcd115--> is restated by G-0badf00d", "G-0badf00d"},
 	} {
 		got := Refused(tc.text)
 		if len(got) != 1 || got[0].Match != tc.match {
@@ -163,16 +163,16 @@ func TestABareFindingOrGapIDIsRefusedAndItsAnchorIsNot(t *testing.T) {
 		}
 	}
 	for _, clean := range []string{
-		"the claim holds<!--fx:F-7cdcd115-->.",
+		"the claim holds<!--cite:C-7cdcd115-->.",
 		"the claim holds<!--gap:G-5e10a3c2-->.",
-		"<!--fx:F-7cdcd115--><!--gap:G-5e10a3c2-->",
+		"<!--cite:C-7cdcd115--><!--gap:G-5e10a3c2-->",
 		"the G20 summit",
 		"the F-16 and the G-7 nations",
 		"a hash beginning 5e10a3c2",
 		"C-0000aaa1 and K-0000aaa1 and Q-0000aaa1 and M-0000aaa1",
 	} {
 		if got := Find(clean); len(got) != 0 {
-			t.Errorf("Find(%q) matched %q; it carries no bare finding or gap id", clean, got[0].Match)
+			t.Errorf("Find(%q) matched %q; it carries no bare gap id", clean, got[0].Match)
 		}
 	}
 }

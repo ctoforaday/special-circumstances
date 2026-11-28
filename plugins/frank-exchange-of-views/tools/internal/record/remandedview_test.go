@@ -22,8 +22,11 @@ import (
 // measurement would take.
 func TestRemandedIsSetOnlyByALiveRemand(t *testing.T) {
 	run := withReport(t, mustRun(t, newRun(t)))
-	red := Identity{Run: run, SeatID: "red-chair"}
-	var judge Identity
+	// The cast seats the bench, so the dispatch may convene it (convene); the evidence lens mints
+	// the gaps, and the dispatch files their dockets.
+	mustAppend(t, Identity{Run: run, SeatID: HarnessSeat}, castBody([]string{evLens, "red-chair", "blue-respond", "judge"}, nil))
+	lens := Identity{Run: run, SeatID: evLens}
+	gapOf := map[string]string{}
 	app := func(id Identity, body proto.Message) {
 		t.Helper()
 		if _, err := Append(id, body); err != nil {
@@ -31,21 +34,21 @@ func TestRemandedIsSetOnlyByALiveRemand(t *testing.T) {
 		}
 	}
 	mint := func(id string) {
-		app(red, &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String(id), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
+		app(lens, &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String(id), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 			Problem: proto.String("p " + id), RequiredFix: proto.String("f"), AcceptanceCheck: proto.String("a"),
 			CheckKind:  recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(),
 			Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)})
 	}
+	docketingOf := map[string]string{}
 	file := func(motionID, gapID string) {
-		app(red, &recordpb.Motion{MotionId: proto.String(motionID),
-			Basis:  proto.String("red cannot settle " + gapID),
-			Filing: &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String(gapID)}}})
+		gapOf[motionID] = gapID
+		docketingOf[motionID] = mustDocketByDispatch(t, run, gapID)
 	}
+	// Each ruling is the bench's in the docket sitting the dispatch convenes for its gap.
 	carry := func(motionID, reopensOn string) {
-		judge = benchSits(t, run)
-		app(judge, &recordpb.MotionRule{MotionId: proto.String(motionID),
+		app(convene(t, run, gapOf[motionID]), &recordpb.MotionRule{
 			Opinion: proto.String("not this round"),
-			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
+			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{DocketingId: proto.String(docketingOf[motionID]),
 				Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REMANDED),
 				Principle:   proto.String("thoroughness over speed"),
 				Tension:     proto.String("cost against certainty"),
@@ -54,10 +57,10 @@ func TestRemandedIsSetOnlyByALiveRemand(t *testing.T) {
 				Direction:   proto.String(reopensOn)}}})
 	}
 	dispose := func(motionID string) {
-		judge = benchSits(t, run)
-		app(judge, &recordpb.MotionRule{MotionId: proto.String(motionID),
+		app(convene(t, run, gapOf[motionID]), &recordpb.MotionRule{
 			Opinion: proto.String("settled"),
-			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
+			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{DocketingId: proto.String(docketingOf[motionID]),
+				SidedWith:   recordpb.SidedWith_SIDED_WITH_AUTHOR.Enum(),
 				Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_NOT_A_DEFECT),
 				Principle:   proto.String("correctness first"),
 				Tension:     proto.String("cost against certainty"),
@@ -82,7 +85,6 @@ func TestRemandedIsSetOnlyByALiveRemand(t *testing.T) {
 	// asking the seat to file it would ask the same question twice.
 	file("M4", "REPENDING")
 	carry("M4", "the first condition")
-	file("M5", "REPENDING")
 	// FRESH: nobody has docketed it. Open, but not carried.
 	//
 	// ORDER: two carries, and the motion ids are chosen so that the LEXICOGRAPHIC latest is the
@@ -92,11 +94,10 @@ func TestRemandedIsSetOnlyByALiveRemand(t *testing.T) {
 	carry("M9", "the FIRST condition, which was answered and superseded")
 	file("M10", "ORDER")
 	carry("M10", "the SECOND condition, which is the live one")
+	// REPENDING's second docketing is written last: the bench rules the docket in order, so a
+	// docketing left standing holds every later one behind it.
+	file("M5", "REPENDING")
 
-	evs, err := MergedEvents(run)
-	if err != nil {
-		t.Fatal(err)
-	}
 	gaps := workGapStatesT(t, run)
 	by := map[string]WorkGapState{}
 	for _, g := range gaps {
@@ -130,11 +131,10 @@ func TestRemandedIsSetOnlyByALiveRemand(t *testing.T) {
 			t.Errorf("%s: %d remand row(s), want %d", id, got, want)
 		}
 	}
-	// ORDER's second remand (M10) is the last act on the record, so it is the last of ORDER's rows:
-	// the rows stand in the record's order, never the motion ids'.
-	ids := evs.At.IDs(evs.Events)
-	if rs := remands["ORDER"]; len(rs) == 2 && (rs[1].eventID != ids[len(ids)-1] || rs[1].direction != "the SECOND condition, which is the live one") {
-		t.Errorf("ORDER's rows out of the record's order: %+v (want M10's ruling, place %d, last)", rs, ids[len(ids)-1])
+	// ORDER's second remand (M10) is written after its first, so it is the last of ORDER's rows: the
+	// rows stand in the record's order, never the motion ids'.
+	if rs := remands["ORDER"]; len(rs) == 2 && (rs[1].eventID <= rs[0].eventID || rs[1].direction != "the SECOND condition, which is the live one") {
+		t.Errorf("ORDER's rows out of the record's order: %+v (want M10's ruling, the later, last)", rs)
 	}
 	// AND THE CONDITION IS THE LIVE ONE. This is the half an order-free predicate cannot answer,
 	// and the half a motion-id ordering gets wrong: `motion_rule.event_id` is the events primary

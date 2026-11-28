@@ -85,9 +85,8 @@ type lifecycleCounts struct {
 	// sourceAnswers: `cite --answers G` admitted.
 	sourceAnswers int
 	// closedAnswersRetired: a closed gap the board reads closed, with `answers_retired_event` set, after
-	// the retire of its last answer; retiredItemsCleared: its lens's item gone once the lens minted a gap
-	// superseding it.
-	closedAnswersRetired, retiredItemsCleared int
+	// the retire of its last answer.
+	closedAnswersRetired int
 	// retiredAboutCloses: the lens's close admitted of a `source` or `computation` gap about an anchor
 	// blue retired naming no gap (L1).
 	retiredAboutCloses int
@@ -108,14 +107,13 @@ type lifecycleCounts struct {
 	unsoundDemandRejudged, unsoundDemandRefused int
 	// retiredAboutMintsRefused: a mint about a retired evidence anchor, refused naming the retire.
 	retiredAboutMintsRefused int
-	// reachingRetireTurns: a plan engaging a gap's minting lens whose turn a reaching retire gave it.
+	// reachingRetireTurns: a plan engaging a gap's assignee whose turn a reaching retire gave it.
 	reachingRetireTurns int
 	// screenedUnsound: an assembly screen FAIL naming a live computation a standing judgement calls
 	// unsound, at the end of a run that ends with one.
 	screenedUnsound int
 	// quoteGapMootAfterMarkerCut: the lens's `moot` close admitted of a `--quote` computation or source
-	// gap, refused before, once blue's pure cut took out its own marker or, after the heir's mint, the
-	// marker of the ancestor whose demand it carries.
+	// gap, refused before, once blue's pure cut took out its own marker.
 	quoteGapMootAfterMarkerCut int
 	// cutReadiedRaiser: a pure cut of a gap's marked sentence, answering no gap, that leaves the gap open
 	// and reading `gone`, its minting lens engaged on it by the record's plan with an item on it in its
@@ -147,7 +145,6 @@ type lifecycleTally struct {
 	ComputationRetires         int `json:"computation_retires"`
 	SourceAnswers              int `json:"source_answers"`
 	ClosedAnswersRetired       int `json:"closed_answers_retired"`
-	RetiredItemsCleared        int `json:"retired_items_cleared"`
 	RetiredAboutCloses         int `json:"retired_about_closes"`
 	CitedRetiresRefused        int `json:"cited_retires_refused"`
 	CitedCutsRefused           int `json:"cited_cuts_refused"`
@@ -174,8 +171,8 @@ type lifecycleTally struct {
 func (c lifecycleCounts) tally() lifecycleTally {
 	return lifecycleTally{
 		ComputationRetires: c.computationRetires, SourceAnswers: c.sourceAnswers,
-		ClosedAnswersRetired: c.closedAnswersRetired, RetiredItemsCleared: c.retiredItemsCleared,
-		RetiredAboutCloses: c.retiredAboutCloses, CitedRetiresRefused: c.citedRetiresRefused, CitedCutsRefused: c.citedCutsRefused,
+		ClosedAnswersRetired: c.closedAnswersRetired,
+		RetiredAboutCloses:   c.retiredAboutCloses, CitedRetiresRefused: c.citedRetiresRefused, CitedCutsRefused: c.citedCutsRefused,
 		ReadingDemandMetByRetire: c.readingDemandMetByRetire, ReadingDemandMetByReread: c.readingDemandMetByReread,
 		UnreadDemandReread: c.unreadDemandReread, UnreadDemandRefused: c.unreadDemandRefused,
 		UnsoundDemandRejudged: c.unsoundDemandRejudged, UnsoundDemandRefused: c.unsoundDemandRefused,
@@ -193,7 +190,6 @@ func (t *lifecycleTally) add(o lifecycleTally) {
 	t.ComputationRetires += o.ComputationRetires
 	t.SourceAnswers += o.SourceAnswers
 	t.ClosedAnswersRetired += o.ClosedAnswersRetired
-	t.RetiredItemsCleared += o.RetiredItemsCleared
 	t.RetiredAboutCloses += o.RetiredAboutCloses
 	t.CitedRetiresRefused += o.CitedRetiresRefused
 	t.CitedCutsRefused += o.CitedCutsRefused
@@ -230,7 +226,6 @@ func (t lifecycleTally) gates() []struct {
 		{t.ComputationRetires, "retires of a computation (`retire --anchor K-`) admitted"},
 		{t.SourceAnswers, "citations placed as a source gap's answer (`cite --answers`) admitted"},
 		{t.ClosedAnswersRetired, "closed gaps whose answers were all retired read closed with answers_retired_event set"},
-		{t.RetiredItemsCleared, "answers-retired items gone once the lens minted the gap superseding the closed one"},
 		{t.RetiredAboutCloses, "closes admitted of a source or computation gap about an anchor blue retired naming no gap (L1)"},
 		{t.CitedRetiresRefused, "retires of a citation a live computation applies, refused naming the computation (L6)"},
 		{t.CitedCutsRefused, "pure cuts of a cited sentence while a computation on another sentence applies the citation, refused naming the computation (L6)"},
@@ -241,7 +236,7 @@ func (t lifecycleTally) gates() []struct {
 		{t.UnsoundDemandRejudged, "closes admitted of a computation gap owed about an unsound computation, after the lens's own sound judgement"},
 		{t.UnsoundDemandRefused, "closes of a computation gap owed about an unsound computation refused by its demand after another lens's sound judgement"},
 		{t.RetiredAboutMintsRefused, "mints about a retired evidence anchor refused naming the retire"},
-		{t.ReachingRetireTurns, "plans engaging a gap's minting lens whose turn a reaching retire gave it"},
+		{t.ReachingRetireTurns, "plans engaging a gap's assignee whose turn a reaching retire gave it"},
 		{t.ScreenedUnsound, "assembly screens FAILING on a live unsound computation at a run's end"},
 		{t.QuoteGapMootAfterMarkerCut, "moot closes admitted of a --quote computation or source gap once a pure cut took out its marker, or its ancestor's"},
 		{t.CutReadiedRaiser, "pure cuts of a gap's marked sentence, answering no gap, leaving the gap open and gone with its minting lens engaged on it"},
@@ -494,8 +489,8 @@ func (r *runner) driveLifecycle(blue string) string {
 		func() string { return r.lifecycleRetiredAbout(blue, lens, comp, c[7], c[8]) },
 		func() string { return r.lifecycleReachingRetire(blue, lens, c[9]) },
 		func() string { return r.lifecycleCitedCut(blue, c[10], c[11]) },
-		func() string { return r.lifecycleQuoteGapMoot(blue, lens, "computation", c[12], c[13], "") },
-		func() string { return r.lifecycleQuoteGapMoot(blue, lens, "source", c[14], c[15], c[16]) },
+		func() string { return r.lifecycleQuoteGapMoot(blue, lens, "computation", c[12], c[13]) },
+		func() string { return r.lifecycleQuoteGapMoot(blue, lens, "source", c[14], c[15]) },
 		func() string { return r.lifecycleCutStaled(blue, lens, c[17]) },
 		func() string { return r.lifecycleCutMovesToken(blue, c[19], c[20]) },
 		func() string { return r.lifecycleCutClearsCheck(blue, lens, c[21]) },
@@ -529,7 +524,7 @@ func (r *runner) lifecycleSetUp(blue string) string {
 
 // lifecycleClosedAnswerRetired: a source gap closed on blue's citation; blue retires the citation; the
 // board reads the gap closed with answers_retired_event set, and the lens's list holds the item, blocking
-// nothing; the lens mints the gap superseding it, and the item is gone.
+// nothing.
 func (r *runner) lifecycleClosedAnswerRetired(blue, lens, claim string) string {
 	g, why := r.lifecycleMint(lens, "source", claim, "", "low")
 	if g == "" {
@@ -560,17 +555,6 @@ func (r *runner) lifecycleClosedAnswerRetired(blue, lens, claim string) string {
 	r.countLifecycle(func(c *lifecycleCounts) { c.closedAnswersRetired++ })
 	if it, ok := r.answersRetiredItem(lens, g); !ok || it.Blocks {
 		return fmt.Sprintf("%s's list holds no unblocking answers-retired item for %s (found %v, blocks %v)", lens, g, ok, it.Blocks)
-	}
-	succ, why := r.lifecycleMint(lens, "document", claim, "", "low", "--supersedes", g)
-	if succ == "" {
-		return "the mint superseding closed gap " + g + " was refused: " + why
-	}
-	if _, ok := r.answersRetiredItem(lens, g); ok {
-		return "the answers-retired item for " + g + " stands after " + lens + " minted " + succ + " superseding it"
-	}
-	r.countLifecycle(func(c *lifecycleCounts) { c.retiredItemsCleared++ })
-	if env, ok := r.lifecycleClose(lens, succ); !ok {
-		return "the close of " + succ + " was refused: " + env.Error
 	}
 	return ""
 }
@@ -872,12 +856,14 @@ func (r *runner) lifecycleCitedCut(blue, claim, next string) string {
 	if q == "" {
 		return why
 	}
-	before, _ := record.RenderRun(r.run())
+	// A REFUSED CUT RECORDS NOTHING, read off the record: lenses sit beside blue, so the report can move
+	// under the cut by another seat's act.
+	prior := r.editsRecorded(blue, "")
 	if !refusedNaming("edit", "--seat-id", blue, "--quote", q, "--new", "", "--reason", "fuzz: the claim cannot stand") {
 		return "the pure cut of the eleventh claim, taking " + cite + " while " + k + " on another sentence applies it, was not refused naming it"
 	}
-	if after, _ := record.RenderRun(r.run()); after != before {
-		return "the refused cut of the eleventh claim changed the report"
+	if r.editsRecorded(blue, "") > prior {
+		return "the refused cut of the eleventh claim was recorded"
 	}
 	r.countLifecycle(func(c *lifecycleCounts) { c.citedCutsRefused++ })
 	if !r.lifecycleRetire(blue, k, "") {
@@ -909,29 +895,17 @@ func (r *runner) lifecycleCitedCut(blue, claim, next string) string {
 }
 
 // lifecycleQuoteGapMoot (P12a, the demand holds while its subject stands; P12b, a cut is the raiser's
-// turn): the lens mints a --quote gap of check kind on claim, nothing answering it; where heirClaim is
-// set it mints the heir superseding it on heirClaim, which carries its demand. The heir's (else the
-// gap's) `moot` is refused by the demand; blue's pure cut of claim, answering no gap, takes the marker
-// out with its sentence. With no heir the gap stays open, reading `gone`, and the record's plan engages
-// its lens on it with an item on its work list (cutReadiedRaiser). At the lens's next sitting, delivered
-// the cut, the same `moot` is admitted.
-func (r *runner) lifecycleQuoteGapMoot(blue, lens, kind, claim, next, heirClaim string) string {
-	grade := "low"
-	if heirClaim == "" {
-		grade = "medium" // material, so the record's plan readies its lens on the cut
-	}
-	g, why := r.lifecycleMint(lens, kind, claim, "", grade)
+// turn): the lens mints a --quote gap of check kind on claim, nothing answering it. Its `moot` is
+// refused by the demand; blue's pure cut of claim, answering no gap, takes the marker out with its
+// sentence. The gap stays open, reading `gone`, and the record's plan engages its lens on it with an
+// item on its work list (cutReadiedRaiser). At the lens's next sitting, delivered the cut, the same
+// `moot` is admitted.
+func (r *runner) lifecycleQuoteGapMoot(blue, lens, kind, claim, next string) string {
+	g, why := r.lifecycleMint(lens, kind, claim, "", "medium") // material, so the record's plan readies its lens on the cut
 	if g == "" {
 		return "the --quote " + kind + " gap's mint was refused: " + why
 	}
 	closing := g
-	if heirClaim != "" {
-		h, why := r.lifecycleMint(lens, kind, heirClaim, "", "low", "--supersedes", g)
-		if h == "" {
-			return "the heir superseding --quote gap " + g + " was refused: " + why
-		}
-		closing = h
-	}
 	if env, ok := r.lifecycleCloseAs(lens, closing, "moot"); ok || !demandRefusal(env, closing, kind) {
 		return "the moot close of " + closing + " with its subject standing was not refused by its demand: " + env.Error
 	}
@@ -942,12 +916,10 @@ func (r *runner) lifecycleQuoteGapMoot(blue, lens, kind, claim, next, heirClaim 
 	if !slices.Contains(removed, g) {
 		return fmt.Sprintf("blue's pure cut of the claim marked by %s recorded removed_anchors %v, which do not hold the marker", g, removed)
 	}
-	if heirClaim == "" {
-		if why := r.raiserReadied(lens, g); why != "" {
-			return why
-		}
-		r.countLifecycle(func(c *lifecycleCounts) { c.cutReadiedRaiser++ })
+	if why := r.raiserReadied(lens, g); why != "" {
+		return why
 	}
+	r.countLifecycle(func(c *lifecycleCounts) { c.cutReadiedRaiser++ })
 	// The lens closes only on delivered text: its next sitting is delivered the cut.
 	if !r.openSitting(lens) {
 		return "the register of " + lens + " after the cut was refused"
@@ -1033,10 +1005,6 @@ func (r *runner) lifecycleCutStaled(blue, lens, claim string) string {
 	r.countLifecycle(func(c *lifecycleCounts) { c.cutStaledDelivery++ })
 	return ""
 }
-
-// screenUnsoundComputationName is the bundle of the computation limitSeed's run ends on, judged unsound
-// (screenAtLimit).
-const screenUnsoundComputationName = "fuzz-screen-unsound.js"
 
 // lifecycleCutMovesToken: blue cites claim, then cuts claim onto next, the citation's token carried to
 // the end of next. A rewrite: admitted, no anchor in its removed_anchors, no anchor_removal for the
@@ -1251,16 +1219,11 @@ func (r *runner) lifecycleClosedMarkerRetire(blue, lens, claim string) string {
 	return ""
 }
 
-// lifecyclePlace places one anchor of kind on claim, by the verb that places the kind: a finding and a
-// gap by lens, the gap closed so its marker may leave (F14); a citation and a computation by blue. It
+// lifecyclePlace places one anchor of kind on claim, by the verb that places the kind: a gap by lens,
+// the gap closed so its marker may leave (F14); a citation and a computation by blue. It
 // returns the anchor's id, or "" and why not.
 func (r *runner) lifecyclePlace(blue, lens, kind, claim string, n int) (string, string) {
 	switch kind {
-	case "finding":
-		if _, ok := r.do("finding", lens).set("--quote", claim).set("--severity", "low").set("--likelihood", "low").
-			set("--impact", "low").set("--reason", "fuzz: the lifecycle arm's finding").admit(); !ok {
-			return "", lens + "'s finding on " + claim + " was refused"
-		}
 	case "citation":
 		if r.lifecycleCite(blue, claim, fmt.Sprintf("/lifecycle-kept-%d", n), "") == "" {
 			return "", "blue's citation of " + claim + " was refused"
@@ -1341,37 +1304,46 @@ func (r *runner) changeListsRetire(id string) (bool, string) {
 	return true, ""
 }
 
-// screenAtLimit is limitSeed's half of the assembly screen arm, driven at the chair's sitting whose plan
-// reaches the epoch limit, which dispatches nobody: blue-respond, in a sitting of its own, computes the
-// fuzz sentence, and the computation owner, in its own, judges it unsound. No seat sits after, so the run
-// ends with it live, and the screen at the run's end must FAIL naming it (screenUnsound). The limit plan
-// is the one point the forced run is sure to reach; blue-respond is not sure to be dispatched before it,
-// since which seats the epochs ready turns on the run's draws and the seats' interleaving. Draws nothing.
-func (r *runner) screenAtLimit(plan map[string]any) {
+// screenUnsoundComputationName is the bundle of the computation limitSeed's run ends on, judged unsound
+// (screenBeforeHeldOut, screenAtLimit).
+const screenUnsoundComputationName = "fuzz-screen-unsound.js"
+
+// screenBeforeHeldOut and screenAtLimit are limitSeed's half of the assembly screen arm. Blue's acts
+// land before the epoch that holds it out — the last that dispatches a lens — and the lenses' judgements
+// in it, so no act after them answers either: blue sits there and in the final epoch for its closings
+// alone, and every party does at the final epoch (record.requireClosingsOnlySitting). The run ends with
+// the computation live and unsound, and the screen at its end must FAIL naming it (screenUnsound).
+//
+// screenBeforeHeldOut is blue's half, driven at the forced run's first chair sitting before the chair's
+// register — which opens epoch 1, the one that holds blue out under the limit of 2 — while the record is
+// still at the epoch the lanes and the synthesis wrote: blue-respond, in a sitting
+// of its own, computes the fuzz sentence and cites a sentence of the report. blue-respond is not sure to
+// be dispatched before blue is held out — under forcedEpochLimit it never is — so the drive sits it.
+// Draws nothing.
+func (r *runner) screenBeforeHeldOut() {
 	r.mu.Lock()
 	due := r.forceScreenUnsound && r.screenUnsoundComputation == ""
 	r.mu.Unlock()
-	if limit, _ := plan["epoch_limit_reached"].(bool); !limit || !due {
+	if !due {
 		return
 	}
 	const blue = "blue-respond"
-	k := ""
-	if r.openSitting(blue) {
+	k, opened := "", r.openSitting(blue)
+	if opened {
 		k = r.lifecycleCompute(blue, "§ fuzz sentence", screenUnsoundComputationName, "", "")
 	}
 	r.mu.Lock()
 	r.screenUnsoundComputation = cmp.Or(k, "refused")
 	r.mu.Unlock()
-	if k != "" && r.openSitting(computationOwner) {
-		r.lifecycleJudge(computationOwner, k, "unsound")
+	if !opened {
+		return
 	}
 	// AND A READING DEBT STANDS AT THE RUN'S END: blue cites a sentence of the report, and the citation
-	// owner, in a sitting of its own, reads the citation `refutes` and mints nothing — the run ends
-	// UNVERIFIED on the debt, its reason naming it (tallyDebtsAtEnd), and the assembly screen fails
-	// on it beside the unsound computation.
-	// THE CITATION IS RESERVED BEFORE IT IS READ (reservedDebtSubject): a sitting of the owner's or
-	// blue's still running from the last plan would otherwise mint on the debt, re-read the citation
-	// as backing, or retire it, and the run would end on no debt.
+	// owner, in a sitting of its own, reads the citation `refutes` and mints nothing (screenAtLimit) — the
+	// run ends on the debt, its reason naming it (tallyDebtsAtEnd), and the assembly screen fails on it
+	// beside the unsound computation.
+	// THE CITATION IS RESERVED FROM ITS CITE (reservedDebtSubject): a drawn sitting of the owner's would
+	// otherwise mint on the debt or re-read the citation as backing, and the run would end on no debt.
 	// THE SENTENCE CITED HOLDS NO OPEN claim_contradicts_source GAP (limitDebtSentence): a gap of the
 	// class on the sentence, quoting it or about a citation it holds, discharges the owner's debt the
 	// moment the reading lands (F9, `open now`), and the run would end on none — the lenses' drawn
@@ -1381,14 +1353,42 @@ func (r *runner) screenAtLimit(plan map[string]any) {
 		r.mu.Lock()
 		r.limitDebtCite = "refused"
 		r.mu.Unlock()
-		r.noteActErr("the limit plan found no sentence to cite for the reading debt: every candidate holds an open claim_contradicts_source gap or is not held once")
+		r.noteActErr("the forced limit run found no sentence to cite for the reading debt: every candidate holds an open claim_contradicts_source gap or is not held once")
 		return
 	}
 	cite := r.lifecycleCite(blue, quote, "/limit-debt", "")
 	r.mu.Lock()
 	r.limitDebtCite, r.limitDebtSentenceCited = cmp.Or(cite, "refused"), sentence
 	r.mu.Unlock()
-	if cite == "" || !r.openSitting(citationOwner) {
+}
+
+// screenAtLimit is the lenses' half, driven in each owner's own sitting under the plan that holds blue
+// out (holdsBlueOut): the computation owner judges blue's computation unsound, and the citation owner
+// reads blue's citation `refutes`. Draws nothing.
+func (r *runner) screenAtLimit(seatID string, plan map[string]any) {
+	if seatID != computationOwner && seatID != citationOwner {
+		return
+	}
+	r.mu.Lock()
+	k, cite := r.screenUnsoundComputation, r.limitDebtCite
+	due := r.forceScreenUnsound && k != "" && holdsBlueOut(plan) && !r.screenJudged[seatID]
+	if due {
+		if r.screenJudged == nil {
+			r.screenJudged = map[string]bool{}
+		}
+		r.screenJudged[seatID] = true
+	}
+	r.mu.Unlock()
+	if !due {
+		return
+	}
+	if seatID == computationOwner {
+		if strings.HasPrefix(k, anchorPrefix["computation"]) {
+			r.lifecycleJudge(computationOwner, k, "unsound")
+		}
+		return
+	}
+	if !strings.HasPrefix(cite, anchorPrefix["citation"]) {
 		return
 	}
 	at := r.readCited(citationOwner, cite, "refutes")
@@ -1401,7 +1401,20 @@ func (r *runner) screenAtLimit(plan map[string]any) {
 	// THE DEBT IS READ BACK AT ONCE: a reading that leaves none names, from the record, what discharged
 	// it, so the run fails here with the cause rather than at its end with the absence.
 	if _, stands := r.debtOf(citationOwner, cite); !stands {
-		r.noteActErr(fmt.Sprintf("the owner's refuting reading of %s at the limit plan (event %d) left no reading debt: %s", cite, at, r.limitDebtDischarge()))
+		r.noteActErr(fmt.Sprintf("the owner's refuting reading of %s in the epoch that holds blue out (event %d) left no reading debt: %s", cite, at, r.limitDebtDischarge()))
+	}
+}
+
+// screenOwnersAtLimit is screenAtLimit for both owners, each in a sitting the drive opens for it where
+// the arm is due: the shape a test drives with no plan dispatching the owners.
+func (r *runner) screenOwnersAtLimit(plan map[string]any) {
+	if !r.forceScreenUnsound || !holdsBlueOut(plan) {
+		return
+	}
+	for _, owner := range []string{computationOwner, citationOwner} {
+		if r.openSitting(owner) {
+			r.screenAtLimit(owner, plan)
+		}
 	}
 }
 
@@ -1481,7 +1494,7 @@ func (r *runner) limitDebtDischarge() string {
 	}
 	if open, _ := r.sameClassAndSubject(classContradicts, quoteArgs(sentence)); len(open) > 0 {
 		for _, g := range open {
-			found = append(found, fmt.Sprintf("open %s gap %s (minted by %s) is on the sentence: about %s %s, at %q", classContradicts, g.ID, g.MintedBy, g.AboutKind, g.AboutRef, g.Location))
+			found = append(found, fmt.Sprintf("open %s gap %s (minted by %s) is on the sentence: about %s %s, at %q", classContradicts, g.ID, g.Assignee, g.AboutKind, g.AboutRef, g.Location))
 		}
 	}
 	if len(found) == 0 {
@@ -1554,7 +1567,7 @@ func TestTheLifecycleSeedDrivesEveryArm(t *testing.T) {
 		r.mu.Unlock()
 		r.envelopeFor("blue-respond", "")
 		r.mu.Lock()
-		stage, counts, left, msg := r.lifecycleStage, r.lifecycle, r.lifecycleLeftOpen, r.lifecycleForcedErr()
+		stage, counts, left, msg, drawn := r.lifecycleStage, r.lifecycle, r.lifecycleLeftOpen, r.lifecycleForcedErr(), r.drawnAppliedCuts
 		r.mu.Unlock()
 		if stage != lifecycleDriven || r.actErr != "" {
 			t.Fatalf("the forced arm reached %q (%s)", stage, r.actErr)
@@ -1570,9 +1583,10 @@ func TestTheLifecycleSeedDrivesEveryArm(t *testing.T) {
 		}
 		// THREE COMPUTATIONS RETIRE: the second claim's, answering its gap before blue computes it again;
 		// the ninth's, naming no gap (L1); and the twelfth's, applying the eleventh's citation, before the
-		// eleventh's cut can land (L6). Any arm gone leaves two.
-		if counts.computationRetires != 3 {
-			t.Errorf("the forced arm retired %d computation(s), want 3", counts.computationRetires)
+		// eleventh's cut can land (L6). Any arm gone leaves two. A drawn cut of an applied citation in the
+		// same sitting retires its computation too (citedCut), and is not the arm's.
+		if n := counts.computationRetires - drawn; n != 3 {
+			t.Errorf("the forced arm retired %d computation(s) beside %d drawn cut(s), want 3", n, drawn)
 		}
 		if !strings.Contains(msg, "no plan engaged") || !slices.Contains(r.openGaps(), left) {
 			t.Errorf("the forced arm left gap %q open (open: %v) and its run reads %q, want the reaching retire's turn owed", left, r.openGaps(), msg)
@@ -1626,20 +1640,24 @@ func TestAReachingRetireGivesTheLensItsTurn(t *testing.T) {
 	t.Run("blue alone engaged", func(t *testing.T) {
 		r, g := drive(t)
 		r.tallyLensTurns(plan("blue-respond", g))
-		if r.lifecycle.reachingRetireTurns != 0 || !strings.Contains(r.actErr, "not its minting lens") {
+		if r.lifecycle.reachingRetireTurns != 0 || !strings.Contains(r.actErr, "not its assignee") {
 			t.Errorf("a plan engaging blue alone on %s counted %d turn(s) and failed the run with %q, want it failed naming the lens", g, r.lifecycle.reachingRetireTurns, r.actErr)
 		}
 	})
 }
 
-// THE LIMIT SEED ENDS ON A SCREENED UNSOUND COMPUTATION: at the plan that reaches the epoch limit, blue
-// computes the fuzz sentence and the computation owner judges it unsound, and the assembly screen at the
-// run's end FAILS naming it. Blue-respond has never sat: the drive owes nothing to a dispatch of blue
-// before the limit, which the forced run is not sure to reach. A plan short of the limit drives nothing,
-// and a run with no live unsound computation is screened for none.
+// THE LIMIT SEED ENDS ON A SCREENED UNSOUND COMPUTATION, staged under the forced run's own limit: before
+// its first plan blue computes the fuzz sentence, and at that plan — which holds blue out — the
+// computation owner judges it unsound; blue's next act is refused there, so nothing answers the
+// judgement, and the assembly screen at the run's end FAILS naming it. Blue-respond has never sat: the
+// drive owes nothing to a dispatch of blue, which the forced run never gets. A plan that does not hold
+// blue out drives no judgement, and a run with no live unsound computation is screened for none.
 func TestTheLimitSeedEndsOnAScreenedUnsoundComputation(t *testing.T) {
 	stage := func(t *testing.T) *runner {
 		r := stagedSynthesizedRunner(t)
+		if err := writeSetup(filepath.Join(r.runDir, "inputs", "run-config.json"), fuzzRunConfig(3, 1, 2, forcedEpochLimit)); err != nil {
+			t.Fatal(err)
+		}
 		r.forceScreenUnsound = true
 		return r
 	}
@@ -1649,29 +1667,85 @@ func TestTheLimitSeedEndsOnAScreenedUnsoundComputation(t *testing.T) {
 		}
 		return r.screenUnsound()
 	}
-	t.Run("at the limit", func(t *testing.T) {
+	t.Run("before and in the epoch that holds blue out", func(t *testing.T) {
 		r := stage(t)
-		r.screenAtLimit(map[string]any{"epoch_limit_reached": true})
+		r.screenBeforeHeldOut()
 		if !strings.HasPrefix(r.screenUnsoundComputation, anchorPrefix["computation"]) || r.actErr != "" {
-			t.Fatalf("blue's computation of the fuzz sentence at the limit: %q (%s)", r.screenUnsoundComputation, r.actErr)
+			t.Fatalf("blue's computation of the fuzz sentence before the first plan: %q (%s)", r.screenUnsoundComputation, r.actErr)
+		}
+		r.dispatchSits("chair", "red-chair")
+		plan := r.dispatchNext("red-chair")
+		r.dispatchReturns("red-chair", false)
+		if !holdsBlueOut(plan) {
+			t.Fatalf("the forced run's first plan (epoch %v of %v) does not hold blue out", plan["epoch"], plan["max_epochs"])
+		}
+		r.screenOwnersAtLimit(plan)
+		if r.actErr != "" {
+			t.Fatalf("the lenses' judgements in the epoch that holds blue out: %s", r.actErr)
+		}
+		// THE OWNERS' DRAWN SITTINGS IN THAT EPOCH LEAVE BOTH: the reserved citation's debt, and the
+		// unsound computation, which the owner carries by its gap.
+		for _, owner := range []string{computationOwner, citationOwner} {
+			r.dischargeOwed(owner)
+			r.answerFailed(owner)
+			r.envelopeEnds(owner)
+		}
+		if r.actErr != "" {
+			t.Fatalf("the owners' drives in the epoch that holds blue out: %s", r.actErr)
+		}
+		// NOTHING OF BLUE'S ANSWERS IT THERE: the record holds blue to its closings.
+		r.refuse(feov.Conflict, "edit", "--seat-id", "blue-respond", "--quote", "fuzz sentence", "--new", "fuzz statement",
+			"--reason", "fuzz: blue's answer to the unsound judgement")
+		if r.actErr != "" {
+			t.Fatalf("blue's edit in the epoch that holds it out: %s", r.actErr)
 		}
 		if n, msg := screen(t, r); n != 1 || msg != "" {
 			t.Errorf("the screen of a run ending on unsound %s counted %d (%s), want 1", r.screenUnsoundComputation, n, msg)
 		}
-	})
-	t.Run("short of the limit", func(t *testing.T) {
-		r := stage(t)
-		r.screenAtLimit(map[string]any{"epoch_limit_reached": false})
-		if r.screenUnsoundComputation != "" {
-			t.Errorf("a plan short of the limit drove the arm: %q", r.screenUnsoundComputation)
+		if _, stands := r.debtOf(citationOwner, r.limitDebtCite); !stands {
+			t.Errorf("the owner's debt on %s does not stand: %s", r.limitDebtCite, r.limitDebtDischarge())
 		}
+
+		// AND NO DRAWN DRIVE OF A LATER SITTING TAKES EITHER (limitArmAnchor; seed 7's two failures):
+		// the computation owner's re-judgement of the failed check its gap carries, sitting after
+		// sitting, and another lens's cross-arm chain on the citation, each arm.
+		for range 8 {
+			if r.openSitting(computationOwner) {
+				r.answerFailed(computationOwner)
+				r.envelopeEnds(computationOwner)
+			}
+		}
+		const other = "red-lens-dark-side"
+		for arm := range 3 {
+			if !r.openSitting(other) {
+				t.Fatalf("the other lens's sitting: %s", r.actErr)
+			}
+			if why := r.crossArmChain(other, r.limitDebtCite, arm); why == "" {
+				t.Errorf("the cross-arm chain's arm %d ran on the limit seed's citation %s", arm, r.limitDebtCite)
+			}
+		}
+		if r.actErr != "" {
+			t.Fatalf("the later sittings: %s", r.actErr)
+		}
+		if n, msg := screen(t, r); n != 1 || msg != "" {
+			t.Errorf("after the later sittings the screen of %s counted %d (%s), want 1", r.screenUnsoundComputation, n, msg)
+		}
+		if _, stands := r.debtOf(citationOwner, r.limitDebtCite); !stands {
+			t.Errorf("after the later sittings the owner's debt on %s does not stand: %s", r.limitDebtCite, r.limitDebtDischarge())
+		}
+	})
+	t.Run("a plan that does not hold blue out", func(t *testing.T) {
+		r := stage(t)
+		r.screenBeforeHeldOut()
+		r.screenOwnersAtLimit(map[string]any{"epoch": float64(1), "max_epochs": float64(record.DefaultParams.MaxEpochs)})
 		if n, msg := screen(t, r); n != 0 || msg != "" {
-			t.Errorf("the screen of a run with no unsound computation counted %d (%s), want 0", n, msg)
+			t.Errorf("the screen of a run whose computation no lens judged counted %d (%s), want 0", n, msg)
 		}
 	})
 	t.Run("not forced", func(t *testing.T) {
 		r := stagedSynthesizedRunner(t)
-		r.screenAtLimit(map[string]any{"epoch_limit_reached": true})
+		r.screenBeforeHeldOut()
+		r.screenOwnersAtLimit(map[string]any{"epoch": float64(1), "max_epochs": float64(forcedEpochLimit)})
 		if r.screenUnsoundComputation != "" {
 			t.Errorf("a run not forced drove the arm: %q", r.screenUnsoundComputation)
 		}
@@ -1693,7 +1767,7 @@ func itemAbout(it record.Item, g, a string) bool {
 	return false
 }
 
-// THE LIMIT PLAN CITES A SENTENCE FREE OF THE CLASS'S GAP: an open claim_contradicts_source gap on
+// THE FORCED LIMIT RUN CITES A SENTENCE FREE OF THE CLASS'S GAP: an open claim_contradicts_source gap on
 // lane 1's sentence — a lens's quote mint on its own found reading — would discharge the owner's
 // debt the moment it is read (F9), so the limit debt sits on the next candidate, and stands; and
 // a run ending on no debt names, from the record, what discharged it.
@@ -1709,9 +1783,10 @@ func TestTheLimitDebtSitsOnASentenceFreeOfTheClassGap(t *testing.T) {
 	if g == "" || r.actErr != "" {
 		t.Fatalf("the other lens's mint quoting lane 1's sentence: %q (%s)", g, r.actErr)
 	}
-	r.screenAtLimit(map[string]any{"epoch_limit_reached": true})
+	r.screenBeforeHeldOut()
+	r.screenOwnersAtLimit(map[string]any{"epoch": float64(1), "max_epochs": float64(forcedEpochLimit)})
 	if r.actErr != "" || !strings.HasPrefix(r.limitDebtCite, anchorPrefix["citation"]) || r.limitDebtRead == 0 {
-		t.Fatalf("the limit plan's cite %q read at %d (%s)", r.limitDebtCite, r.limitDebtRead, r.actErr)
+		t.Fatalf("the forced limit run's cite %q read at %d (%s)", r.limitDebtCite, r.limitDebtRead, r.actErr)
 	}
 	if r.limitDebtSentenceCited != foundSourceSentences[0] {
 		t.Errorf("the limit debt sits on %q, want lane 3's sentence with lane 1's holding %s", r.limitDebtSentenceCited, g)
@@ -1732,5 +1807,25 @@ func TestTheLimitDebtSitsOnASentenceFreeOfTheClassGap(t *testing.T) {
 	}
 	if got := r.limitDebtDischarge(); !strings.Contains(got, "the owner read "+r.limitDebtCite+" again") || !strings.Contains(got, "(supports)") {
 		t.Errorf("the oracle names %q, want the owner's re-read", got)
+	}
+}
+
+// THE LIMIT SEED'S SENTENCE IS NO DRAWN READING'S (CI run 46126830171, seed 7): once blue cites it for
+// the forced reading debt, a found-source reading draws the next sentence, and a lens's debt on it is
+// left standing, so no sibling's claim_contradicts_source gap quoting it discharges the debt the run
+// must end on.
+func TestTheLimitDebtSentenceIsReservedFromDrawnReadings(t *testing.T) {
+	r := &runner{rng: newLockedRand(1)}
+	cur := "# R\n\n" + foundSourceSentences[0] + " " + foundSourceSentences[1] + "\n"
+	limit := foundSourceSentences[0]
+	if q, _ := r.foundSourceQuote(cur, "refutes"); q != limit {
+		t.Fatalf("with nothing reserved the draw reads %q, want %q", q, limit)
+	}
+	r.forceScreenUnsound, r.limitDebtCite, r.limitDebtSentenceCited = true, "C-00000001", limit
+	if q, _ := r.foundSourceQuote(cur, "refutes"); q == limit {
+		t.Errorf("a found-source reading draws %q, the limit seed's cited sentence", q)
+	}
+	if !r.reservedDebtSubject(limit) || !r.reservedDebtSubject("C-00000001") {
+		t.Errorf("the limit seed's sentence and citation are not both reserved from a drawn answer")
 	}
 }

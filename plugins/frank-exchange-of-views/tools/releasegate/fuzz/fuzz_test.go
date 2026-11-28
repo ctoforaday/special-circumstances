@@ -7,8 +7,8 @@ package fuzz
 // finding (in debate.js, the tool, or verify), reproducible from its seed.
 //
 // COVERAGE CONTRACT. envelopeFor drives every eligible seat to exercise its whole verb surface,
-// not a happy path: lens (cite/finding/inquiry/log/closing), merge (position/
-// mint/close incl. repaired_with_regression/regrade any axis/
+// not a happy path: lens (verify/mint/inquiry/log/closing), merge (position/
+// mint/close/regrade any axis/
 // dispute-respond/spot-check/verdict/petition), blue (closing/dispute
 // across all four dimensions/inquiry/retire/petition), bench
 // (opinion/outcome/certify/assemble/petition-rule). The
@@ -17,7 +17,7 @@ package fuzz
 // (maybePetition/rulePetitions), so debate.js's routing runs too.
 //
 // ORACLES per run: (1) verify passes — whatever path the debate took, the record satisfies every
-// invariant; (2) the JSON views (findings/log/debate) exit 0 and parse; (2c) the six markdown
+// invariant; (2) the JSON views (board/log/debate) exit 0 and parse; (2c) the six markdown
 // views (ledger/archive/debate/changelog/citation-ledger/inquiries) render in-memory via
 // view.Markdown and exit 0; (3) every dialectic prose renders in the report (the A1-A3
 // write-here/read-there class); (4) #111 tier — every seat dispatched on the configured tier.
@@ -30,6 +30,7 @@ package fuzz
 // FUZZ_C overrides concurrency (runs are subprocess-bound, so the default oversubscribes cores).
 
 import (
+	"cmp"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -340,6 +341,9 @@ type runner struct {
 	anchorOracle anchorReplay
 	// drawnCuts numbers blue's drawn pure cuts of a cited sentence (drawnCitedCut).
 	drawnCuts int
+	// drawnAppliedCuts counts those whose citation a computation applied, each retiring that computation
+	// before its cut lands, so a count of the lifecycle arm's own retires can leave them out.
+	drawnAppliedCuts int
 	// writer is the feov-sitting-write binary the hooks hand a sitting's harness-observed facts to:
 	// its envelope's admission at PostToolUse and its close at SubagentStop (dispatchReturns).
 	writer string
@@ -364,7 +368,8 @@ type runner struct {
 	// endWithoutEnvelope is how many of the next agent-bearing sittings' dispatches end without their
 	// envelope (endsWithoutEnvelope), for a test that drives that shape on no draw.
 	endWithoutEnvelope int
-	// forceBlueFails drives blueFailsSeed's run (failedblue_test.go): every blue-respond sitting opens
+	// forceBlueFails drives blueFailsSeed's run (failedblue_test.go), and blueFails holds it for the
+	// forced-UNVERIFIED run too: every blue-respond sitting opens
 	// under an agent and ends without its envelope, until the engine stops the run on it.
 	forceBlueFails bool
 	// failedSittings counts the sittings dispatchReturns closed with no admission written, of a
@@ -395,13 +400,13 @@ type runner struct {
 	registered map[string]bool
 	// lensSittings is each lens's sittings this run, by seat: the cost the retirement rule bounds.
 	lensSittings map[string]int
-	// blueSittings is blue-respond's sittings this run, and blueAgain those it sat on successors it
-	// engaged (gblock's ruling R2): the cost the second sitting adds, and how often it is driven.
+	// blueSittings is blue-respond's sittings this run, and blueAgain those it sat on the gaps it
+	// engaged (X22a): the cost the second sitting adds, and how often it is driven.
 	blueSittings, blueAgain int
-	// againOn is the successors blue engaged its next sitting on, which the engine sits it on next:
+	// againOn is the gaps blue engaged its next sitting on, which the engine sits it on next:
 	// the plan's party names the chair's gaps, so the second sitting reads its own here. It is set
 	// from an envelope the ENGINE RECEIVED (envelopeReceived): one the harness gave up on names
-	// nothing debate.js reads, so the engine sits blue on no successor.
+	// nothing debate.js reads, so the engine sits blue on nothing more.
 	againOn []string
 	// chairRegisters is how many times red-chair has registered — with no hook bracket in this
 	// driver each register opens a chair sitting, so it is the epoch the record derives for the
@@ -417,11 +422,11 @@ type runner struct {
 	// issues has to be issued as that lens. The chair mints nothing now; its acts on a gap are
 	// `carry`, `spot-check`, `position`, `verdict` and `dispatch`.
 	minter map[string]string
-	// closingNow is each gap whose close the drive is driving, which a mint drawn meanwhile does not
-	// supersede (holdClosing).
-	closingNow map[string]bool
 	// planThisSitting is the plan `dispatch next` printed at the start of the chair sitting in progress.
 	planThisSitting map[string]any
+	// planEpoch and planLimit are the epoch the latest chair plan opened and the run's epoch limit, read
+	// off that plan under mu: the sittings it dispatches act in that epoch (blueClosingsOnly).
+	planEpoch, planLimit int
 	// lastPassRefusal is the gate's refusal of a PASS the plan permitted — the chair's duty undone.
 	lastPassRefusal string
 	// passOverAnotherSeat names a blocker another seat must clear, standing when the plan permitted
@@ -596,33 +601,38 @@ type runner struct {
 	// it at zero.
 	repeatsRefused int
 	// oneGapRefused counts the mints the tool refused because an open gap of their class stood on
-	// their sentence or inquiry, and oneGapFindings the findings the refused lens then filed about
-	// that gap. The sweep gates both at zero.
-	oneGapRefused, oneGapFindings int
+	// their sentence or inquiry. The sweep gates it at zero.
+	oneGapRefused int
+	// oneGapRedirects counts those refusals by the road they state — "own" for the refused seat's own
+	// gap, "another" for another seat's — and oneGapNamingFinding the ones whose road names a finding
+	// or a reconsideration's grounds (plans/findings-fold.md §III.A2, §III.A6). The
+	// sweep gates each road at zero and the finding count above it.
+	oneGapRedirects     map[string]int
+	oneGapNamingFinding int
+	// movedDisputed is whether this run drove its one dispute of a gap its raiser regraded while
+	// blue sat (disputeMovedGap), and movedDisputes how many met the stale refusal and
+	// landed on the retry.
+	movedDisputed bool
+	movedDisputes int
 	// unclassifiedMinted counts the mints under the catch-all `unclassified` that landed, and
 	// unclassifiedRefused the ones the record refused for carrying no --reason. The sweep gates
 	// both at zero.
 	unclassifiedMinted, unclassifiedRefused int
-	// supersedeDemandCarried counts the successors minted over an open gap that awaited a live answer,
-	// carrying its check kind, and supersedeDemandRefused the successors at another check kind the
-	// record refused naming the demand (supersede_test.go). The sweep gates both at zero.
-	supersedeDemandCarried, supersedeDemandRefused int
 	// repeatErr is the first repeated act the tool admitted, or refused without naming the act
 	// that answers the first. It fails the run: an act stands as filed, and the refusal of a
 	// second is where a seat learns what answers a wrong one.
 	repeatErr string
 	// rulerFilingsRefused counts the filings the tool refused the seat that rules their subject —
-	// the chair's grade motion, the bench's docket motion. The sweep gates it at zero.
+	// the bench's docket motion. The sweep gates it at zero.
 	rulerFilingsRefused int
 	// rulerFilingErr is the first such filing the tool admitted, or refused for another reason
 	// than the gavel. It fails the run: a motion its own ruler filed is one no other seat can rule.
 	rulerFilingErr string
-	// closedRemandsRefused counts the bench's remands of a closed gap the tool refused naming the
-	// close, trifleRemanded the remanded gaps that are not material whose exchange no plan has yet
+	// trifleRemanded is the remanded gaps that are not material whose exchange no plan has yet
 	// readied, and trifleRemandsRouted those a plan readied (remandroute_test.go). The sweep gates
-	// both counts at zero.
-	closedRemandsRefused, trifleRemandsRouted int
-	trifleRemanded                            map[string]bool
+	// the count at zero.
+	trifleRemandsRouted int
+	trifleRemanded      map[string]bool
 	// blueRemandActs counts blue's acts on a remanded gap the remand's blocking item held it to
 	// (answerRemands), and pastLimitRemandsRefused the bench's remands past the limit the tool refused
 	// naming the dispositions that close the gap (remandroute_test.go). The sweep gates each at zero.
@@ -635,33 +645,30 @@ type runner struct {
 	remandHolds, remandReleases int
 	blueSatSincePlan            bool
 	// lensTurns counts the lens engagements the relayed plans made on a gap blue had acted on since
-	// the lens's last act there, and lensWaits the gaps a plan engaged blue on and not their minting
-	// lens, whose turn had not come (lensturn_test.go). The sweep gates each at zero.
+	// the lens's last act there, and lensWaits the gaps a plan engaged blue on and not their
+	// assignee, whose turn had not come (lensturn_test.go). The sweep gates each at zero.
 	lensTurns, lensWaits int
 	// fateTurns counts the lens engagements on a gap about a report section whose turn a fate blue
 	// changed helped bring (ruled by gblock 2026-11-05): those of lensTurns, and those that engage the
 	// lens alone. The sweep gates it at zero.
 	fateTurns int
-	// lensAlone counts the gaps a plan engaged their minting lens on and not blue (the last audit before
+	// lensAlone counts the gaps a plan engaged their assignee on and not blue (the last audit before
 	// the limits); docketsAfterAudit the plan's dockets on a gap whose lens had sat on it since its
-	// floor; docketedClosesRefused the closes of a docketed gap refused naming the motion;
+	// floor; docketedClosesRefused the raiser's closes refused naming the author's undocketed proposal;
 	// docketedOffList the docketed gaps a party's list was read and held off (remandroute_test.go,
 	// lensturn_test.go). The sweep gates each at zero.
 	lensAlone, docketsAfterAudit, docketedClosesRefused, docketedOffList int
-	// benchSet is each gap's axes the bench holds locked, by flag name, with the grade
-	// (benchSetsGrade; a successor inherits its ancestor's), and benchLifted the axes the bench's
-	// second move released to the lens and the lens has not moved since. benchRegrades counts the
-	// bench's regrades, lockRefused the minting lens's moves of a locked axis the tool refused,
-	// lockLifted its moves of a released axis the tool admitted, and groundsRefused and
-	// groundsAdmitted blue's docket motions on a gap the bench ruled closed, refused for wanting new
-	// grounds and admitted on a computation recorded since (benchorders_test.go). forceBenchOrders is
-	// benchOrdersSeed's run, which takes every arm. benchOrders is the sweep's ledger of the lift still
-	// owed (benchorders_test.go), nil outside the sweep. The sweep gates each count at zero.
-	benchSet                                                                map[string]map[string]string
-	benchLifted                                                             map[string]map[string]bool
-	benchRegrades, lockRefused, lockLifted, groundsRefused, groundsAdmitted int
-	forceBenchOrders                                                        bool
-	benchOrders                                                             *benchOrderLedger
+	// lockRefused counts the assignee's moves of an axis a ruling on a grade locked, which the tool
+	// refused (benchorders_test.go); the rulings that locked an axis are read off the record at the
+	// run's end (lockedAxes). forceBenchOrders is benchOrdersSeed's run, which takes every arm. The
+	// sweep gates each count at zero.
+	lockRefused      int
+	forceBenchOrders bool
+	// forceAuthorProposal is authorProposalSeed's run: every blue sitting that finds a gap to propose
+	// on files, and the raiser leaves those proposals to the bench (authorproposal_test.go).
+	forceAuthorProposal bool
+	// authorProposalsFiled counts this run's forced author proposals.
+	authorProposalsFiled int
 	// betweenStaleRetries is called after each stale refusal admitFresh records again, before the
 	// act is recorded again: a deterministic test lands the other seats' acts there that a sweep's
 	// concurrent seats land at will. nil in the sweep.
@@ -685,8 +692,6 @@ type runner struct {
 	// closedNow is the gaps each seat filed its closing on in its sitting in progress: a docket
 	// motion it files on one of them is refused (record.requireNoClosingThisSitting).
 	closedNow map[string]map[string]bool
-	// lastRuleRefusal is the last grade-motion ruling the record refused, for the exit tally.
-	lastRuleRefusal string
 	// lensMints: lens seat -> mints that LANDED, which fuzzLensStock bounds; the driver spreads its
 	// mints over the lenses debate.js dispatches.
 	lensMints map[string]int
@@ -699,10 +704,9 @@ type runner struct {
 	// CHECKS its reference against the record, so a drive needs a real one — a composed id
 	// would drive the refusal and never the success.
 	inquiryIDs []string
-	// #62 Stage 2: disputes blue RAISED (event emitted + envelope ref), awaiting red's answer
-	// next round — mirrors debate.js's pendingDisputes so the fuzz drives the docket machinery
-	// through the ENVELOPE, not just the events. Each: {gap_id, dimension, proposed}.
-	raised []map[string]any
+	// disputeFiled records the gaps blue's proposed regrade was admitted on: a dispute is filed once
+	// per gap, and its assignee or the bench answers it.
+	disputeFiled gapSet
 	// presented records the gaps a responder was actually shown: a gap minted in the terminal
 	// round never reaches blue, so its scenario was never dispatched and cannot be asserted.
 	presented gapSet
@@ -729,10 +733,12 @@ type runner struct {
 	// one of them refused, by seat (envelopeschema_test.go).
 	schemas        envelopeSchemas
 	schemaRefusals []string
-	// disputeRefusals is why a grade filing was REFUSED, per gap. The scenario oracle reports a
+	// disputeRefusals is why a proposed regrade was REFUSED, per gap. The scenario oracle reports a
 	// missing dispute event; without this it cannot distinguish a drive that never ran from one
 	// that ran and was told no, and those want opposite fixes.
 	disputeRefusals map[string]string
+	// unanswered is why blue's latest edit answering a gap did not land, per gap (noteUnanswered).
+	unanswered map[string]string
 	// #111: every model an agent() call carried, one per dispatch ("unset" if absent). The tier
 	// oracle asserts all equal the configured tier — map-free, needs no bulk-seat list here.
 	models []string
@@ -794,17 +800,18 @@ type runner struct {
 	positionsUpheldLens, positionsUpheldGaps         int
 	positionsOverruled                               int
 	positionRulingsRefused, repeatedPositionsRefused int
-	// forceUnverified drives the run to the UNVERIFIED terminal verdict, which the random sweep
-	// reaches about once in sixty — debate.js computes UNVERIFIED only when the bench declares
-	// deadlock AND gaps remain open, and a bench that disposes its whole docket clears the board
-	// and earns red a further sitting instead. A 1-in-60 outcome cannot carry an enum gate: the
-	// sweep failed on `outcome --as UNVERIFIED` at N=40 having passed at N=60 on luck, which is a
-	// flake either way. So it is driven the way HALTED is — deterministically, by a dedicated
-	// test — rather than exempted. coverage_test.go says why an exemption is the wrong answer
-	// here, and it is right. Its gaps are all disputes (mintWith), every severity it types is
-	// material (severityGrade), and its first-epoch lenses each mint, so the PASS is held by
-	// construction rather than by the grade draw.
+	// forceUnverified drives the run to the UNVERIFIED terminal verdict on a deterministic path: its
+	// first-epoch lenses each mint a material gap blue disputes (mintWith, severityGrade), so the PASS is
+	// held by construction, and every blue-respond sitting ends without its envelope (blueFails), so the
+	// engine stops the debate UNVERIFIED at blue's third failed sitting in a row (debate.js seatStop). The
+	// random sweep reaches UNVERIFIED only by such a stop, and an enum gate cannot stand on a draw.
 	forceUnverified bool
+	// benchOccasion is the occasion of the bench's sitting the drive holds now: who sits after its
+	// ruling depends on it (sitsAfterRuling).
+	benchOccasion string
+	// standingAtPlan is the ids of the docketings standing when the latest chair plan was read: a
+	// docketing a party's concession ended after it is one the bench was rightly convened on.
+	standingAtPlan map[string]bool
 	// forceEstoppel drives the ORDERED PAIR the estoppel guard needs — red prescribes concrete
 	// text, blue applies it verbatim, red then mints against that same text — on one dedicated
 	// seed, instead of hoping the sweep draws it.
@@ -816,6 +823,10 @@ type runner struct {
 	// which runs it ONCE. More verbatim applications do not help: reds were observed with 6, 8
 	// and 9 of them, so what is missing is not applications but the PAIR.
 	forceEstoppel bool
+	// staleOnSubject is set once the run has driven a Stale on a gap about a gap (staleOnASubject).
+	staleOnSubject bool
+	// staleOnSubjectMints is how many tries staleOnASubject has taken.
+	staleOnSubjectMints int
 	// forceVerified drives the VERIFIED terminal verdict on one seed instead of leaving it to the
 	// draw. VERIFIED needs a board with no gap left at its limit, and every gap the sweep mints has
 	// about a one-in-four chance of ending there (see directives), so the chance a run reaches
@@ -903,12 +914,16 @@ type runner struct {
 	// judgement the seam forges standing once the debate ends.
 	forceStaleness                  bool
 	stalenessStage, stalenessAnchor string
-	// forceScreenUnsound drives screenAtLimit on limitSeed's run; screenUnsoundComputation is the
-	// computation it judges, "refused" where blue's compute was, and "" until the limit plan.
+	// forceScreenUnsound drives screenBeforeHeldOut and screenAtLimit on limitSeed's run;
+	// screenUnsoundComputation is blue's computation they judge, "refused" where blue's compute was, and
+	// "" until the first chair sitting.
 	forceScreenUnsound       bool
 	screenUnsoundComputation string
-	// limitDebtCite is the citation the citation owner reads `refutes` at the limit plan, so the run
-	// ends on a reading debt (screenAtLimit); "refused" where blue's cite was, "" until the limit plan.
+	// screenJudged is each owner whose half of the lenses' half of that arm has run (screenAtLimit).
+	screenJudged map[string]bool
+	// limitDebtCite is blue's citation the citation owner reads `refutes` in the epoch that holds blue
+	// out, so the run ends on a reading debt (screenAtLimit); "refused" where blue's cite was, "" until
+	// blue cites it (screenBeforeHeldOut).
 	// limitDebtSentenceCited is the sentence it sits in, and limitDebtRead the owner's reading's
 	// events.id, 0 until it lands — what limitDebtDischarge reads the record from.
 	limitDebtCite, limitDebtSentenceCited string
@@ -931,6 +946,12 @@ type runner struct {
 	partRefused   map[string]int
 	partsRecorded int
 	withheld      map[string]bool
+	// proposalGates counts the proposed-act and docketing drives the sweep gates by key (countGate):
+	// the sides that stated nothing refused, the acts a closings-only sitting refuses and the closings
+	// it files, the proposals a ruling's tombstone bars. The counts read off the stream at the
+	// run's end — docketings by cause, the bench's answers by cause and side, ruling tombstones by side —
+	// join them in the run's outcome (docketTally).
+	proposalGates map[string]int
 }
 
 func (r *runner) coin(pct int) bool { return r.rng.Intn(100) < pct }
@@ -961,13 +982,13 @@ var inquiryIDPat = regexp.MustCompile(`\b` + anchor.IDPattern("inquiry") + `\b`)
 // gapIDPat folds a gap id out of a stated reason, so the reasons tally by what they say.
 var gapIDPat = regexp.MustCompile(`\b` + anchor.IDPattern("gap") + `\b`)
 
-// unmintedFinding and unmintedGap are ids of the RIGHT SHAPE that no run mints (a mint is four
+// unmintedCitation and unmintedGap are ids of the RIGHT SHAPE that no run mints (a mint is four
 // random bytes; these are one value in 2^32). The probes that pass them test the record's
 // refusal of a reference it does not hold — a value of the wrong shape is refused by the flag
 // before any view is asked, and would pass the probe without reaching what it probes.
 var (
-	unmintedFinding = anchor.ID("finding", [4]byte{0xff, 0xff, 0xff, 0xff})
-	unmintedGap     = anchor.ID("gap", [4]byte{0xff, 0xff, 0xff, 0xff})
+	unmintedCitation = anchor.ID("citation", [4]byte{0xff, 0xff, 0xff, 0xff})
+	unmintedGap      = anchor.ID("gap", [4]byte{0xff, 0xff, 0xff, 0xff})
 )
 
 // refusedByShape reports whether out is a flag's SHAPE refusal of id (flags.ShapedValue.Set)
@@ -1057,12 +1078,15 @@ func (r *runner) orderRefused(seatID string) {
 	if r.coin(50) {
 		text = "Whether the trend outlasts the sample.\n\n## TL;DR\n\nA summary at the end"
 	}
+	// WHETHER THE REFUSED EDIT WAS RECORDED IS READ OFF THE RECORD: seats sit at once, so the report can
+	// move under the edit by another seat's act (editsRecorded).
+	prior := r.editsRecorded(seatID, text)
 	out, err := r.exec("edit", "--seat-id", seatID, "--quote", "Whether the trend outlasts the sample", "--new", text, "--reason", "fuzz: a section out of order")
-	after, _ := record.RenderRun(r.run())
+	recorded := r.editsRecorded(seatID, text) > prior
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	switch {
-	case err == nil || after != before:
+	case err == nil || recorded:
 		if r.orderAdmittedErr == "" {
 			r.orderAdmittedErr = seatID + " put a section out of order and the edit was recorded: " + firstLine(out)
 		}
@@ -1365,8 +1389,8 @@ func (r *runner) closingsOwedBy(seatID string) []string {
 
 // fileClosings files the party's closing on each docketed gap its plan says it owes — the write path
 // must admit each — and one time in ten first tries to end with it unfiled, which the record refuses.
-// The forced-verified run files every one. Unique prose per act, so the report
-// oracle can prove each rendered.
+// The forced-verified run files every one. Unique prose per act, so the report oracle can prove each
+// rendered.
 func (r *runner) fileClosings(seatID string) {
 	for _, id := range r.closingsOwedBy(seatID) {
 		// ONE IN TEN, THE SEAT TRIES TO END WITH THE CLOSING UNFILED, and the record refuses its
@@ -1377,7 +1401,7 @@ func (r *runner) fileClosings(seatID string) {
 			r.closingsRefused++
 			r.mu.Unlock()
 		}
-		if _, ok := r.admitFresh(id, "closing", "--seat-id", seatID, "--id", id, "--reason", "closing-for-"+id+"-by-"+seatID); !ok {
+		if !r.fileClosing(seatID, id) {
 			continue
 		}
 		r.noteClosed(seatID, id)
@@ -1387,9 +1411,145 @@ func (r *runner) fileClosings(seatID string) {
 		// A SEAT THAT GOT ITS CLOSING WRONG TYPES IT AGAIN. The sitting holds one per gap, so the
 		// second is refused and the refusal names the act that answers the first.
 		r.maybe(10, func() {
-			r.repeatRefused(seatID, "closing", "--id", id, "--reason", "fuzz: the closing again, restated")
+			r.repeatRefused(seatID, append([]string{"closing", "--id", id, "--reason", "fuzz: the closing again, restated"}, r.statesNoText(seatID, id)...)...)
 		})
 	}
+}
+
+// fileClosing files seatID's closing on gap id, and reports whether the record admitted it. RED STATES
+// ITS TEXT where the gap's question takes it (record.ClosingTakesText), as a road: the pair its mint
+// prescribed, where the record verified one (proposalFor), or else the sentence the report marks for the
+// gap, as the report holds it, ending at the gap's marker, and what it becomes. Where the record refuses
+// every road — an anchor stands inside the span, or the gap marks no sentence — the closing says it
+// states no text (`--no-text`), and the bench then sides with blue or remands. Blue's closing states no
+// word of its own here.
+func (r *runner) fileClosing(seatID, id string) bool {
+	args := []string{"closing", "--seat-id", seatID, "--id", id, "--reason", "closing-for-" + id + "-by-" + seatID}
+	if seatclass.RoleOfSeat(seatID) != "lens" {
+		_, ok := r.admitFresh(id, append(args, r.blueClosingWord(seatID, id)...)...)
+		return ok
+	}
+	takes, err := record.ClosingTakesText(r.runHandle, id)
+	if err != nil {
+		r.noteActErr("whether " + id + "'s closing takes text could not be read: " + err.Error())
+		return false
+	}
+	if !takes {
+		_, ok := r.admitFresh(id, args...)
+		return ok
+	}
+	var roads [][]string
+	// ON A GAP ABOUT A CITATION OR A COMPUTATION, RED'S TEXT MAY BE THE ANCHOR'S RETIRE, its sentence
+	// kept word for word.
+	if fam, err := record.FamilyOf(r.run()); err == nil {
+		if g := fam.Gap(id); g != nil && g.Mint.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_ANCHOR && r.coin(50) {
+			roads = append(roads, []string{"--retire"})
+		}
+	}
+	if cur, err := record.RenderRun(r.run()); err == nil {
+		if _, fo, fn := r.proposalFor(id, cur); fo != "" {
+			roads = append(roads, []string{"--quote", fo, "--new", fn})
+		}
+		// THE WORDS ENDING AT THE GAP'S MARKER, WITH THE ANCHOR RUN THEY END IN CARRIED: a citation or a
+		// computation on the sentence never stands bare, so a pair that drops its token is refused, and
+		// a run whose every road quoted the bare sentence stated --no-text at every impasse — the bench
+		// then had no text of red's to side with.
+		if words := wordsBefore(cur, id); words != "" {
+			run := abuttingRun(cur, words)
+			roads = append(roads, []string{"--quote", words + run, "--new", redRoadText(id, words) + run})
+		}
+	}
+	if sentence := r.markedSentence(id); sentence != "" {
+		roads = append(roads, []string{"--quote", sentence, "--new", redRoadText(id, sentence) + "."})
+	}
+	for _, road := range roads {
+		if _, err := r.exec(withJSON(append(slices.Clone(args), road...))...); err == nil {
+			return true
+		}
+	}
+	_, ok := r.admitFresh(id, append(args, "--no-text")...)
+	if ok {
+		r.countGate("closing_no_text")
+	}
+	return ok
+}
+
+// redRoadText is the replacement red's closing on gap id states for words: its own text, keeping the
+// phrasing of the cost sentence the edit drives swap where words hold one. A ruling for red applies the
+// text over the sentence, and a sentence that lost both phrasings leaves every later gap's proposal and
+// counter-edit nothing to quote for the rest of the run: an APPLY gap minted with no proposal then has no
+// edit of blue's answering it (seed 21, after the bench applied red's text on a disputed gap).
+func redRoadText(id, words string) string {
+	text := "fuzz: red's text for " + id
+	shown := plainText(words)
+	for _, phrase := range []string{"rising over time", "climbing sharply"} {
+		if strings.Contains(shown, phrase) {
+			return text + ", the cost " + phrase
+		}
+	}
+	return text
+}
+
+// blueClosingWords is each closing word blue's closing may state at an impasse docketing; blueRefusedWords
+// the one it may not, a word that closes nothing, driven to its refusal.
+var (
+	blueClosingWords = []string{"repaired", "not_a_defect", "defect_accepted", "defect_owed_elsewhere", "moot"}
+	blueRefusedWords = []string{"remanded"}
+)
+
+// blueClosingWord is the --as blue's closing on gap id states, by a draw: at a gap docketed at impasse, a
+// word a ruling for blue writes, or none (that ruling writes not_a_defect); first, on a coin, a word the
+// record refuses there — one of blueRefusedWords, or any word on a gap docketed for a proposal or at
+// grade movement, where blue's statement is its proposal or the record's grades.
+func (r *runner) blueClosingWord(seatID, id string) []string {
+	impasse := false
+	for _, d := range r.standingDocketings(id) {
+		impasse = d.Cause == recordpb.DocketingCause_DOCKETING_CAUSE_IMPASSE
+	}
+	if r.coin(20) {
+		word := pick(r.rng, blueRefusedWords)
+		if !impasse {
+			word = pick(r.rng, blueClosingWords)
+		}
+		out, err := r.exec("--json", "closing", "--seat-id", seatID, "--id", id, "--as", word,
+			"--reason", "fuzz: blue's closing stating a word the record refuses here")
+		if err == nil {
+			r.noteActErr(fmt.Sprintf("blue's closing on %s stating --as %s (impasse %t) was admitted: %s", id, word, impasse, firstLine(out)))
+			return nil
+		}
+		r.countGate("blue_closing_word_refused")
+	}
+	if impasse && r.coin(50) {
+		return []string{"--as", pick(r.rng, blueClosingWords)}
+	}
+	return nil
+}
+
+// statesNoText is the flag a closing of seatID's on gap id states no text with — `--no-text` where the
+// closing is red's and the gap's question takes text, none otherwise.
+func (r *runner) statesNoText(seatID, id string) []string {
+	if seatclass.RoleOfSeat(seatID) != "lens" {
+		return nil
+	}
+	if takes, err := record.ClosingTakesText(r.runHandle, id); err == nil && takes {
+		return []string{"--no-text"}
+	}
+	return nil
+}
+
+// markedSentence is the sentence of the report as it stands that holds gap id's marker, "" where the
+// report marks none for it.
+func (r *runner) markedSentence(id string) string {
+	bj, err := record.BoardJSONOfRun(r.runHandle)
+	if err != nil {
+		return ""
+	}
+	for _, g := range bj.Open {
+		if g.ID == id && g.LocationState == record.LocationMarked {
+			return g.Location
+		}
+	}
+	return ""
 }
 
 // closingOwed reports whether the record holds seatID's closing on gapID as owed (a closing_owed
@@ -1437,13 +1597,13 @@ func (r *runner) dischargeOwed(seatID string) {
 	if bs, err := record.PassBlockers(r.runHandle); err == nil {
 		for _, b := range bs {
 			if b.Kind == record.BlockerClosingOwed && b.Owner == seatID {
-				if _, ok := r.admitFresh(b.Subject, "closing", "--seat-id", seatID, "--id", b.Subject, "--reason", "closing-for-"+b.Subject+"-by-"+seatID); ok {
+				if r.fileClosing(seatID, b.Subject) {
 					r.noteClosed(seatID, b.Subject)
 				}
 			}
 		}
 	}
-	// A REMAND'S ITEM HOLDS BLUE AND THE MINTING LENS UNTIL EACH ACTS ON THE GAP (answerRemands).
+	// A REMAND'S ITEM HOLDS BLUE AND THE ASSIGNEE UNTIL EACH ACTS ON THE GAP (answerRemands).
 	if seatID == "blue-respond" || strings.HasPrefix(seatID, "red-lens-") {
 		r.answerRemands(seatID)
 	}
@@ -1566,7 +1726,17 @@ func (r *runner) fixFailed(seatID string) {
 			if g != "" {
 				rt = rt.set("--answers", g)
 			}
-			_, landed := rt.admit()
+			out, rerr := rt.result()
+			landed := rerr == nil
+			switch {
+			case landed:
+			case heldUntilItsRuling(rt.all(), out+rerr.Error()):
+				// THE FREEZE HOLDS THE SENTENCE for a statement before the bench, and the item stands: kept,
+				// so an envelope refused over it names why.
+				r.noteOwedRecheck(seatID, "blue's retire of "+b.Subject+" was held by the freeze: "+firstLine(out))
+			default:
+				r.noteActErr("refused, and the drive expects it admitted: " + rerr.Error())
+			}
 			joined := landed && g != "" && r.changeLogJoins(g, b.Subject)
 			r.mu.Lock()
 			r.unreadRetires++
@@ -1592,7 +1762,7 @@ func (r *runner) fixFailed(seatID string) {
 			continue
 		}
 		// PREPENDED, so every span the drive quotes from this prose still stands in it: the seeded
-		// anchor sentence carries the drive's readings and findings.
+		// anchor sentence carries the drive's readings and gaps.
 		r.do("edit", seatID).set("--quote", words).set("--new", "Recomputed, "+words).
 			set("--reason", "fuzz: the sentence now says what the script behind "+b.Subject+" shows").admit()
 	}
@@ -1723,10 +1893,11 @@ func (r *runner) noteInquiryRecord() {
 // named yet. It is the anchor for a defect that is NOT report text (#787, #742).
 //
 // EVERY REFERENCE IS REAL, and for two of the three kinds it has to be: ResolveAbout checks an
-// inquiry ref against the inquiries this run proposed and a gap ref against the board, so a composed
-// id would drive the refusal forever and the success path would read as covered. `section` is
-// deliberately unchecked by the tool — blue may rename a heading mid-run, and refusing on a stale
-// one would refuse the finding rather than the staleness — so the seeded heading is honest there.
+// inquiry ref against the inquiries this run proposed and an anchor against the record, so a
+// composed id would drive the refusal forever and the success path would read as covered. `section`
+// is deliberately unchecked by the tool — blue may rename a heading mid-run, and refusing on a stale
+// one would refuse the gap rather than the staleness — so the seeded heading is honest there. A gap
+// is no kind here: a gap on a gap is the release drive's to add (§III.B10).
 func (r *runner) aboutAnchor() (kind, ref string) {
 	r.mu.Lock()
 	inq := append([]string{}, r.inquiryIDs...)
@@ -1735,12 +1906,8 @@ func (r *runner) aboutAnchor() (kind, ref string) {
 	if len(inq) > 0 {
 		kinds = append(kinds, "inquiry")
 	}
-	gaps := r.openGaps()
-	if len(gaps) > 0 {
-		kinds = append(kinds, "gap")
-	}
 	// A CITATION OR COMPUTATION BY ITS ANCHOR: the subject a failed check's answering gap names
-	// (answerFailed), and one any finding or gap may name, which answers no failed check.
+	// (answerFailed), and one any gap may name, which answers no failed check.
 	var anchors []string
 	if b, ok := r.board(); ok {
 		ev := record.EvidenceJSONOf(b.Events, b.At, "", nil)
@@ -1761,8 +1928,6 @@ func (r *runner) aboutAnchor() (kind, ref string) {
 		return "anchor", anchors[r.rng.Intn(len(anchors))]
 	case "inquiry":
 		return "inquiry", inq[r.rng.Intn(len(inq))]
-	case "gap":
-		return "gap", gaps[r.rng.Intn(len(gaps))]
 	default:
 		// A SECTION THE TOOL COMPOSES FROM FATES, once there are inquiries, half the time: a fate blue
 		// changes is its act on a gap about the section that prints it (ruled by gblock 2026-11-05),
@@ -1793,21 +1958,32 @@ func (r *runner) noteVerbatimGap(gapID, fixNew string) {
 	r.verbatimGaps[gapID] = fixNew
 }
 
-// aVerbatimGap returns one gap/text pair blue applied verbatim whose prescription STILL ESTOPS red
-// (stillEstops) and whose applied text is ON THE PAGE, or "" with why none is — none has landed yet,
-// every one was since reworded, or every one that still estops has lost its words.
+// aVerbatimGap returns one gap/text pair blue applied verbatim, of a gap seatID minted, whose
+// prescription STILL ESTOPS its lens (stillEstops) and whose applied text is ON THE PAGE, or "" with why
+// none is — none of seatID's has landed yet, every one was since reworded, or every one that still
+// estops has lost its words. Estoppel binds only the prescribing lens (record.EstoppelConflict, X11), so
+// another lens's prescription is no probe of this one's.
 //
 // THE WORDS, NOT ONLY THE STANDING. A gap whose token a retire took out is never reopened, so it
-// estops as long as the run lasts (record.estoppingPrescriptions' residue) while blue's edits of the
+// estops as long as the run lasts (a cut ends no tombstone) while blue's edits of the
 // sentence, which can no longer name it, swap its words away; taken first by id, it held the drive
 // on one gap whose text was gone for 36 sittings of the estoppel seed's run (CI run 42935559070), the
 // run's four later verbatim applications behind it, and the seed drove no estoppel at all.
-func (r *runner) aVerbatimGap() (gapID, fixNew, miss string) {
+func (r *runner) aVerbatimGap(seatID string) (gapID, fixNew, miss string) {
 	r.mu.Lock()
-	ids := slices.Sorted(maps.Keys(r.verbatimGaps))
+	all := slices.Sorted(maps.Keys(r.verbatimGaps))
 	r.mu.Unlock()
-	if len(ids) == 0 {
+	if len(all) == 0 {
 		return "", "", "nothing applied verbatim yet when the drive fired"
+	}
+	var ids []string
+	for _, id := range all {
+		if r.minterOf(id) == seatID {
+			ids = append(ids, id)
+		}
+	}
+	if len(ids) == 0 {
+		return "", "", "nothing this lens prescribed was applied verbatim yet when the drive fired"
 	}
 	cur, err := record.RenderRun(r.run())
 	if err != nil {
@@ -1833,6 +2009,59 @@ func (r *runner) aVerbatimGap() (gapID, fixNew, miss string) {
 	return "", "", "every prescription that still estops has lost its words: its gap's token left with a retire, so no edit of the sentence names it reopened, and an edit since swapped the applied text away"
 }
 
+// verbatimLast is open with one gap moved to the end — the last of them blue's sitting can apply
+// verbatim, a gap of the APPLY scenario whose mint prescribes a pair — and that gap, or "" for none.
+//
+// THE ESTOPPEL RUN'S VERBATIM APPLY IS ITS SITTING'S LAST CHANGE TO THE SENTENCE. Every gap of that run
+// prescribes a swap of the one cost sentence, and any later edit of it lists the applied gap reopened,
+// which ends its estoppel (F12) before the prescribing lens sits: the next gap's apply, or its
+// counter-edit where the swap took its span. The estoppel binds that lens alone (X11), so whether the
+// sweep drove an estoppel turned on which edit the sitting made last (CI run 46094143286: seed 2,
+// estoppels=0). Every gap is still answered in the sitting: one the drive left for a later sitting is
+// one its lens can close on another gap's edit before blue answers it, which the APPLY oracle fails.
+func (r *runner) verbatimLast(open []string) ([]string, string) {
+	cur, err := record.RenderRun(r.run())
+	if err != nil {
+		return open, ""
+	}
+	last := ""
+	for _, id := range open {
+		if r.scenarioOf(id) == dirApply {
+			if gid, _, _ := r.proposalFor(id, cur); gid != "" {
+				last = id
+			}
+		}
+	}
+	if last == "" {
+		return open, ""
+	}
+	out := slices.DeleteFunc(slices.Clone(open), func(id string) bool { return id == last })
+	return append(out, last), last
+}
+
+// swapToProposal is blue's edit of the cost sentence to the phrasing gapID's prescription quotes, where
+// the sitting's earlier edits swapped it away: an edit answering no gap, as the drawn edit makes one, so
+// the verbatim apply that follows stands as the sitting's last change (verbatimLast).
+func (r *runner) swapToProposal(seatID, gapID string) {
+	fam, err := record.FamilyOf(r.run())
+	if err != nil {
+		return
+	}
+	g := fam.Gap(gapID)
+	cur, err := record.RenderRun(r.run())
+	if err != nil || g == nil || g.Mint == nil {
+		return
+	}
+	want := plainText(g.Mint.GetLocation())
+	for _, pair := range [][2]string{{"rising over time", "climbing sharply"}, {"climbing sharply", "rising over time"}} {
+		if strings.Contains(want, pair[1]) && !strings.Contains(string(cur), pair[1]) && strings.Contains(string(cur), pair[0]) {
+			r.do("edit", seatID).set("--quote", pair[0]).set("--new", pair[1]).
+				set("--reason", "fuzz: the cost sentence back to the phrasing a prescription quotes").admit()
+			return
+		}
+	}
+}
+
 // isVerbatimGap reports whether blue applied gapID's prescription verbatim in this run.
 func (r *runner) isVerbatimGap(gapID string) bool {
 	r.mu.Lock()
@@ -1841,11 +2070,12 @@ func (r *runner) isVerbatimGap(gapID string) bool {
 	return ok
 }
 
-// stillEstops reports whether gapID's applied prescription still estops red, as the record folds it
-// (record.estoppingPrescriptions, F12): the latest blue edit naming gapID — in `answers` with
-// applied_verbatim, or in `reopened` — is a verbatim one. A later edit that rewords the sentence
-// the fix placed the gap's token in lists the gap reopened and makes the span blue's, whether or not
-// the prescribed words survive in it; a later verbatim apply binds red again. The drive asks this
+// stillEstops reports whether gapID's applied prescription still estops red, by the rule the record's
+// estoppel tombstone rows follow (record.tombstoneArms), folded here from the edits alone: the latest
+// blue edit naming gapID — in `answers` with applied_verbatim, or in `reopened` or `removed_anchors` — is a verbatim
+// application of gapID. A later edit that rewords the sentence the fix placed the gap's token in lists
+// the gap reopened and ends the bar, a verbatim application answering another gap included (L24),
+// whether or not the prescribed words survive in it; a later verbatim apply binds red again. The drive asks this
 // before it expects an estoppel refusal, since blue's ordinary edits of the fixture sentence reword
 // it under the sweep.
 func (r *runner) stillEstops(gapID string) bool {
@@ -1856,16 +2086,16 @@ func (r *runner) stillEstops(gapID string) bool {
 	estops := false
 	for i := range b.Events {
 		ed, isE := recordpb.BodyAs[*recordpb.BlueEdit](b.Events[i])
-		if !isE {
+		// THE BENCH'S APPLICATION places no estoppel and ends none: only the author's change of the
+		// subject ends a tombstone (record.tombstoneArms).
+		if !isE || seatclass.RoleOfSeat(b.Events[i].GetSeatId()) == "bench" {
 			continue
 		}
-		if ed.GetAppliedVerbatim() {
-			if ed.GetAnswers() == gapID {
-				estops = true
-			}
+		if ed.GetAppliedVerbatim() && ed.GetAnswers() == gapID {
+			estops = true
 			continue
 		}
-		if slices.Contains(ed.GetReopened(), gapID) {
+		if slices.Contains(ed.GetReopened(), gapID) || slices.Contains(ed.GetRemovedAnchors(), gapID) {
 			estops = false
 		}
 	}
@@ -1884,7 +2114,7 @@ func (r *runner) noteApplyMiss(why string) {
 // rulerFilingRefused files a motion as the seat that rules its subject, and holds the tool to
 // refusing it for that reason (record's rulerfiles.go, through the surface's refusal).
 func (r *runner) rulerFilingRefused(seatID string, args ...string) {
-	out, err := r.exec(append([]string{args[0], args[1], args[2], "--seat-id", seatID}, args[3:]...)...)
+	out, err := r.exec(append(args, "--seat-id", seatID)...)
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	what := seatID + "'s `" + strings.Join(args[:3], " ") + "`"
@@ -1941,86 +2171,6 @@ func (r *runner) repeatRefused(seatID string, args ...string) {
 	default:
 		r.repeatsRefused++
 	}
-}
-
-// THE SECOND DISPUTE DRIVER IS GONE. `raiseDisputes` sat here, fully written and NEVER CALLED —
-// the live driver is in blueRespondTo's dirDisputeWon/dirDisputeLost arm. Migrating it to the
-// motion verbs would have produced a second correct-looking copy of a path nothing runs, and the
-// command tally would have gone on reporting the verb as driven either way.
-//
-// answerDisputes is red's Stage-2 answer to blue's pending disputes: EMIT a dispute-respond event
-// (rationale on the record) and return the ROUTING REF ({gap_id, dimension, response}) for the
-// envelope's dispute_responses. Clears the pending set. A random accept/reject exercises both the
-// accepted-delta and rejected-held docket branches.
-func (r *runner) answerDisputes(seatID string) []map[string]any {
-	var refs []map[string]any
-	// FROM THE RECORD, NOT FROM MEMORY. r.raised held the disputes blue filed in its last sitting
-	// and was cleared whether or not the ruling landed, so a refused ruling — or a motion filed
-	// in a sitting this chair never saw — stood unruled forever, and PASS was refused on it at
-	// the exit ("4 motion(s) filed and never ruled"). The chair's prompt says the same: rule the
-	// grade motions blue filed, read from the motions projection, never counted by hand.
-	pending := r.raised
-	// THE GROUP IS ASKED, NOT SPELLED. `motions` moved to `inquest`, and a literal "show" here read
-	// the projection through a group that no longer holds it. This is the CHAIR's act (see the call
-	// site) and the chair carries inquest, so no membership check is needed.
-	//
-	// THE err == nil GUARD STAYS, and what makes it safe is elsewhere: the per-role sweep drives
-	// `inquest motions` for the chair STRICTLY, so a broken read fails the run there rather than
-	// falling back to `r.raised` unseen. Tolerance here with no strict driver anywhere would be how
-	// the from-memory defect above came back.
-	if out, err := r.exec(seat.GroupOf("motions"), "motions", "--seat-id", seatID); err == nil {
-		var page struct {
-			Motions []struct {
-				ID      string            `json:"id"`
-				Subject string            `json:"subject"`
-				Ruled   bool              `json:"ruled"`
-				GapID   string            `json:"gap_id"`
-				Fields  map[string]string `json:"fields"`
-			} `json:"motions"`
-		}
-		if json.Unmarshal([]byte(out), &page) == nil {
-			pending = nil
-			for _, m := range page.Motions {
-				if m.Subject == "grade" && !m.Ruled {
-					pending = append(pending, map[string]any{"motion_id": m.ID, "gap_id": m.GapID, "dimension": m.Fields["dimension"]})
-				}
-			}
-		}
-	}
-	for _, d := range pending {
-		id, _ := d["gap_id"].(string)
-		dim, _ := d["dimension"].(string)
-		// THE ANSWER FOLLOWS THE SCENARIO, not a coin. The gap was minted WON or LOST, and
-		// both branches must run: an accepted regrade moves the board's mass (the
-		// accepted-delta path), a rejected one is held a round and then dockets. Coining it
-		// meant red's answer bore no relation to the dispute it was answering.
-		resp := "rejected"
-		if r.scenarioOf(id) == dirDisputeWon {
-			resp = "accepted"
-		}
-		mid, _ := d["motion_id"].(string)
-		if mid == "" {
-			continue
-		}
-		// THE RULER FILES NO MOTION ON ITS OWN SUBJECT: the chair reaching for a grade motion on a
-		// gap whose motion it is about to rule is refused, and the motion it rules is blue's.
-		if r.coin(25) {
-			r.rulerFilingRefused(seatID, "motion", "grade", "file", "--id", id, "--dimension", pick(r.rng, disputeDims),
-				"--proposed", "high", "--reason", "fuzz: the chair contesting a grade it rules on")
-		}
-		if _, err := r.exec("motion", "grade", "rule", "--seat-id", seatID, "--id", mid,
-			"--as", resp, "--reason", "respond-rationale-for-"+id+"-by-"+seatID); err != nil {
-			// KEPT, because the exit tally names a PASS refused over an unruled motion and could
-			// not say why the ruling never landed.
-			r.mu.Lock()
-			r.lastRuleRefusal = firstLine(strings.TrimSpace(strings.SplitN(err.Error(), "\n", 2)[len(strings.SplitN(err.Error(), "\n", 2))-1]))
-			r.mu.Unlock()
-			continue
-		}
-		refs = append(refs, map[string]any{"gap_id": id, "dimension": dim, "response": resp})
-	}
-	r.raised = nil
-	return refs
 }
 
 // filedPetition is one petition the fuzz filed: its motion id, its filer, and the chair sitting it
@@ -2198,6 +2348,7 @@ func (r *runner) dispatchNext(seatID string) map[string]any {
 	if err := json.Unmarshal([]byte(out), &plan); err != nil || plan == nil {
 		return debatejs.WithKey(map[string]any{"head": 0, "parties": []any{}, "docket": []any{}, "remand_owed": []any{}, "exchanges": []any{}, "pass_permitted": false, "ceiling": false, "why": []any{"dispatch output unreadable"}, "max_epochs": 0, "epoch": 0, "final_sitting": false, "epoch_limit_reached": false, "stale_areas": []any{}, "blockers": []any{}})
 	}
+	r.staleAreasAgree(plan)
 	// RELAYED EXACTLY AS PRINTED. The verb emits every array as an array, never null, and the
 	// engine refuses a plan missing one — so a patch here would hide the defect the relay check
 	// exists to catch.
@@ -2262,14 +2413,57 @@ func (r *runner) engaged(seatID string) []string {
 	return out
 }
 
+// chairHoldsDelivery is whether seatID's current sitting holds a delivery of report text
+// (record.DeliveryThisSitting); a record that does not read is noted, and reads as none.
+func (r *runner) chairHoldsDelivery(seatID string) bool {
+	db, err := recordsql.Open(filepath.Join(r.run().Records(), "record.db"))
+	if err != nil {
+		r.noteActErr("the record does not open to ask " + seatID + "'s delivery: " + err.Error())
+		return false
+	}
+	_, held, err := record.DeliveryThisSitting(db, seatID)
+	if err != nil {
+		r.noteActErr("whether " + seatID + "'s sitting holds a delivery does not read: " + err.Error())
+		return false
+	}
+	return held
+}
+
+// staleAreasAgree holds a plan's stale_areas to its own blockers: each stale_area blocker names an
+// area the list carries, and each area the list carries is a stale_area blocker. The chair's spot-check
+// is driven off the list and its standing reads the blockers, so a plan that disagrees with itself
+// sends the chair into a sitting whose owed changes it never reads.
+func (r *runner) staleAreasAgree(plan map[string]any) {
+	listed := map[string]bool{}
+	for _, a := range r.staleAreasOf(plan) {
+		listed[a] = true
+	}
+	blocked := map[string]bool{}
+	bs, _ := plan["blockers"].([]any)
+	for _, b := range bs {
+		m, _ := b.(map[string]any)
+		if m["kind"] == string(record.BlockerStaleArea) {
+			if s, _ := m["subject"].(string); s != "" {
+				blocked[s] = true
+			}
+		}
+	}
+	if !maps.Equal(listed, blocked) {
+		r.noteActErr(fmt.Sprintf("the plan's stale_areas %v disagree with its stale_area blockers %v", slices.Sorted(maps.Keys(listed)), slices.Sorted(maps.Keys(blocked))))
+	}
+}
+
 // staleAreas is the current plan's stale areas — each retired lens whose pin the head moved
 // past, by seat — which the chair's spot-check names before a PASS.
-func (r *runner) staleAreas() []string {
+func (r *runner) staleAreas() []string { return r.staleAreasOf(r.planThisSitting) }
+
+// staleAreasOf is plan's stale areas, by seat.
+func (r *runner) staleAreasOf(plan map[string]any) []string {
 	var out []string
-	if r.planThisSitting == nil {
+	if plan == nil {
 		return out
 	}
-	areas, _ := r.planThisSitting["stale_areas"].([]any)
+	areas, _ := plan["stale_areas"].([]any)
 	for _, a := range areas {
 		m, _ := a.(map[string]any)
 		if sid, ok := m["seat_id"].(string); ok {
@@ -2283,7 +2477,7 @@ func (r *runner) staleAreas() []string {
 // terminal bench sitting fires on — and the verdict it recorded this sitting, if any. Gaps,
 // closures, dispute responses and petitions are the record's.
 func (r *runner) chairEnvelope(seatID string, passed bool, printed string, responses []map[string]any) map[string]any {
-	_ = responses // grade motions are ruled on the record; the envelope no longer restates them
+	_ = responses // every ruling is on the record; the envelope restates none
 	r.mu.Lock()
 	filed := len(r.petitionsFiled)
 	r.mu.Unlock()
@@ -2505,7 +2699,7 @@ func (r *runner) sit(role, seatID string, occasion ...string) {
 	// from retiring — needs all three.
 	case r.forceOwedComputation && seatID == computationOwner:
 		r.admit(registerArgs(seatID, occ)...)
-	case r.openUnderAgent || r.forceBlueFails && seatID == "blue-respond" || r.coin(25):
+	case r.openUnderAgent || r.blueFails() && seatID == "blue-respond" || r.coin(25):
 		agent = r.registerTwice(seatID, occ)
 	case strings.HasPrefix(seatID, "red-lens-") && r.coin(33):
 		agent = r.lookThenRegister(seatID)
@@ -2592,7 +2786,7 @@ func (r *runner) unreturnedDispatches() string {
 func (r *runner) endsWithoutEnvelope(seatID string) bool {
 	r.mu.Lock()
 	agent := r.sittingAgent[seatID]
-	forced := agent != "" && r.forceBlueFails && seatID == "blue-respond"
+	forced := agent != "" && r.blueFails() && seatID == "blue-respond"
 	arranged := agent != "" && r.endWithoutEnvelope > 0
 	if arranged {
 		r.endWithoutEnvelope--
@@ -2991,8 +3185,8 @@ func (r *runner) noteMint(seatID, gapID string) {
 
 // UNDERSCORES, because that is what the grade enum spells. This was `low-medium` and
 // `medium-high`: two of five values refused at every site that generates a grade, which is
-// `--proposed` on a grade dispute and both axes of a regrade. Measured — `merge regrade=8(7
-// refused)`, `motion grade file=7(2 refused)`, and a scenario oracle three layers away reporting
+// every axis of a regrade and of a proposed one. Measured — `merge regrade=8(7
+// refused)`, and a scenario oracle three layers away reporting
 // `G1 has no dispute event` for a contest whose drive was fine.
 
 var grades = []string{"low", "low_medium", "medium", "medium_high", "high"}
@@ -3004,8 +3198,8 @@ func (r *runner) g() string { return grades[r.rng.Intn(len(grades))] }
 // TestTheMaterialGradesAreTheRecordsMaterialGrades holds this list to the record.
 var materialGrades = grades[slices.Index(grades, "medium"):]
 
-// A FORCED-UNVERIFIED RUN'S GAPS HOLD THE PASS BY CONSTRUCTION. Its exit is blue's grade motions on
-// gaps it disputes, which the chair leaves unruled, and blue is engaged only on a material gap: a run
+// A FORCED-UNVERIFIED RUN'S GAPS HOLD THE PASS BY CONSTRUCTION. Its exit is blue's proposed regrades on
+// gaps it disputes, which their assignee leaves for the bench, and blue is engaged only on a material gap: a run
 // whose gaps all drew a grade below material permitted a PASS at its third epoch and ended VERIFIED.
 // So every severity a drive types in that run — at a mint, and at any regrade — is a material one,
 // and every other run draws exactly as before.
@@ -3149,7 +3343,7 @@ func nextBridgeKind() string {
 var verifyConfidence = []string{"high", "medium", "low"}
 
 // someCitation returns a citation anchor on the record, or "" if blue has cited nothing yet —
-// a REAL tool-assigned citation id, the same discipline someFinding uses. `lens verify --anchor`
+// a REAL tool-assigned citation id. `lens verify --anchor`
 // refuses an id that names no citation, so a fabricated one would drive only the reject path.
 func (r *runner) someCitation() string {
 	// A SEAT ID, because `show` only exists inside a seat's tree. Any seat reads the same
@@ -3420,7 +3614,7 @@ func (r *runner) computeOwed(seatID string) {
 		r.mu.Unlock()
 		if dir, argv, err := r.writeBundle(fmt.Sprintf("fuzz-owed-computation-%d.js", n), fmt.Sprintf("console.log('fuzz: owed computation %d');", n)); err == nil {
 			if _, err := r.execCall("", true, append([]string{"compute", "--seat-id", seatID, "--quote", "§ fuzz sentence", "--dir", dir,
-				"--reason", "fuzz: a computation its owner has not yet checked", "--"}, argv...)...); err != nil {
+				"--reason", "fuzz: a computation its owner has not yet checked", "--"}, argv...)...); err != nil && !heldUntilItsRuling([]string{"compute", "--seat-id", seatID}, err.Error()) {
 				r.noteActErr("refused, and the drive expects it admitted: " + err.Error())
 			}
 		}
@@ -3587,10 +3781,11 @@ func (r *runner) cutEvidencedClaim(seatID string) {
 		r.do("edit", seatID).set("--quote", claim+run+".").set("--new", "Whether the forced claim holds."),
 		r.do("edit", seatID).set("--quote", claim+run+".").set("--new", run),
 	} {
+		dropped := drop.args[slices.Index(drop.args, "--new")+1]
+		prior := r.editsRecorded(seatID, dropped)
 		out, err := drop.set("--reason", "fuzz: the claim is reworded").result()
-		after, _ := record.RenderRun(r.run())
 		switch {
-		case err == nil || after != before:
+		case err == nil || r.editsRecorded(seatID, dropped) > prior:
 			fail(seatID + " dropped computation " + k + "'s anchor from its sentence, or left it on no words, and the edit was recorded: " + firstLine(out))
 		case !strings.Contains(out, k):
 			fail(seatID + "'s rewrite dropping computation " + k + " was refused without naming it: " + firstLine(out))
@@ -3774,6 +3969,9 @@ func (r *runner) citedCut(seatID string, applied bool) {
 			r.noteActErr("blue's computation on " + other + " applying " + cite + " was refused")
 			return
 		}
+		r.mu.Lock()
+		r.drawnAppliedCuts++
+		r.mu.Unlock()
 	}
 	// A LENS'S MARKER MAY LAND ON THE SENTENCE MEANWHILE (seats sit concurrently), and the cut takes it
 	// too: the drive asks only that the citation left with its sentence.
@@ -3863,6 +4061,21 @@ func (r *runner) mintBaringCitation(seatID string) {
 			r.mintBaringKind(seatID, kind)
 		}
 	}
+}
+
+// editsRecorded is how many edits of seatID the record holds that write newText.
+func (r *runner) editsRecorded(seatID, newText string) int {
+	b, ok := r.board()
+	if !ok {
+		return 0
+	}
+	n := 0
+	for _, e := range b.Events {
+		if ed, isE := recordpb.BodyAs[*recordpb.BlueEdit](e); isE && e.GetSeatId() == seatID && ed.GetNew() == newText {
+			n++
+		}
+	}
+	return n
 }
 
 // mintBareAnchor is the anchor of kind standing at the end of its mintBareClaim sentence, or "".
@@ -4090,6 +4303,11 @@ func (r *runner) answerFailed(seatID string) {
 		open[g] = true
 	}
 	for _, b := range bs {
+		// THE LIMIT SEED'S ANCHORS ARE JUDGED ONCE AND LEFT (limitArmAnchor): a drawn re-judgement of its
+		// unsound computation `sound` ended seed 7's run on no unsound computation for the screen to fail.
+		if r.limitArmAnchor(b.Subject) {
+			continue
+		}
 		if b.Kind == record.BlockerFailedCheck && b.CheckState() == record.CheckUnread && b.Owner == seatID && b.AnsweredBy() != "" && open[b.AnsweredBy()] &&
 			r.coin(50) && r.firstThisSitting(seatID, b.Subject) {
 			// A READING THAT READS NOTHING AGAIN, while the gap carrying the first is open, is refused.
@@ -4388,8 +4606,8 @@ func owesAComputation(clause string, computations map[string]bool) bool {
 // (record.BlockerKinds): a new kind is named without a row here.
 func owedKinds(clause string) map[string]bool {
 	words := []struct{ word, kind string }{
-		{"blue's answer to ", "blue's answer"}, {"the accepted grade motion on ", "grade motion"},
-		{"the bench's remand of ", "remand"}, {"'s finding ", "finding"},
+		{"blue's answer to ", "blue's answer"},
+		{"the bench's remand of ", "remand"},
 	}
 	out := map[string]bool{}
 	for _, item := range strings.Split(clause, ", ") {
@@ -4559,8 +4777,8 @@ func (r *runner) anchorOffersAgree(run record.Run) (msg string, computations, ci
 
 // mint records a gap as LENS seatID and returns the tool-assigned id. The first mint of a
 // run introduces the class; the rest reuse it. seatID is the lens that is sitting: the chair
-// has no mint verb (roundless §III.B.3), and the record remembers the minter as the one seat that
-// may later close or regrade the gap, which is why every landed mint is noted on r.minter.
+// has no mint verb (roundless §III.B.3), and the record remembers the minter — the gap's assignee where it succeeds
+// no other lens's gap — as the one seat that may later close or regrade it, which is why every landed mint is noted on r.minter.
 func (r *runner) mint(seatID string) string { return r.mintWith(seatID, "") }
 
 // mintWith mints as mint does, under the gap class class where it is set and the drawn class where
@@ -4581,14 +4799,8 @@ func (r *runner) mintWith(seatID, class string) string {
 	// COMMAND CHAINS, not minds — the seat boundary is only where the JS happens to cut. And
 	// because the outcome is chosen rather than emergent, it is ASSERTABLE.
 	directive := directives[r.rng.Intn(len(directives))]
-	// A FORCED-UNVERIFIED RUN MINTS ONLY CONTESTED GAPS, and this is the condition the first
-	// three attempts at this test each missed in turn. debate.js sits the bench only when the
-	// docket is contested (`if (contested.length > 0)`), and the bench is what declares the
-	// deadlock that makes the exit UNVERIFIED rather than CEILING. Left to the draw, a run whose
-	// gaps all happened to be repairable never contested anything, the judge never sat, and the
-	// run reached the round ceiling — which is a different verdict and a passing sweep saying so.
-	// DISPUTE-LOST specifically: blue contests and red REJECTS, so the docket is contested AND
-	// the gap stays open, which are the two things the deadlock arm reads.
+	// A FORCED-UNVERIFIED RUN MINTS ONLY CONTESTED GAPS: each stays open whatever blue would do, so
+	// nothing but blue's failed sittings (blueFails) ends the run, and no PASS lands before them.
 	if r.forceUnverified {
 		directive = dirDisputeLost
 	}
@@ -4626,8 +4838,7 @@ func (r *runner) mintWith(seatID, class string) string {
 		// handle; --reason is the prose channel. Four fields on the most consequential verb in
 		// the tool, none of them ever exercised by a run.
 		// A QUOTE FROM THE SEEDED REPORT, not a composed label. Since 0.63.0 a mint's --location
-		// is matched against blue/report.md — the same rule `lens finding` has always been held
-		// to — so `"§ fuzz — " + directive[:12]` is refused. The sweep went to ZERO gaps the
+		// is matched against blue/report.md — the rule every quote is held to — so `"§ fuzz — " + directive[:12]` is refused. The sweep went to ZERO gaps the
 		// moment the check landed, and every gap-dependent verb (close, regrade, opinion,
 		// closing, reproduce) followed it to zero. The coverage gate caught that;
 		// the mint refusal alone would have looked like a quieter run.
@@ -4724,26 +4935,6 @@ func (r *runner) mintWith(seatID, class string) string {
 	if r.coin(50) {
 		args = append(args, "--complexity", r.g())
 	}
-	if fl := r.someFinding(); fl != "" && r.coin(50) {
-		args = append(args, "--found-by", fl) // the lens finding that surfaced it (real TOOL-assigned id)
-	}
-	// LINEAGE: this gap replaces an ancestor, which its mint closes (ruled by gblock 2026-11-04). Only
-	// a gap's minter supersedes it while it is open, and not while a docket motion stands on it: the
-	// ancestor is drawn from the seat's own open gaps no docket holds, and none a close of the seat's
-	// is being driven on (closingNow), whose close the supersession would refuse.
-	//
-	// A GAP THAT AWAITS A LIVE ANSWER PASSES ITS DEMAND TO ITS SUCCESSOR (ruled by gblock 2026-11-05): it
-	// is drawn only where this mint carries its check kind, and a successor at another is driven to its
-	// refusal.
-	ancestor := ""
-	open, owing, carries := r.supersedable(seatID, kind)
-	if len(owing) > 0 && r.coin(20) {
-		r.refuseDroppedDemand(seatID, owing[r.rng.Intn(len(owing))], kind)
-	}
-	if len(open) > 0 && r.coin(30) {
-		ancestor = open[r.rng.Intn(len(open))]
-		args = append(args, "--supersedes", ancestor)
-	}
 	// #267 stage 3: a CONCRETE proposed fix, which the tool validates against the live report
 	// and which DERIVES fix_basis: verified. It swaps the seeded edit-target sentence, exactly
 	// as blue's own edit drive does, so a legal pair exists whichever way the last edit left
@@ -4772,8 +4963,6 @@ func (r *runner) mintWith(seatID, class string) string {
 	if (r.forceUnverified || r.forceVerified || r.forceEstoppel) && !unclassified && class == "" {
 		r.freeClass(args)
 	}
-	// A SUCCESSOR CARRIES THE BENCH'S GRADE on every axis the bench set on its ancestor.
-	args = r.keepingBenchGrades(args)
 	if keyed {
 		args = append(args, "--key", contentKey("K", args))
 	}
@@ -4826,8 +5015,6 @@ func (r *runner) mintWith(seatID, class string) string {
 	if env.Result.GapID != "" {
 		landed = true
 		r.noteMint(seatID, env.Result.GapID)
-		r.inheritBenchGrades(env.Result.GapID, ancestor)
-		r.supersessionClosed(ancestor, env.Result.GapID, carries[ancestor])
 		r.checkOneGap(env.Result.GapID, args)
 		if unclassified {
 			r.mu.Lock()
@@ -4979,8 +5166,9 @@ func (r *runner) sameClassAndSubject(class string, args []string) (open, all []r
 }
 
 // oneGapAnswered is a lens's answer to the one-gap refusal of the mint args stated: the refusal must
-// name a gap of the mint's class on its subject, and the lens files its point as a finding about that
-// gap. A refusal naming no such gap fails the run.
+// name a gap of the mint's class on its subject, and state the refused seat's road from it — its own
+// gap's, or another seat's (oneGapRoad). A refusal naming no such gap, or stating neither road, fails
+// the run.
 func (r *runner) oneGapAnswered(seatID, out string, args []string) {
 	_, all := r.sameClassAndSubject(argOf(args, "--class"), args)
 	held := ""
@@ -4993,20 +5181,62 @@ func (r *runner) oneGapAnswered(seatID, out string, args []string) {
 		r.noteActErr("a mint was refused as a second gap of its class on its subject, naming no gap of that class on that subject on the board: " + firstLine(out))
 		return
 	}
-	r.mu.Lock()
-	r.oneGapRefused++
-	r.mu.Unlock()
-	// A gap another lens minted after this lens sat is a change since its read point, so the finding
-	// may meet the stale refusal first and is recorded again, as a seat does. The first-wave lenses
-	// file their findings about one gap concurrently, and each is a change since every sibling's read
-	// point, so a lens may meet a refusal for each of them (admitFresh).
-	if _, ok := r.admitFresh(held, "finding", "--seat-id", seatID, "--about-kind", "gap", "--about", held,
-		"--severity", r.severityGrade(), "--likelihood", r.g(), "--impact", r.g(), "--reason", "fuzz: the same defect, seen from this lens"); !ok {
+	road, findingRoad := oneGapRoad(out)
+	if road == "" {
+		r.noteActErr("a one-gap refusal stated neither the own-gap road nor another seat's: " + firstLine(out))
 		return
 	}
 	r.mu.Lock()
-	r.oneGapFindings++
+	r.oneGapRefused++
+	if r.oneGapRedirects == nil {
+		r.oneGapRedirects = map[string]int{}
+	}
+	r.oneGapRedirects[road]++
+	if findingRoad {
+		r.oneGapNamingFinding++
+	}
 	r.mu.Unlock()
+}
+
+// oneGapRoad is the road a one-gap refusal states (plans/findings-fold.md §III.A2): "own" where the
+// refused seat holds the gap, "another" where another seat does, "" for neither; and whether the road
+// names a finding. The gap's problem and its subject's
+// sentence are quoted in the refusal and are the seat's words, never its road, so quoted text is not
+// read for the second answer.
+func oneGapRoad(out string) (road string, namesFinding bool) {
+	env, ok := refusalEnvelopeIn(out)
+	if !ok {
+		return "", false
+	}
+	switch {
+	case strings.Contains(env.Error, " is yours and is open on "):
+		road = "own"
+	case strings.Contains(env.Error, ", raised by "):
+		road = "another"
+	}
+	unquoted := outsideQuotes(env.Error)
+	namesFinding = strings.Contains(unquoted, "finding")
+	return road, namesFinding
+}
+
+// outsideQuotes is s with every double-quoted span removed, a backslash escaping the character after
+// it inside one, as Go's %q writes a quoted string.
+func outsideQuotes(s string) string {
+	var b strings.Builder
+	in, esc := false, false
+	for _, c := range s {
+		switch {
+		case in && esc:
+			esc = false
+		case in && c == '\\':
+			esc = true
+		case c == '"':
+			in = !in
+		case !in:
+			b.WriteRune(c)
+		}
+	}
+	return b.String()
 }
 
 // freeClass replaces the --class args state, where an open gap of that class stands on the mint's
@@ -5031,13 +5261,12 @@ func (r *runner) freeClass(args []string) {
 }
 
 // checkOneGap fails the run where gapID landed while an earlier gap of its class stands open on its
-// subject — a gap still open now was open at the write, since a closed gap does not reopen — unless
-// the mint names it in --supersedes.
+// subject — a gap still open now was open at the write, since a closed gap does not reopen.
 func (r *runner) checkOneGap(gapID string, args []string) {
 	open, _ := r.sameClassAndSubject(argOf(args, "--class"), args)
 	order := r.mintOrder()
 	for _, g := range open {
-		if g.ID != gapID && order[g.ID] < order[gapID] && !strings.Contains(argOf(args, "--supersedes"), g.ID) {
+		if g.ID != gapID && order[g.ID] < order[gapID] {
 			r.noteActErr(fmt.Sprintf("mint admitted %s while %s, of its class %s, stood open on its subject", gapID, g.ID, g.Class))
 			return
 		}
@@ -5061,16 +5290,17 @@ func (r *runner) mintOrder() map[string]int {
 
 // mintOverOpen is the first wave's race, driven: as lens seatID, a mint of the class of an open gap,
 // on its subject — its marked sentence or its inquiry — drawn from other lenses' gaps where the board
-// holds any. The record refuses it naming that gap, and the lens files its point as a finding about it
-// (oneGapAnswered). An admission fails the run unless the gap has closed since the board was read.
+// holds any, and from the lens's own on a coin. The record refuses it naming that gap and the road
+// from it (oneGapAnswered): the lens's own gap is regraded, another lens's is already
+// on the board or disputed by a proposed act. An admission fails the run unless the gap has closed
+// since the board was read.
 func (r *runner) mintOverOpen(seatID string) {
 	bj, err := record.BoardJSONOfRun(r.runHandle)
 	if err != nil {
 		return
 	}
-	// DRAWN, NOT THE FIRST: every first-wave lens taking the board's first gap piles its finding on
-	// one gap, each a change since the others' read points, and a lens then meets the stale refusal
-	// more times than a seat records an act again.
+	// DRAWN, NOT THE FIRST: every first-wave lens taking the board's first gap would mint over one
+	// gap, and the refusals would hold one gap's road only.
 	var others, own []*record.GapJSON
 	for i := range bj.Open {
 		g := &bj.Open[i]
@@ -5082,14 +5312,17 @@ func (r *runner) mintOverOpen(seatID string) {
 			others = append(others, g)
 		}
 	}
-	if len(others) == 0 {
-		others = own
+	// THE LENS'S OWN GAP ON A COIN, so the own-gap road is driven as well as another seat's: drawn
+	// only where the board holds another's, the own road is reached on a first wave of one.
+	pool := others
+	if len(own) > 0 && (len(others) == 0 || r.coin(30)) {
+		pool = own
 	}
-	if len(others) == 0 {
+	if len(pool) == 0 {
 		return
 	}
-	pick := others[r.rng.Intn(len(others))]
-	args := []string{"--json", "mint", "--seat-id", seatID, "--class", pick.Class, "--problem", "fuzz: the defect another lens holds",
+	pick := pool[r.rng.Intn(len(pool))]
+	args := []string{"--json", "mint", "--seat-id", seatID, "--class", pick.Class, "--problem", "fuzz: the defect an open gap holds",
 		"--check-kind", "document", "--check", "acc", "--fix", dirApply, "--severity", r.severityGrade(), "--likelihood", r.g(), "--impact", r.g(),
 		"--reason", "fuzz: minted over an open gap of its class"}
 	if pick.AboutKind == "inquiry" {
@@ -5125,18 +5358,18 @@ func (r *runner) mintOverOpen(seatID string) {
 	}
 }
 
-// mintEstopped mints, as LENS seatID, a gap whose --quote is text blue applied VERBATIM from red's
-// own --fix-new, with no --supersedes naming the gap that prescribed it. That is exactly the shape
+// mintEstopped mints, as LENS seatID, a gap whose --quote is text blue applied VERBATIM from seatID's
+// own --fix-new. That is exactly the shape
 // lens/mint.go refuses, and the refusal is what writes the tool's `log --type estoppel` entry. The
-// guard keys on the TEXT, not the seat (record.EstoppelConflict), so any lens's mint against the
-// prescription is refused, not only the prescribing lens's.
+// guard binds only the prescribing lens (record.EstoppelConflict, X11), so the drive probes with the
+// lens whose prescription blue applied.
 //
 // IT EXPECTS TO FAIL, and the failure is the drive. `exec` records the refusal through noteExec
 // either way, so a run where the guard STOPPED firing shows up as estoppels=0 with the applies
 // still counted — the two numbers together say whether the guard is quiet or gone. A drive that
 // merely called `log --type estoppel` would have satisfied the gate while proving neither.
 func (r *runner) mintEstopped(seatID string) {
-	gapID, fixNew, miss := r.aVerbatimGap()
+	gapID, fixNew, miss := r.aVerbatimGap(seatID)
 	if gapID == "" {
 		// The precondition genuinely does not hold: nothing has been applied verbatim YET, blue
 		// has since reworded every applied sentence, which ends the estoppel (F12), or every
@@ -5153,8 +5386,8 @@ func (r *runner) mintEstopped(seatID string) {
 	// minEstoppelOverlap is 40, and the prescription this fuzz swaps ("climbing sharply") is 16,
 	// so a mint quoting the prescription ALONE leaves both sides short and the guard declines by
 	// design — a short span can legitimately occur in text red never wrote. Quoting the sentence
-	// that CONTAINS it puts one side over the threshold, which is the real shape: red raising a
-	// finding against a passage whose substance is its own prescription.
+	// that CONTAINS it puts one side over the threshold, which is the real shape: red minting a
+	// gap against a passage whose substance is its own prescription.
 	//
 	// This is why the seeded report sentence is longer than it needs to be for the swap. At its
 	// old length ("The cost is rising over time.", 29 chars) NO span of the fixture reached 40,
@@ -5236,41 +5469,23 @@ func (r *runner) noteReadingMintLandedPlain(seatID, out string) string {
 	return id
 }
 
-// someFinding returns the id of a random lens finding on the record, or "" if none — feeds mint's
-// --found-by with a real TOOL-assigned id rather than a fabricated one.
-func (r *runner) someFinding() string {
-	// THE FINDING FAMILY, NOT THE WHOLE FOLD. `show findings` is FindingsJSONBytes now —
-	// EventsOf(run, FINDING) into FindingsJSONOf — so this reproduces the CLI's own path rather
-	// than the board it used to ask for (#719). Byte-identity is the property that keeps this
-	// safe against the RNG, and it is identity with what the VERB does, not with what it did.
-	evs, win, err := record.EventsOf(r.runHandle, recordpb.EventType_EVENT_TYPE_FINDING)
-	if err != nil {
-		return ""
-	}
-	findings := record.FindingsJSONOf(evs, win).Findings
-	if len(findings) == 0 {
-		return ""
-	}
-	return findings[r.rng.Intn(len(findings))].ID
-}
-
 // board reads the record IN PROCESS, through the same builders the binary renders from.
 //
 // THE HARNESS ASKING ITSELF A QUESTION IS NOT THE HARNESS TESTING THE BINARY, and conflating the
-// two is what made this sweep expensive. `openGaps`, `someCitation` and `someFinding` exist so the
+// two is what made this sweep expensive. `openGaps` and `someCitation` exist so the
 // FUZZ can decide what to do next — which gap to act on, which citation to name — and each shelled
-// `feov-record` to find out. Measured at 4 runs: `chair show board` 127 invocations, `lens show
-// evidence` 45, `chair show findings` 19, out of 1039 total. That is ~48 subprocesses per run, at
-// ~12ms each, buying nothing the sweep asserts.
+// `feov-record` to find out. Measured at 4 runs: `chair show board` 127 invocations and `lens show
+// evidence` 45, out of 1039 total. That is ~43 subprocesses per run, at ~12ms each, buying nothing
+// the sweep asserts.
 //
 // The COVERAGE those verbs owe is unaffected and is not weakened here: the projection sweep in
 // runOne drives every view on every role explicitly, which is what the surface gate reads (it goes
 // through `drive` now — the first invocation of each path per sweep spawns the binary, the rest
-// dispatch the same tree in process). These three call sites were never what proved `show board`
+// dispatch the same tree in process). These call sites were never what proved `show board`
 // works — they were the harness reading its own board through a subprocess.
 //
-// BYTE-IDENTICAL BY CONSTRUCTION, which is why this is safe against the RNG. record.FamilyOf,
-// EvidenceJSONOf and FindingsJSONOf are the exact functions the CLI marshals, so the lists below
+// BYTE-IDENTICAL BY CONSTRUCTION, which is why this is safe against the RNG. record.FamilyOf
+// and EvidenceJSONOf are the exact functions the CLI marshals, so the lists below
 // hold the same elements in the same order the parsed stdout did — and these feed rng.Intn, where
 // a reordering would silently move every downstream draw.
 func (r *runner) board() (record.Family, bool) {
@@ -5290,22 +5505,22 @@ func (r *runner) openGaps() []string {
 	return ids
 }
 
-// closeGap closes gap id from the sitting lens. The close itself, the regression close and the
-// amends_prior close are issued as the gap's ORIGINATOR — the lens whose mint created it — because
-// the record refuses a close from anyone else (roundless §III.B.3, requireOriginator); the chair
-// dispatching that lens is what this driver models by looking the minter up. A successor minted
-// here is the closer's own. The chair's `carry` lives in carryPrior.
-func (r *runner) closeGap(chairID, id string, allowReg bool) {
+// closeGap closes gap id from the sitting lens. The close is issued as the gap's ORIGINATOR — the
+// lens whose mint created it — because the record refuses a close from anyone else (roundless
+// §III.B.3, requireOriginator); the chair dispatching that lens is what this driver models by looking
+// the minter up. The chair's `carry` lives in carryPrior.
+func (r *runner) closeGap(chairID, id string) {
 	_ = chairID // the sitting seat; the closer is the minter, looked up below
 	if !r.openOnRecord(id) {
 		return
 	}
 	r.heldByCheck.remove(id)
 	closer := r.minterOf(id)
-	// A DOCKETED GAP IS THE BENCH'S UNTIL IT RULES: a drive that reaches for its close is refused, and
-	// the gap stays open for the ruling to dispose of.
-	if len(r.unruledDocketMotions(id)) > 0 {
-		r.closeDocketedRefused(closer, id)
+	// A GAP BEFORE THE BENCH: under a docketing the raiser's close is its concession, on the concession
+	// rotation, and otherwise the gap stays open for the ruling; under the author's proposal undocketed
+	// the close is refused naming it (closeBeforeTheBench).
+	if r.beforeTheBench(id) {
+		r.closeBeforeTheBench(closer, id)
 		return
 	}
 	// A `SOURCE` OR `COMPUTATION` CHECK IS SATISFIED BEFORE IT IS CLOSED, deterministically.
@@ -5333,9 +5548,11 @@ func (r *runner) closeGap(chairID, id string, allowReg bool) {
 		// second contract on the same verb and nothing had ever driven it; the flag gate could
 		// not say so while cli.CommandFlags() came back empty (#654). It deliberately does NOT
 		// pass --answers: a computation that something is absent settles no computation check.
+		// NOT IN AN EPOCH THAT HOLDS BLUE TO ITS CLOSINGS, where the record refuses blue's computation:
+		// the once-per-run arm waits for a sitting that admits it.
 		r.mu.Lock()
-		first := !r.provedExpectedError
-		r.provedExpectedError = true
+		first := !r.provedExpectedError && !closingsOnlyAt(r.planEpoch, r.planLimit, "blue")
+		r.provedExpectedError = r.provedExpectedError || first
 		r.mu.Unlock()
 		if first {
 			// The output carries an environment error the tool recognises: --expect-error on a run
@@ -5352,54 +5569,10 @@ func (r *runner) closeGap(chairID, id string, allowReg bool) {
 			}
 		}
 	}
-	// A regression close carries lineage forward: it mints a successor and closes WITH it
-	// (record.go requires --successor for repaired_with_regression). Only allowed on the first close
-	// pass, so the successors it spawns are plain-closed on a later pass and the loop terminates.
-	if allowReg && r.coin(35) {
-		// THE CLOSER MINTS ITS OWN SUCCESSOR: it is the seat that is sitting. Where it mints none —
-		// its stock is spent, or the mint is refused — the close is forwarded to a gap the board
-		// already holds open, which is what a successor is: a real, still-open gap, and the record
-		// refuses a dead-end forwarding address either way.
-		// A forced run past its first sitting forwards only: a successor is a fresh gap (see findsFresh).
-		// THE SUCCESSOR CARRIES THE REGRESSION, and does not supersede the gap: a mint superseding it
-		// would close it before its repair could be recorded.
-		succ := ""
-		if r.mintsFresh(closer) {
-			r.holdClosing(id, true)
-			succ = r.mint(closer)
-			r.holdClosing(id, false)
-		}
-		if succ == "" {
-			for _, other := range r.openGaps() {
-				if other != id {
-					succ = other
-					break
-				}
-			}
-		}
-		if succ != "" {
-			if _, err := r.exec("close", "--seat-id", closer, "--id", id, "--as", "repaired_with_regression",
-				"--superseded-by", succ, "--reason", "fuzz regression close", "--verified-by", closer, "--verified-with", "fuzz", "--verified-against", "rec"); err == nil {
-				return
-			}
-		}
-	}
 	// THE WHOLE CLOSURE VOCABULARY, not just `closed`. #342 closed the set, so the
 	// enum-coverage sweep now demands every value be reached — and three of them
 	// (not_a_defect, defect_accepted, defect_owed_elsewhere) had never been driven by
 	// anything, on either closing verb, in the tool's life.
-	//
-	// `amends_prior` takes --supersedes: it names a defect found BETWEEN two repairs that each
-	// closed clean earlier, so it needs a prior closure to amend.
-	// 20% ON TOP OF "a prior closure exists" left `close --as amends_prior` never driven across
-	// 60 runs. The precondition is already the rare part.
-	if prior := r.closedGapIDs(); len(prior) > 0 {
-		if _, err := r.exec("close", "--seat-id", closer, "--id", id, "--as", "amends_prior",
-			"--supersedes", prior[r.rng.Intn(len(prior))], "--reason", "fuzz: found between two clean repairs",
-			"--verified-by", closer, "--verified-with", "fuzz", "--verified-against", "rec"); err == nil {
-			return
-		}
-	}
 	// `moot` IS DRIVEN ONCE PER SWEEP, NOT MIXED INTO THE POOL. The vocabulary is shared between
 	// the closing verbs (#342), so a word added for the bench's docket ruling reaches this verb
 	// too, and the enum-coverage gate names it the moment it exists without a drive.
@@ -5469,11 +5642,10 @@ func (r *runner) closeGap(chairID, id string, allowReg bool) {
 }
 
 // openOnRecord reports whether the record reads gap id open NOW — the one place the drive asks before it
-// acts on a gap it chose from a list read earlier (the plan's, a sitting's, its own). A mint superseding
-// an open gap closes it in that act (ruled by gblock 2026-11-04), so a gap the drive chose open can be
-// closed by the time it acts: a later mint of the same sitting, the successor a regression close mints
-// among them, superseded it, and the record refuses every act on it naming the successor. A read that
-// fails is reported and answers false, so nothing is aimed at a gap the drive cannot see.
+// acts on a gap it chose from a list read earlier (the plan's, a sitting's, its own): a gap the drive
+// chose open can be closed by the time it acts — by the bench's ruling, or by its lens's close in an
+// earlier act of the sitting. A read that fails is reported and answers false, so nothing is aimed at
+// a gap the drive cannot see.
 func (r *runner) openOnRecord(id string) bool {
 	fam, err := record.FamilyOf(r.run())
 	if err != nil {
@@ -5616,6 +5788,11 @@ func (r *runner) answerEvidenceDemand(id, name string) bool {
 	if !d.Unmet() {
 		return true
 	}
+	// BLUE PLACES NO ANSWER IN AN EPOCH THAT HOLDS IT TO ITS CLOSINGS (record.requireClosingsOnlySitting):
+	// the demand stands unmet, and the gap stays open for the ruling or the run's end.
+	if r.blueClosingsOnly() {
+		return false
+	}
 	kind := d.AnswerKind
 	// A SEAT REGISTERS BEFORE IT APPENDS (#664): a close driven from the chair's branch in round 1 can
 	// come before blue-respond ever registered. register() is idempotent and waits for the register.
@@ -5685,8 +5862,7 @@ func (r *runner) doneButOpen(id, fix string, open bool) bool {
 // already holds, from an earlier epoch, with --carried-from naming that epoch. It used to run inside
 // closeGap — a lens act — and so ran in the lens's sitting under the chair's seat id; the chair sits
 // first each epoch now, so it is driven from the chair branch, where the seat performing it is the
-// seat that is sitting. The successor a carry may name is an OPEN gap the board already holds: the
-// chair mints nothing, so it forwards to a gap a lens minted.
+// seat that is sitting.
 func (r *runner) carryPrior(seatID string) {
 	// A CARRY restates last round's verification rather than asserting a fresh act, so it is its
 	// own verb and takes --carried-from instead of the verification triple. IT IS THE CHAIR'S —
@@ -5729,11 +5905,6 @@ func (r *runner) carryPrior(seatID string) {
 		if r.coin(50) {
 			carry = append(carry, "--reason", "fuzz: carried from the prior round")
 		}
-		// --superseded-by NAMES A REGRESSION, and only beside --as repaired_with_regression: on a
-		// carry restating a repair it is refused, and the carry without it is admitted.
-		if open := r.openGaps(); len(open) > 0 && r.coin(20) {
-			r.refuse(feov.Validation, append(slices.Clone(carry), "--superseded-by", open[r.rng.Intn(len(open))])...)
-		}
 		r.admit(carry...)
 	}
 }
@@ -5767,7 +5938,7 @@ const (
 // WEIGHTED so a run can still reach PASS. Every fate is now DERIVED from the directive, so a
 // board whose gaps are all IGNORE correctly never closes and the run correctly ends CEILING.
 // Under the sweep's terms (k 1, kMax 2) only APPLY and COUNTER are movement before the lens's
-// closing sitting; a computation, a grade motion or silence is a stalled exchange, the gap is at impasse
+// closing sitting; a computation, a proposed act or silence is a stalled exchange, the gap is at impasse
 // after one, and the bench remands every docket but a lost dispute: the remand's one more exchange —
 // blue and the lens each held to an act on the gap — stalls the same way, the gap is docketed again,
 // and the bench, refused a second remand, rules a disposition that closes it.
@@ -5957,8 +6128,8 @@ func (r *runner) extras(role, seatID string, open []string) {
 		// changes (readDelivery, at sit), and the PASS gate refuses a verdict until a spot-check names
 		// every one: with stale areas on the plan the drive always files it, or every run whose lenses
 		// retired ends UNVERIFIED on the refusal and VERIFIED goes undriven.
-		// With none, the chair is handed no report text, so its sitting holds no delivery: in about
-		// half those sittings the drive files a spot-check anyway and holds the tool to refusing it —
+		// With none at its register, the chair is handed no report text, so its sitting holds no delivery:
+		// in about half those sittings the drive files a spot-check anyway and holds the tool to refusing it —
 		// a chair whose areas have not changed owes no repeat, and one it filed would stand on nothing.
 		//
 		// A spot-check names no closure only when the board holds none.
@@ -5973,7 +6144,21 @@ func (r *runner) extras(role, seatID string, open []string) {
 			} else {
 				sc.set("--reason", "fuzz: the archive was empty at round start")
 			}
-			if len(stale) > 0 {
+			// A SITTING THAT HOLDS A DELIVERY HOLDS ONE WHATEVER THE PLAN SAYS NOW: the chair's register
+			// hands it the changes behind the areas stale then, and the plan's own docketings can leave
+			// none stale by the time it is printed. The spot-check stands on that delivery, so the
+			// refusal is driven only where the sitting holds none.
+			//
+			// THE CHAIR FINISHES ITS DELIVERY FIRST, as a live chair does: its items arrive one after
+			// each of its calls, and an area the plan made stale after the register, or a delivery of
+			// more items than the chair's calls so far have handed, leaves the sitting owed text the
+			// spot-check stands on (seed 21, CI run 46094143286: a spot-check naming an area refused
+			// for no complete delivery).
+			r.mu.Lock()
+			agent := r.sittingAgent[seatID]
+			r.mu.Unlock()
+			r.readDelivery(seatID, agent)
+			if len(stale) > 0 || r.chairHoldsDelivery(seatID) {
 				sc.admit()
 			} else {
 				r.refuseUndelivered(sc.all()...)
@@ -6009,7 +6194,7 @@ func (r *runner) extras(role, seatID string, open []string) {
 		// THE CITATION AXIS (#256), driven end to end through the real binary: `blue cite` fetches
 		// the source through the run cache and splices an INVISIBLE, IMMORTAL <!--cite:c-…--> anchor
 		// at the quoted sentence. --quote must appear VERBATIM in blue/report.md, so it quotes the
-		// seeded "§ fuzz" text the same way lens finding does. A --key from a small space exercises
+		// seeded "§ fuzz" text the same way a lens's mint does. A --key from a small space exercises
 		// the retry short-circuit; a shared URL across seats exercises the cache HIT path (fetch-once),
 		// while the per-seat path exercises the MISS path.
 		r.maybe(55, func() {
@@ -6255,14 +6440,24 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		return map[string]any{}
 
 	case strings.HasPrefix(seatID, "red-chair"):
+		// BLUE'S HALF OF THE SCREEN ARM LANDS BEFORE THE CHAIR'S REGISTER: the register opens epoch 1,
+		// which under limitSeed's limit of 2 is the epoch that holds blue out.
+		r.screenBeforeHeldOut()
 		r.sit("chair", seatID)
 		r.planThisSitting = r.dispatchNext(seatID)
 		plan := r.planThisSitting
+		standing := map[string]bool{}
+		for _, d := range r.standingDocketings("") {
+			standing[d.ID] = true
+		}
+		r.mu.Lock()
+		r.planEpoch, r.planLimit = planEpochs(plan)
+		r.standingAtPlan = standing
+		r.mu.Unlock()
 		r.tallyOwed(plan)
 		r.tallyTrifleRoutes(plan)
 		r.tallyLensTurns(plan)
 		r.tallyReadingReadied(plan)
-		r.screenAtLimit(plan)
 		r.mu.Lock()
 		r.blueSatSincePlan = false
 		r.mu.Unlock()
@@ -6270,17 +6465,10 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// this branch used to perform on the board — evaluating repairs, closing, minting fresh
 		// gaps through a lens it picked — is the LENS's now and lives in the lens branch below,
 		// where the seat that performs it is the seat that is sitting. What is left here is what
-		// only the chair does: rule blue's grade motions, sample the archive, keep the inquiries
+		// only the chair does: sample the archive, keep the inquiries
 		// reviewed, record the verdict the board permits, and argue a PASS it withholds.
 		//
-		// THE FORCED-UNVERIFIED SHAPE leaves blue's grade motions UNRULED. PASS is refused while a
-		// motion stands unruled, and once the bench has disposed of the disputed gap nobody is
-		// ready — so the plan comes back empty with neither pass_permitted nor ceiling, which is
-		// the UNVERIFIED exit. The terminal bench sitting then rules what the chair left.
 		var responses []map[string]any
-		if !r.forceUnverified {
-			responses = r.answerDisputes(seatID)
-		}
 		r.extras("chair", seatID, r.openGaps())
 		r.carryPrior(seatID)
 		permitted, _ := plan["pass_permitted"].(bool)
@@ -6339,6 +6527,12 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		r.chairPosition(seatID, permitted)
 		return r.chairEnvelope(seatID, false, "", responses)
 
+	case strings.HasPrefix(seatID, "blue-respond") && strings.Contains(prompt, closingsOnlyClause),
+		strings.HasPrefix(seatID, "red-lens") && strings.Contains(prompt, closingsOnlyClause):
+		// A SITTING FOR THE PARTY'S CLOSINGS ALONE (record.requireClosingsOnlySitting): the final epoch's,
+		// and blue's in the epoch that holds it out. No lens audits an act after it.
+		return r.closingsOnlySitting(seatclass.RoleOfSeat(seatID), seatID)
+
 	case strings.HasPrefix(seatID, "blue-respond"):
 		r.remandHeldBeforeRegister()
 		r.sit("blue", seatID)
@@ -6347,7 +6541,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// for exactly these. Closings are owed on the docketed gaps, which the plan also names.
 		// AND THE BOARD IS AUTHORITATIVE, as blue's prompt says: the plan engaged blue on a gap
 		// as the epoch opened, and the lens sat first — so a gap the plan names may have been
-		// closed by its originator before blue sits, and an act on it (a grade motion, an edit
+		// closed by its originator before blue sits, and an act on it (a proposed regrade, an edit
 		// answering it) is refused as an act on a closed gap. Blue works what is still open.
 		engaged := r.engaged(seatID)
 		r.mu.Lock()
@@ -6355,7 +6549,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		r.againOn = nil
 		r.mu.Unlock()
 		if again != nil {
-			engaged = again // the engine sits blue again on the successors it engaged, not the plan's gaps
+			engaged = again // the engine sits blue again on the gaps it engaged, not the plan's gaps
 			r.mu.Lock()
 			r.blueAgain++
 			r.mu.Unlock()
@@ -6383,22 +6577,51 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// that owes. Traced on the forced-VERIFIED test: every material gap closed by epoch 4, and blue
 		// escalated two gaps that are not material, one after the other, each remanded — the run hit
 		// the epoch limit on the second remand's exchange and ended CEILING.
-		if len(open) > 0 && !r.forcedVerdict() && r.coin(15) {
-			id := open[r.rng.Intn(len(open))]
-			args := []string{"motion", "docket", "file", "--seat-id", seatID, "--id", id,
-				"--reason", "fuzz: " + id + " is not converging in the exchange and is the bench's to settle"}
-			if r.closedThisSitting(seatID, id) {
+		// NOT ON A GAP WHOSE SCENARIO IS A DISPUTE: a gap holds one proposal at a time, and blue's close
+		// would stand where the scenario's proposed regrade goes.
+		closable := slices.DeleteFunc(slices.Clone(open), func(id string) bool {
+			d := r.scenarioOf(id)
+			return d == dirDisputeWon || d == dirDisputeLost
+		})
+		if len(closable) > 0 && !r.forcedVerdict() && r.coin(15) {
+			id := closable[r.rng.Intn(len(closable))]
+			// BLUE PROPOSES THE CLOSE IT ARGUES FOR. A gap holds one proposal at a time, and a proposal
+			// waits for the gap's first counted exchange: each refusal is driven where it stands.
+			args := proposeCloseArgs(seatID, id, "not_a_defect",
+				"fuzz: "+id+" is not converging in the exchange and is the bench's to settle")
+			// THE ANCHORS IT VERIFIED THE CLOSE WITH, on a coin: a citation on the record.
+			if c := r.someCitation(); c != "" && r.coin(30) {
+				args = append(args, "--anchor", c)
+			}
+			switch {
+			case r.closedThisSitting(seatID, id), r.beforeTheBench(id):
 				r.refuse(feov.Conflict, args...)
-			} else {
-				r.admitFresh(id, args...)
+			case !r.exchanged(id):
+				_, err := r.exec(withJSON(args)...)
+				noteEither(args, "blue's proposal on a gap the record held unexchanged when read", err == nil)
+			default:
+				// A RULING THAT LEFT THE GAP OPEN (one on a grade) places its tombstone, which bars every
+				// proposal on the gap until a reword ends it: that refusal is the record's answer, counted.
+				out, err := r.exec(withJSON(args)...)
+				if env, ok := refusalEnvelopeIn(out); err != nil && ok && env.Code == string(feov.Conflict) && strings.Contains(env.Error, tombstoneStands) {
+					r.countGate("estopped_refused:close")
+					break
+				}
+				if err != nil {
+					r.admitFresh(id, args...)
+				}
 			}
 		}
 		if !r.forcedVerdict() {
 			r.escalateTrifle(seatID)
-			r.docketClosedGap(seatID)
 			r.reconsider(seatID)
-			r.docketLockedGap(seatID)
 		}
+		// THE AUTHOR'S OWN ACTS ON THE LENSES' GAPS: its proposal on one (proposeAsAuthor), its dispute
+		// of one its raiser regraded while blue sat (disputeMovedGap), and its concession of a docketing
+		// by taking the raiser's text (concedeByAccept).
+		r.proposeAsAuthor(seatID)
+		r.disputeMovedGap(seatID)
+		r.concedeByAccept(seatID)
 		r.extras("blue", seatID, open)
 		// THE FORCED FATE TURN'S ANSWER comes before the sitting's other fates, so it is a fate of its own.
 		r.changeFateForTurn(seatID)
@@ -6419,7 +6642,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		r.dischargeOwed(seatID)
 		env := map[string]any{}
 		if again == nil {
-			r.engageSuccessors(seatID, env)
+			r.engageOwed(seatID, env)
 		}
 		return env
 
@@ -6450,8 +6673,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		r.sit("bench", seatID, debatejs.OccasionOf(prompt))
 		// THE FORCED-UNVERIFIED SHAPE TRIES TO END RULING NOTHING, and the record refuses its envelope
 		// naming the petitions it was convened for: a petition sitting cannot end with one standing,
-		// so it then rules them like any other. The run's UNVERIFIED exit is the chair's unruled
-		// grade motions, which hold a PASS and not the chair's sitting.
+		// so it then rules them like any other. The run's UNVERIFIED exit is blue's failed sittings.
 		if r.forceUnverified {
 			r.envelopeRefusedEarly(seatID, "motion ")
 		}
@@ -6459,6 +6681,9 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 
 	case strings.HasPrefix(seatID, "judge") && debatejs.OccasionOf(prompt) != "assemble": // adjudication + terminal
 		r.sit("bench", seatID, debatejs.OccasionOf(prompt))
+		r.mu.Lock()
+		r.benchOccasion = debatejs.OccasionOf(prompt)
+		r.mu.Unlock()
 		// THE BOARD'S OPEN GAPS, for a declaration to name: the bench is engaged on no gap of its
 		// own here, so this list is the only one that gives a fuzz holding a gap to write about.
 		r.extras("bench", seatID, r.openGaps())
@@ -6492,41 +6717,41 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		}
 		for _, id := range r.engaged(seatID) {
 			const direction = "blue pursuing the stated direction and reporting what it found"
-			// A GAP CLOSED SINCE ITS DOCKETING IS NOT REMANDED: the bench reaches for the remand its
-			// scenario asks for, the tool refuses it naming the close, and the bench rules the motion
-			// with a disposition that closes, as for a lost dispute.
+			// A GAP CLOSED SINCE THE BENCH WAS ENGAGED ON IT IS NOT REMANDED: the bench answers it with
+			// a side, as for a lost dispute.
 			closed := !stillOpen[id]
-			if closed && r.scenarioOf(id) != dirDisputeLost {
-				r.remandOfClosedRefused(seatID, id)
-			}
-			// THE BENCH SETS A GRADE IT HOLDS WRONG BEFORE IT RULES, while the motion stands.
-			r.benchSetsGrade(seatID, id)
 			// A GAP AT ITS REMAND LIMIT IS NOT REMANDED EITHER: the bench's work list says a remand of it
 			// is refused, the bench reaches for one and is refused naming the dispositions that close
 			// the gap, and it rules one of them.
 			atLimit := !closed && r.scenarioOf(id) != dirDisputeLost && r.remandPastLimit(seatID, id)
-			if atLimit {
+			// Where the gap's parties do not both sit after the ruling, that refusal comes first, and
+			// benchDisposes drives it.
+			if _, parties := r.sitsAfterRuling(); atLimit && parties {
 				r.remandPastLimitRefused(seatID, id)
 			}
 			if !closed && !atLimit && r.scenarioOf(id) != dirDisputeLost {
-				r.benchDisposes(seatID, id, "remanded", "--direction", direction, "--reason", "fuzz: carried with a stated direction for "+id)
-				r.remandRouted(id)
+				if r.benchDisposes(seatID, id, "remanded", "--direction", direction, "--reason", "fuzz: carried with a stated direction for "+id) {
+					r.remandRouted(id)
+				}
 			}
 			if closed || atLimit || r.scenarioOf(id) == dirDisputeLost {
-				disp := pick(r.rng, []string{"repaired", "not_a_defect", "defect_accepted", "defect_owed_elsewhere", "amends_prior"})
+				want := pick(r.rng, []string{"repaired", "not_a_defect"})
 				// A RULING THAT CLOSES THE GAP ANSWERS WHAT WOULD REOPEN IT ONE OF TWO WAYS, and the
 				// drive takes both: nothing would (--final), or a stated condition (--reopens-on).
 				answer := []string{"--final"}
 				if r.coin(50) {
 					answer = []string{"--reopens-on", "a source the ruling did not weigh"}
 				}
-				r.benchDisposes(seatID, id, disp, append(answer, "--reason", "docket-rationale-for-"+id)...)
+				r.benchDisposes(seatID, id, want, append(answer, "--reason", "docket-rationale-for-"+id)...)
 			}
 		}
 		return map[string]any{}
 
 	case debatejs.OccasionOf(prompt) == "assemble":
 		r.sit("bench", seatID, debatejs.OccasionOf(prompt))
+		r.mu.Lock()
+		r.benchOccasion = "assemble"
+		r.mu.Unlock()
 		// THE VERDICT IS READ, NOT INVENTED. debate.js computes the terminal outcome and TELLS
 		// the assembler ("Debate outcome: <verdict> after N round(s)") — exactly as a real seat
 		// is told. The fake used to ignore that and draw from a hat, so `bench outcome --as`
@@ -6570,7 +6795,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		if stamped == "" {
 			if !r.forceHalt {
 				r.rulePending(seatID, "assemble")
-				for _, id := range r.docketsSinceTheLastPlan() {
+				for _, id := range r.docketingsHolding(r.docketsSinceTheLastPlan()) {
 					r.ruleDocketAtExit(seatID, id)
 				}
 			}
@@ -6590,6 +6815,11 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// the head has moved since it sat. Either way it audits (the shared lens acts below the
 		// fallthrough) and may put new gaps on the board.
 		r.sit("lens", seatID)
+		// THE LENSES' HALF OF THE SCREEN ARM LANDS IN EACH OWNER'S OWN SITTING under the plan that holds
+		// blue out: an owner's sitting opened inside the chair's stands between the chair's dispatch and
+		// the plan it asks for again at its envelope, which the record refuses as a sitting no register
+		// opened, and one opened beside the owner's dispatched sitting races its register.
+		r.screenAtLimit(seatID, r.planThisSitting)
 		r.queueHolds(seatID)
 		r.docketedOffTheList("lens", seatID)
 		r.auditRead(seatID)
@@ -6600,14 +6830,11 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		r.closeDocketed(seatID)
 		// AFTER ACTS, THE SAME SITTING: what it was handed moves only where its acts discharged it.
 		r.queueHolds(seatID)
-		// A SITTING HOLDS ONE REGRADE PER GAP: a gap the lock drives regraded is not sampled again.
-		locked := r.lensMovesBenchAxis(seatID)
-		regraded := map[string]bool{locked: true, r.lensMovesReleasedAxis(seatID, locked): true}
+		r.lensMovesBenchAxis(seatID)
 		engaged := slices.DeleteFunc(r.engaged(seatID), func(id string) bool { return id == leftClosed })
 		for _, id := range engaged {
-			// THE PLAN NAMED ITS GAPS OPEN, AND THE RECORD SAYS WHICH STILL ARE, read at each act: a
-			// mint of this sitting's — the successor a regression close mints among them — may have
-			// superseded one since (openOnRecord).
+			// THE PLAN NAMED ITS GAPS OPEN, AND THE RECORD SAYS WHICH STILL ARE, read at each act
+			// (openOnRecord).
 			if !r.openOnRecord(id) {
 				continue
 			}
@@ -6621,23 +6848,30 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 			// estoppel guard undriven across forty runs. A lens closes a gap blue has SAT on.
 			switch {
 			case satisfied(d) && r.presented.has(id):
-				// ONE COIN, NOT TWO — see closeGap: the regression close is sampled in exactly
-				// one place, so it is driven rather than multiplied down to noise.
-				r.closeGap(seatID, id, true)
+				r.closeGap(seatID, id)
 			case d == dirCompute && r.reproduced.has(id):
-				r.closeGap(seatID, id, false)
-			case d == dirDisputeWon && r.presented.has(id):
-				r.closeGap(seatID, id, false)
+				r.closeGap(seatID, id)
+			case d == dirDisputeWon && r.presented.has(id) && r.disputeFiled.has(id):
+				// THE REGRADE BLUE PROPOSED IS DOCKETED AND THE BENCH SIDES WITH IT (docketAnswer): the
+				// gap, no longer before the bench, is then its lens's to close.
+				if !r.beforeTheBench(id) {
+					r.closeGap(seatID, id)
+				}
 			default:
 				// A GAP NEITHER MOVED NOR CLOSED IS A NULL TURN, which counts toward impasse; a
 				// regrade is movement, so sample one — by the minter, which this seat is. EVERY
 				// AXIS, not three of four: --complexity is spelled by its flag here.
 				// An axis the bench holds locked is the lens's to keep, never to move (lensMovesBenchAxis
 				// drives the move, to be refused).
+				//
+				// THE MINTER RESTATES ITS GAP'S WORDING NOW AND THEN (§III.B7): an amend of the acceptance
+				// check, the field no voice check reads, on the gap's one id — the author's turn on the
+				// amended demand.
+				r.maybe(8, func() {
+					r.admitFresh(id, "amend", "--seat-id", seatID, "--id", id, "--acceptance-check", "fuzz: the check for "+id+", restated",
+						"--reason", "amend-basis-for-"+id)
+				})
 				r.maybe(30, func() {
-					if regraded[id] {
-						return
-					}
 					held := r.benchGrades(id)
 					keep := func(dim string) string {
 						if g, ok := held[dim]; ok {
@@ -6645,13 +6879,22 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 						}
 						return r.gradeOn(dim)
 					}
-					dim := pick(r.rng, regradeDims)
-					r.admitFresh(id, "regrade", "--seat-id", seatID, "--id", id, "--reason", "regrade-basis-for-"+id,
-						"--"+dim, keep(dim), "--complexity", keep("complexity"))
+					// A LOCKED AXIS THE GAP HOLDS NO GRADE ON is kept by not stating it: currentGrade
+					// reads it "", which no grade flag takes.
+					args := []string{"regrade", "--seat-id", seatID, "--id", id, "--reason", "regrade-basis-for-" + id}
+					for _, d := range []string{pick(r.rng, regradeDims), "complexity"} {
+						if g := keep(d); g != "" {
+							args = append(args, "--"+d, g)
+						}
+					}
+					if len(args) > 6 {
+						r.admitFresh(id, args...)
+					}
 				})
 			}
 		}
 		r.auditComposedSources(seatID)
+		r.staleOnASubject(seatID)
 		r.mintAboutFateSection(seatID)
 		r.mintHeldTrifle(seatID)
 		r.closeNamedOnTurn(seatID, engaged)
@@ -6703,10 +6946,9 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				// THE FRONTIER SPLITS THE QUESTION: the split is a blocking item on its work list.
 				r.splitQuestion(seatID)
 			}
-			// The non-prose lens channel is the RECORD now, not red/candidates files: a
-			// citation lens records cite events, and every red lens records finding events
-			// (label TOOL-assigned). This is the ONLY harness that drives that path end to
-			// end through the real debate.js + binary, so it must actually exercise it.
+			// The non-prose lens channel is the RECORD: every red lens records its readings and
+			// mints its gaps there (ids TOOL-assigned). This is the ONLY harness that drives that
+			// path end to end through the real debate.js + binary, so it must actually exercise it.
 			// RED RE-RUNS a recorded computation (#277) — the one audit that does not end in believing
 			// bytes someone else chose.
 			// RED RE-RUNS THE COMPUTATION FOR THE GAP IT IS AUDITING, and the result is what red
@@ -6876,50 +7118,6 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				// TWO SENTENCES (oneURLTwoSentences): the subject of a found source's reading is the sentence.
 				r.crossArmMints(seatID)
 				r.oneURLTwoSentences(seatID)
-				// --key from a small space so a repeated dispatch exercises retry idempotency.
-				//
-				// EXACTLY ONE ANCHOR, AND SOMETIMES IT IS THE OTHER ONE. `lens finding` refuses a
-				// finding carrying both --quote and --about ("claiming two subjects"), so this
-				// SWAPS rather than adds. The about arm is the anchor an ABSENCE gets: a section
-				// missing something, an inquiry whose stated reason is being argued against, a
-				// gap already on the docket — none of which has a sentence to quote, and all of
-				// which used to borrow an innocent one (#742).
-				severity := r.g()
-				findArgs := []string{"finding", "--seat-id", seatID,
-					"--severity", severity, "--likelihood", r.g(), "--impact", r.g(), "--reason", "fuzz finding"}
-				aboutGap := ""
-				k, ref := r.aboutAnchor()
-				// A FINDING ABOUT THE QUESTION: about one of its parts, or, one time in four, about the
-				// question as a whole, which names no part. It is drawn here and not in aboutAnchor, which
-				// mintWith also draws from: a gap about a part moves the part's check, a finding does not.
-				if part := r.someQuestionPart(); part != "" && r.coin(20) {
-					k, ref = "question", part
-					if r.coin(25) {
-						ref = ""
-					}
-				}
-				if k != "" && r.coin(30) {
-					findArgs = append(findArgs, "--about-kind", k)
-					if ref != "" {
-						findArgs = append(findArgs, "--about", ref)
-					}
-					if k == "gap" {
-						aboutGap = ref
-					}
-				} else {
-					findArgs = append(findArgs, "--quote", "§ fuzz sentence")
-				}
-				// keyed on what the finding states, so a repeat is a retry of it (contentKey).
-				findArgs = append(findArgs, "--key", contentKey("F", findArgs[3:]))
-				var landed bool
-				if aboutGap != "" {
-					_, landed = r.admitFresh(aboutGap, findArgs...)
-				} else {
-					_, landed = r.admit(findArgs...)
-				}
-				if landed && r.coin(20) {
-					r.retryKeyed(findArgs, "--severity", otherGrade(severity))
-				}
 				// Red verifies a cited source by reading the CACHED bytes (#256): the same
 				// `fetch` any seat uses. Driving it here is what makes the cache path — miss,
 				// store, hit — real in the fuzz rather than unit-tested only.
@@ -6957,6 +7155,12 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				})
 				r.extras("lens", seatID, nil)
 			}
+		}
+		// The author's proposals on this lens's gaps are its to take (takeProposals) — before
+		// dischargeOwed, which files the closings the sitting owes. A lens's acts: this tail is the frontier's and the lanes'
+		// too.
+		if strings.HasPrefix(seatID, "red-lens") {
+			r.takeProposals(seatID)
 		}
 		r.dischargeOwed(seatID)
 		// A COMPUTATION JUDGED UNSOUND AFTER answerFailed RAN — a reopened computation re-run, one the owner was
@@ -7004,12 +7208,15 @@ func debateWrapped(t *testing.T) string {
 }
 
 type outcome struct {
-	seed      int64
-	err       string // non-empty = a finding
-	runDir    string
-	verdict   string         // the terminal verdict this run reached (coverage signal)
-	epochs    int            // how many chair sittings it ran (coverage signal)
-	why       string         // the plan's first stated reason at exit — what UNVERIFIED and CEILING are made of
+	seed    int64
+	err     string // non-empty = a finding
+	runDir  string
+	verdict string // the terminal verdict this run reached (coverage signal)
+	epochs  int    // how many chair sittings it ran (coverage signal)
+	why     string // the plan's first stated reason at exit — what UNVERIFIED and CEILING are made of
+	// seatStop is the seat whose failed sittings in a row stopped the debate (debate.js seatStop), as
+	// the settled return's termination names it, or "".
+	seatStop  string
 	dialectic map[string]int // dialectic events this run left on the record (coverage signal)
 
 	// epochLimit is the debate ending at the run's epoch limit — the last plan's
@@ -7035,9 +7242,6 @@ type outcome struct {
 	// mint verb gate is satisfied by any mint, so a proposal path that stopped validating
 	// would pass it while the axis quietly went all-prose.
 	verifiedBasis int
-	// Mints the record accepted WITH a found_by. The unreached-flags gate counts --found-by when the
-	// mint carrying it is refused, so only the event shows a finding was ever named in found_by.
-	foundByMints int
 	// #267 stage 4: edits that applied red's proposal EXACTLY. Without a counter, the fuzz
 	// could counter-edit every time and the estoppel path would never be reached at all.
 	verbatimApplied int
@@ -7127,19 +7331,19 @@ type outcome struct {
 	// maxOpenPerClassSentence is the most open gaps of one class standing in one sentence of the
 	// report at the run's end, read off the stored record.
 	maxOpenPerClassSentence int
-	// oneGapBreach names the first pair of open gaps of one class in one sentence that no --supersedes
-	// relates, where the run ended holding one: the gaps, the class and the sentence.
+	// oneGapBreach names the first pair of open gaps of one class in one sentence, where the run ended
+	// holding one: the gaps, the class and the sentence.
 	oneGapBreach string
 	// WHAT HELD THE RUN OPEN, said by the run itself (PR #1642's four, F7): finalBlockers is the last
-	// relayed plan's blockers by kind and finalParties the seats it readied; openByFoundBy is the gaps
-	// open at the end by what surfaced each — a reading's own act (reading), a finding in its found_by
-	// (finding), nothing on a gap carrying an unsound judgement of a computation
-	// (unsound_computation), or nothing (none); mintsByEpoch and closesByEpoch are the gaps minted and
-	// closed in each epoch. A CEILING arrives with its cause rather than inviting one.
+	// relayed plan's blockers by kind and finalParties the seats it readied; mintsByEpoch and
+	// closesByEpoch are the gaps minted and closed in each epoch. A CEILING arrives with its cause
+	// rather than inviting one.
 	finalBlockers               map[string]int
 	finalParties                []string
-	openByFoundBy               map[string]int
 	mintsByEpoch, closesByEpoch map[int]int
+	// nonMaterialMints is the gaps on the record minted in a by_grade class at a severity below
+	// medium: a small defect, which a lens reports as a gap that does not hold the gate.
+	nonMaterialMints int
 	// reproduces is the reproduce events on the record, and reruns those that ran the script.
 	reproduces, reruns int
 	// reproducesWithClaim is the reproduces whose `claim` is the sentence they judged, and
@@ -7163,18 +7367,17 @@ type outcome struct {
 	// repeatsRefused is the second acts the tool refused in a sitting that holds one, each naming
 	// the act that answers the first (runner.repeatsRefused).
 	repeatsRefused int
-	// oneGapRefused and oneGapFindings are the runner's.
-	oneGapRefused, oneGapFindings int
+	// oneGapRefused, oneGapRedirects, oneGapNamingFinding and movedDisputes are the runner's.
+	oneGapRefused, oneGapNamingFinding, movedDisputes int
+	oneGapRedirects                                   map[string]int
 	// unclassifiedMinted and unclassifiedRefused are the catch-all's mints that landed and those
 	// refused for want of a reason (runner.unclassifiedMinted, runner.unclassifiedRefused).
 	unclassifiedMinted, unclassifiedRefused int
-	// supersedeDemandCarried and supersedeDemandRefused are the runner's.
-	supersedeDemandCarried, supersedeDemandRefused int
 	// rulerFilingsRefused is the filings the tool refused the seat that rules their subject
 	// (runner.rulerFilingsRefused).
 	rulerFilingsRefused int
-	// closedRemandsRefused and trifleRemandsRouted are runner's.
-	closedRemandsRefused, trifleRemandsRouted int
+	// trifleRemandsRouted is runner's.
+	trifleRemandsRouted int
 	// blueRemandActs, pastLimitRemandsRefused, remandHolds, remandReleases, lensTurns and lensWaits
 	// are runner's.
 	blueRemandActs, pastLimitRemandsRefused, remandHolds, remandReleases, lensTurns, lensWaits, fateTurns int
@@ -7184,8 +7387,10 @@ type outcome struct {
 	lensAlone, docketsAfterAudit, docketedClosesRefused, docketedOffList int
 	// hearingsAfter is runner's.
 	hearingsAfter map[string]int
-	// benchRegrades, lockRefused, lockLifted, groundsRefused and groundsAdmitted are runner's.
-	benchRegrades, lockRefused, lockLifted, groundsRefused, groundsAdmitted int
+	// gradeRulings is the rulings on a grade that locked an axis (lockedAxes); lockRefused is runner's.
+	gradeRulings, lockRefused int
+	// proposalGates is runner's, joined by docketTally's counts off the stream.
+	proposalGates map[string]int
 	// partRefused and partsRecorded are runner's.
 	partRefused   map[string]int
 	partsRecorded int
@@ -7664,12 +7869,11 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		// it out is the expected failure here rather than an exotic one.
 		return outcome{seed: seed, err: "temp dir for the run: " + err.Error()}
 	}
-	// A lens finding anchors into the report and is rejected unless its --location quote is
-	// present (slice 1b). The lanes' parts carry the fuzzer's finding quote ("§ fuzz") so findings
-	// are accepted and the coverage gate sees them (lanePartText). The second lane's sentence is the
-	// EDIT TARGET: `blue edit` swaps it between two fixed phrasings, so every round has a valid
-	// unique span to replace whichever way the last edit left it, while the anchor quote stays
-	// untouched for findings and cites.
+	// A lens's mint anchors into the report and is rejected unless its --quote is present. The
+	// lanes' parts carry the fuzzer's quote ("§ fuzz") so mints are accepted and the coverage gate
+	// sees them (lanePartText). The second lane's sentence is the EDIT TARGET: `blue edit` swaps it
+	// between two fixed phrasings, so every round has a valid unique span to replace whichever way
+	// the last edit left it, while the anchor quote stays untouched for mints and cites.
 	// THE RUN DECLARES ITS CLASS VOCABULARY, because a real run does. The fuzz used to be exempt
 	// by accident: no registry staged meant `validateClass` accepted every slug, so the fuzz drove
 	// `mint` for its whole life without ever exercising the check the flag's help describes. When
@@ -7711,8 +7915,8 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	r.forceLifecycle = seed == lifecycleSeed
 	r.forceStaleness = slices.Contains(stalenessSeeds, seed)
 	r.forceBenchOrders = seed == benchOrdersSeed
+	r.forceAuthorProposal = seed == authorProposalSeed
 	r.forceParts = seed == partsSeed
-	r.benchOrders = sweepBenchOrders
 	r.maxEpochs = runEpochLimit(seed)
 	if seed == limitSeed {
 		r.forceScreenUnsound = true
@@ -7775,6 +7979,9 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	res.epochs = int(n)
 	if term, ok := result["termination"].(map[string]any); ok {
 		res.epochLimit, _ = term["epoch_limit_reached"].(bool)
+		if stop, ok := term["seat_stop"].(map[string]any); ok {
+			res.seatStop, _ = stop["seat"].(string)
+		}
 	}
 	if r.passBlockersErr != "" {
 		res.err = "pass_permitted oracle: the gate refused a PASS the plan permitted, and the blocker list could not be read to say whose blocker held it: " + r.passBlockersErr
@@ -7847,9 +8054,6 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	}
 	if r.lastPassRefusal != "" && !passOutcome(res.verdict) {
 		res.why = "PASS refused: " + r.lastPassRefusal
-		if r.lastRuleRefusal != "" {
-			res.why += " ‖ last ruling refused: " + r.lastRuleRefusal
-		}
 	}
 	// Oracle #111 (map-free): both tiers were configured haiku, so every dispatched seat must have
 	// carried model "haiku" — none unset, none on another tier. This needs no bulk-seat list; the
@@ -7870,7 +8074,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		return res
 	}
 	// Oracle 1b: the JSON views the operator side reads in json-mode must exit 0 and parse.
-	// `board` is already exercised above; `findings` and the operator's log read are JSON by name; `debate --json`
+	// `board` is already exercised above; the operator's log read is JSON by name; `debate --json`
 	// is the structured debate the capture audits count sections from. A broken view is what
 	// would silently blank a dashboard tile or make an audit read an empty transcript.
 	ids := mintedGapIDs(stageRun)
@@ -8122,11 +8326,11 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	// AN ANCHOR NOBODY MINTED IS REFUSED, NOT READ EMPTY — the read-side twin of `show changes
 	// --id G1`. An empty window says "the report has nothing here", which is a different
 	// fact from "that anchor is not in this report".
-	if out, err := drive(bin, "show", "report", "--anchor", unmintedFinding, "--run", runDir, "--seat-id", "blue-respond"); err == nil {
-		res.err = "show report --anchor " + unmintedFinding + " SUCCEEDED on an anchor nobody minted — a window over nothing:\n" + truncate(string(out))
+	if out, err := drive(bin, "show", "report", "--anchor", unmintedCitation, "--run", runDir, "--seat-id", "blue-respond"); err == nil {
+		res.err = "show report --anchor " + unmintedCitation + " SUCCEEDED on an anchor nobody minted — a window over nothing:\n" + truncate(string(out))
 		return res
-	} else if refusedByShape(out, unmintedFinding) {
-		res.err = "show report --anchor " + unmintedFinding + " was refused for its SHAPE, so the refusal of an anchor nobody minted was never reached:\n" + truncate(string(out))
+	} else if refusedByShape(out, unmintedCitation) {
+		res.err = "show report --anchor " + unmintedCitation + " was refused for its SHAPE, so the refusal of an anchor nobody minted was never reached:\n" + truncate(string(out))
 		return res
 	}
 	// The OPERATOR's read of the log — seats write it, the human reads it back.
@@ -8147,14 +8351,6 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	// left to land on by accident, so there is nothing here to drive.
 	// `friction` left the SEAT menu (0.57.0) — it is the operator's read. The verb stays on
 	// every role; only the view moved.
-	for _, v := range []string{"findings"} {
-		out, err := drive(bin, "show", v, "--run", runDir, "--seat-id", "red-chair")
-		var parsed any
-		if err != nil || json.Unmarshal([]byte(strings.TrimSpace(string(out))), &parsed) != nil {
-			res.err = "show " + v + " did not return valid JSON:\n" + truncate(string(out))
-			return res
-		}
-	}
 	{
 		out, err := drive(bin, seat.GroupOf("debate"), "debate", "--json", "--run", runDir, "--seat-id", "red-chair")
 		var parsed any
@@ -8281,10 +8477,13 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	}
 	{
 		answered, disputed, proved := map[string]bool{}, map[string]bool{}, map[string]bool{}
+		// answeredBy is the seats whose edit answered each gap: the bench's ruling for red applies red's
+		// text as an edit answering the gap, which is no act of blue's.
+		answeredBy := map[string]map[string]bool{}
 		// THE SWITCH IS ON THE BODY, not on a type string beside it. Each arm reaches straight for
 		// a field, so binding the message and the type in one step removes the pair that could
-		// disagree — and a grade motion's gap id now comes off the GradeMotion arm rather than
-		// from a payload key that petitions and directions also had.
+		// disagree — and a proposed regrade's gap id comes off the motion's act rather than from a
+		// payload key that petitions and directions also had.
 		for _, e := range board.Events {
 			body, ok := recordpb.Body(e)
 			if !ok {
@@ -8296,11 +8495,15 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 					proved[t.GetAnswers()] = true
 				}
 			case *recordpb.BlueEdit:
-				if t.GetAnswers() != "" {
-					answered[t.GetAnswers()] = true
+				if g := t.GetAnswers(); g != "" {
+					answered[g] = true
+					if answeredBy[g] == nil {
+						answeredBy[g] = map[string]bool{}
+					}
+					answeredBy[g][e.GetSeatId()] = true
 				}
 			case *recordpb.Motion:
-				if g := t.GetGrade(); g != nil && g.GetGapId() != "" {
+				if g := t.GetRegrade(); g != nil && g.GetGapId() != "" {
 					disputed[g.GetGapId()] = true
 				}
 			}
@@ -8314,17 +8517,34 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 			}
 			switch g.Mint.GetRequiredFix() {
 			case dirIgnore:
-				if answered[id] {
-					res.err = "scenario IGNORE: " + id + " was answered by a blue_edit, but the scenario said blue does nothing — either a writer ignored the directive or --answers is attaching provenance nobody claimed"
+				// BLUE'S OWN EDIT, not the bench's: a gap blue ignored reaches impasse, and the bench's ruling
+				// for red applies red's text as an edit answering it.
+				var blue []string
+				for seat := range answeredBy[id] {
+					if seatclass.RoleOfSeat(seat) != "bench" {
+						blue = append(blue, seat)
+					}
+				}
+				if len(blue) > 0 {
+					slices.Sort(blue)
+					res.err = "scenario IGNORE: " + id + " was answered by a blue_edit of " + strings.Join(blue, ", ") + ", but the scenario said blue does nothing — either a writer ignored the directive or --answers is attaching provenance nobody claimed"
 					return res
 				}
 			case dirDisputeWon, dirDisputeLost:
+				// A DISPUTE THE EXCHANGE GATE HELD TO THE END IS THE RECORD'S ANSWER, NOT A MISSING ONE: the
+				// gate refuses a proposal until the gap's first counted exchange, and a lens sitting engaged on
+				// the gap that no stop closes, by a seat that never sits again, holds every later blue sitting
+				// uncounted (TestAProposalWaitsOnALensSittingTheRecordCannotClose). Excused only where the
+				// drive's last attempt was refused by that gate.
+				if !disputed[id] && r.heldUnexchanged(id) {
+					continue
+				}
 				if !disputed[id] {
 					res.err = "scenario DISPUTE: " + id + " has no dispute event — the contest the scenario specified is absent from the record"
 					if why := r.disputeRefusals[id]; why != "" {
 						res.err += "\nthe filing was REFUSED, and this is what it said:\n  " + why
 					} else {
-						res.err += "\nno refusal was recorded for it either, so the drive never reached `motion grade file` at all"
+						res.err += "\nno refusal was recorded for it either, so the drive never reached `motion docket file regrade` at all"
 					}
 					return res
 				}
@@ -8344,8 +8564,21 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 					return res
 				}
 			case dirApply:
-				if !answered[id] {
-					res.err = "scenario APPLY: " + id + " has no blue_edit answering it — a repair the scenario specified left no provenance"
+				// A GAP THE BENCH CLOSED IS THE BENCH'S ANSWER: docketed, the gap is off blue's list and
+				// red's closing road freezes its span, so blue's apply is refused or never reached, and a
+				// ruling for blue closes it with no edit (a ruling for red applies red's text as an edit
+				// answering it). The bench's close of a gap is that gap's answer, as COMPUTE reads it.
+				// AND A SPAN THE FREEZE HOLDS IS THE RECORD'S ANSWER: red's text in its closing on a docketed
+				// gap holds the sentence until its ruling, and blue's edit of it is refused naming the
+				// statement (record/freeze.go).
+				// AND A PARTY'S ANSWER CLOSED IT where the raiser took blue's proposed close (takeProposals)
+				// or conceded a docketing on it by closing (closeBeforeTheBench): the gap closes with no
+				// edit of blue's.
+				if !answered[id] && !(g.HasClosed && g.ClosedByBench) && !r.applyHeldByFreeze(id) && !(!g.Open && r.closedByParty(board.Events, id)) {
+					r.mu.Lock()
+					why := cmp.Or(r.unanswered[id], "no refusal of blue's edit answering it was recorded")
+					r.mu.Unlock()
+					res.err = "scenario APPLY: " + id + " has no blue_edit answering it — a repair the scenario specified left no provenance (blue's last attempt: " + why + ")"
 					return res
 				}
 			}
@@ -8529,7 +8762,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	r.mu.Lock()
 	r.lifecycle.screenedUnsound += screened
 	if r.forceScreenUnsound && r.lifecycle.screenedUnsound == 0 && res.err == "" {
-		res.err = fmt.Sprintf("forced assembly screen: seed %d's run did not end with a live unsound computation the screen failed (computed at the limit plan: %q, \"\" where no plan reached it)", limitSeed, r.screenUnsoundComputation)
+		res.err = fmt.Sprintf("forced assembly screen: seed %d's run did not end with a live unsound computation the screen failed (blue's computation before the epoch that holds it out: %q, \"\" where no chair sitting reached it)", limitSeed, r.screenUnsoundComputation)
 	}
 	res.ownerOffered += r.offeredToOwner["computation"]
 	res.citationsOffered += r.offeredToOwner["citation"]
@@ -8599,7 +8832,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		res.err = msg
 	}
 	if r.forceScreenUnsound && r.reading.debtsStandingAtEnd == 0 && res.err == "" {
-		res.err = fmt.Sprintf("forced epoch limit: seed %d's run did not end with a reading debt standing (the owner's reading at the limit plan: %q)", limitSeed, r.limitDebtCite)
+		res.err = fmt.Sprintf("forced epoch limit: seed %d's run did not end with a reading debt standing (blue's citation the owner read in the epoch that holds blue out: %q)", limitSeed, r.limitDebtCite)
 		if r.limitDebtRead != 0 {
 			r.mu.Unlock()
 			res.err += "; the record holds: " + r.limitDebtDischarge()
@@ -8650,22 +8883,27 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	res.repeatsRefused = r.repeatsRefused
 	res.lensSittings = r.lensSittings
 	res.blueSittings, res.blueAgain = r.blueSittings, r.blueAgain
-	res.oneGapRefused, res.oneGapFindings = r.oneGapRefused, r.oneGapFindings
+	res.oneGapRefused = r.oneGapRefused
+	res.oneGapRedirects, res.oneGapNamingFinding = maps.Clone(r.oneGapRedirects), r.oneGapNamingFinding
+	res.movedDisputes = r.movedDisputes
 	res.unsoundReadied, res.unsoundPlans, res.unsoundAnswers = r.unsoundReadied, r.unsoundPlans, r.unsoundAnswers
 	res.unsoundRepeats, res.unsoundOverOpen = r.unsoundRepeats, r.unsoundOverOpen
 	res.unclassifiedMinted, res.unclassifiedRefused = r.unclassifiedMinted, r.unclassifiedRefused
-	res.supersedeDemandCarried, res.supersedeDemandRefused = r.supersedeDemandCarried, r.supersedeDemandRefused
 	res.rulerFilingsRefused = r.rulerFilingsRefused
-	res.closedRemandsRefused, res.trifleRemandsRouted = r.closedRemandsRefused, r.trifleRemandsRouted
+	res.trifleRemandsRouted = r.trifleRemandsRouted
 	res.blueRemandActs, res.pastLimitRemandsRefused = r.blueRemandActs, r.pastLimitRemandsRefused
 	res.remandHolds, res.remandReleases, res.lensTurns, res.lensWaits = r.remandHolds, r.remandReleases, r.lensTurns, r.lensWaits
 	res.fateTurns = r.fateTurns
 	res.composedHanded, res.composedGaps, res.composedAnswers = r.composedHanded, r.composedGaps, r.composedAnswers
 	res.lensAlone, res.docketsAfterAudit, res.docketedClosesRefused, res.docketedOffList = r.lensAlone, r.docketsAfterAudit, r.docketedClosesRefused, r.docketedOffList
 	res.hearingsAfter = r.hearingsAfter
-	res.benchRegrades, res.lockRefused, res.lockLifted, res.groundsRefused, res.groundsAdmitted = r.benchRegrades, r.lockRefused, r.lockLifted, r.groundsRefused, r.groundsAdmitted
+	res.lockRefused = r.lockRefused
 	res.partRefused, res.partsRecorded = maps.Clone(r.partRefused), r.partsRecorded
 	r.mu.Unlock()
+	// THE STREAM'S TALLIES ARE READ WITH r.mu RELEASED: each takes it (docketTally to copy the drives'
+	// counts, lockedAxes through noteActErr on an unreadable record), and sync.Mutex is not reentrant.
+	_, res.gradeRulings = r.lockedAxes()
+	res.proposalGates = r.docketTally()
 	// PARTS SEED'S RUN DRIVES EVERY PART REFUSAL, and one it drove none of fails it here.
 	if missed := r.partsMissed(); len(missed) > 0 && res.err == "" {
 		res.err = "forced parts: the run drove no " + strings.Join(missed, ", ") + " refusal"
@@ -8683,8 +8921,15 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		if e.GetType() == recordpb.EventType_EVENT_TYPE_POSITION && e.GetSeatId() != "red-chair" && res.err == "" {
 			res.err = "position duty: the record holds a position by " + e.GetSeatId() + ", and the position is the chair's"
 		}
-		if c := e.GetClosing(); c != nil && !record.IsClosingParty(e.GetSeatId(), minter[c.GetGapId()]) && res.err == "" {
-			res.err = "closing duty: the record holds a closing on " + c.GetGapId() + " by " + e.GetSeatId() + ", party to no dispute on it"
+		if c := e.GetClosing(); c != nil && res.err == "" {
+			// THE GAP'S TWO PARTIES file its closings: its raiser, and its subject's author.
+			author, aerr := record.AuthorOfGap(oracleRun, c.GetGapId())
+			switch {
+			case aerr != nil:
+				res.err = "closing duty: the author of " + c.GetGapId() + " could not be read: " + aerr.Error()
+			case !record.IsClosingParty(e.GetSeatId(), minter[c.GetGapId()], author):
+				res.err = "closing duty: the record holds a closing on " + c.GetGapId() + " by " + e.GetSeatId() + ", party to no dispute on it"
+			}
 		}
 	}
 	for _, e := range board.Events {
@@ -8706,9 +8951,6 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		case *recordpb.Mint:
 			if t.GetFixBasis() == "verified" {
 				res.verifiedBasis++
-			}
-			if len(t.GetFoundBy()) > 0 {
-				res.foundByMints++
 			}
 		case *recordpb.Log:
 			// SOURCE IS CHECKED, NOT JUST TYPE. An estoppel entry a SEAT filed is a seat claiming
@@ -8843,11 +9085,11 @@ func TestDispatchRefusesUnsetModel(t *testing.T) {
 // verbsWithEvents are the record-event-emitting verbs the fuzz is meant to drive — the whole seat
 // surface bar the read-only ones (register/show emit no board event). The coverage gate
 // asserts each fired at least once across the run set, so a regression that silently STOPS
-// emitting one fails loudly (the old gate guarded only cite/finding). `halt` terminates the run
+// emitting one fails loudly. `halt` terminates the run
 // and is covered by TestFuzzHaltPath, not the random sweep — the gate skips it (see coverExempt).
 var verbsWithEvents = []string{
-	"closing", "position", "regrade", "mint", "close",
-	"cite", "verify", "finding", "inquiry", "reproduce", "log", "retire",
+	"closing", "position", "regrade", "amend", "mint", "close",
+	"cite", "verify", "inquiry", "reproduce", "log", "retire",
 	"verdict", "spot_check", "certify", "declare", "halt",
 	// friction-none is the EXPLICIT NEGATIVE arm of the friction verb — a distinct event type,
 	// so a gate listing only "friction" would report the channel covered while the arm that
@@ -8857,7 +9099,7 @@ var verbsWithEvents = []string{
 	"motion", "motion_rule",
 	// Added 2026-08-04 by a census of every type record.Append can write: these two were
 	// APPENDABLE BUT UNGATED, so a regression that stopped emitting either would have left the
-	// sweep green. `anchor` is the finding-marker's own record (the immortal-marker detector's
+	// sweep green. `anchor` is a marker's own record (the immortal-marker detector's
 	// EXPECTED set is exactly these), `outcome` is the bench's.
 	"blue_edit", "anchor", "outcome", "computation",
 	// report_part is a lane's part of the report, written by `ingest` in every lane's sitting
@@ -8886,6 +9128,13 @@ var verbsWithEvents = []string{
 	// The whole report served to a lens: its pin. A lens sitting reads the report whole most of the
 	// time (the red-lens arm of the dispatch), so every seed reaches it.
 	"report_read",
+	// The tool's tombstone row — a bench ruling's or a verbatim application's bar, and the row that
+	// ends one — written beside that act and never by a seat: the sweep's bench rulings and verbatim
+	// edits write it.
+	"tombstone",
+	// The tool putting a gap before the bench — written by the dispatch, never by a seat. Exempted
+	// below while no drive of the sweep writes one.
+	"docketing",
 }
 
 // coverExempt names verbs tallied but NOT required in the random-sweep coverage gate.
@@ -8900,6 +9149,9 @@ var coverExempt = map[string]bool{
 	// THE CAST IS SETUP'S, NOT A VERB'S: written once before the first seat sits, so no seed of
 	// the random sweep can produce it. `dispatch` is driven: the chair's first act every sitting.
 	"cast": true,
+	// NO DRIVE OF THE SWEEP WRITES A DOCKETING YET: the dispatch writes it, and the sweep's dispatch
+	// drive files the docket motion. The exemption goes when the dispatch writes docketings.
+	"docketing": true,
 }
 
 // TestFuzzHaltPath drives the JUDICIAL HALT terminal path — kept OUT of the random sweep because a
@@ -9003,7 +9255,7 @@ var dialecticProseKey = map[string]string{
 	// Motions: the ASK and the ANSWER, on one id. `petition-rule` alone used to be the half-dialog — the
 	// reader got the bench's ruling with no question attached.
 	// The board.
-	"mint": "problem", "finding": "text", "regrade": "basis",
+	"mint": "problem", "regrade": "basis",
 	// Inquiries: the question, and blue's reason for its fate.
 	"inquiry": "question",
 
@@ -9026,6 +9278,7 @@ var dialecticProseKey = map[string]string{
 // with its reason. Stated rather than omitted: an absence with no reason is indistinguishable
 // from an oversight, which is precisely how this gate decayed.
 var reportExemptions = map[string]string{
+	"amend":       "a version of its gap's wording, by its minter or by the bench ruling for a gap-on-gap's raiser: the report renders the gap's current version on its row, marked [amended ×N] (plans/findings-fold.md §III.B7, picked 2026-11-26), and every version with its reason reaches the reader through `show changes`, never as an entry of its own",
 	"retire":      "an anchor taken off a sentence that stays: an anchor change goes to the work lists, never a section of the set (RULINGS.md 11-20, ruling 1; plans/constitution-gaps.md §III.10c), and its claim is the tool's stamp of that sentence, which the report carries until an edit rewrites it and editHistory renders the edit — that the retire kept its sentence is held at its own event (retiresKeepSentences)",
 	"register":    "a seat announcing itself to the run — attribution machinery, and the attribution reaches the reader on every act that seat records, never as an entry of its own",
 	"anchor":      "an estoppel key spliced INTO blue/report.md — it is machinery for the edit path, and the text it anchors is the report's own",
@@ -9040,6 +9293,8 @@ var reportExemptions = map[string]string{
 	"plan":        "the plan the chair's dispatch printed, stored whole — routing, the original capture compares each relay with, never rendered",
 	"stale":       "the read point a refusal moved a seat to on a gap that changed under its sitting — the write path's own gate, carrying no prose; the act re-filed carries the seat's",
 	"report_read": "the whole report the tool served a lens, at a head — the lens's pin, carrying no prose; the transcript renders it as a served line, and the reader gets the report itself",
+	"tombstone":   "the tool's record of what ends a gap's standing — read by the tombstone_standing view, carrying no prose; the act it stands beside carries the seat's",
+	"docketing":   "the tool putting a gap before the bench — read by gap_state's standing docketing and the docketings fold, carrying the tool's basis and no seat's prose; the bench's ruling of it carries the bench's",
 	// THE HOOKS' FACTS ABOUT A SITTING'S END. Both are written by feov-sitting-write, about a seat
 	// and not by it, and carry no prose; their readers are the record's own folds.
 	"sitting_close":     "the SubagentStop hook's stop of an agent — read by record.satThroughOf (whether a seat sat through a sitting), record.sittingCloserOf (where a sitting ended), record.FailedSittingsOf (whether it failed), record.registeredSitting (the repeat-register refusal), record.OneCloseASitting (its own write guard), record.TranscriptOf (behind record.SeatModels' served model and show diagnostics), record.TranscriptsOf (capture's transcript list), and migrate's replay (migrate/replay.go) and admissionBefore (migrate/admission.go: the sitting an older source's close ends, which it admits), carrying no prose, never rendered",
@@ -9465,7 +9720,7 @@ func TestFuzzDebate(t *testing.T) {
 			began := time.Now()
 			o := runOne(t, wrapped, bin, seed, seed == unverifiedSeed, seed == estoppelSeed, seed == verifiedSeed || positionFormOf(seed) != "")
 			// ONE LINE PER RUN, so a slow or stuck seed is named with its length beside it.
-			t.Logf("RUNSTAT seed=%d secs=%d epochs=%d verdict=%q limit=%t failed=%t reproduces=%d reruns=%d owedKept=%d lensSittings=%d maxLensSittings=%d bySeat=%v blueSittings=%d blueAgain=%d unsoundReadied=%d/%d spansRefused=%d closedRemandsRefused=%d trifleRemandsRouted=%d err=%q", seed, int(time.Since(began).Seconds()), o.epochs, o.verdict, o.epochLimit, o.err != "", o.reproduces, o.reruns, o.owedKept, sumSittings(o.lensSittings), maxSittings(o.lensSittings), o.lensSittings, o.blueSittings, o.blueAgain, o.unsoundReadied, o.unsoundPlans, o.spansRefused, o.closedRemandsRefused, o.trifleRemandsRouted, runstatErr(o.err))
+			t.Logf("RUNSTAT seed=%d secs=%d epochs=%d verdict=%q limit=%t failed=%t reproduces=%d reruns=%d owedKept=%d lensSittings=%d maxLensSittings=%d bySeat=%v blueSittings=%d blueAgain=%d unsoundReadied=%d/%d spansRefused=%d trifleRemandsRouted=%d err=%q", seed, int(time.Since(began).Seconds()), o.epochs, o.verdict, o.epochLimit, o.err != "", o.reproduces, o.reruns, o.owedKept, sumSittings(o.lensSittings), maxSittings(o.lensSittings), o.lensSittings, o.blueSittings, o.blueAgain, o.unsoundReadied, o.unsoundPlans, o.spansRefused, o.trifleRemandsRouted, runstatErr(o.err))
 			// THE ORACLE RUNS ON EVERY RECORD THE SWEEP PRODUCES. The drives above assert that
 			// each command SUCCEEDED; the oracle asserts that the record those commands built is
 			// one every projection agrees about — the cross-reader class the unit suites cannot
@@ -9577,13 +9832,11 @@ const sittingWriterName = "feov-sitting-write"
 // mintedGapIDs lists the gaps a run actually created, so a scoped-view oracle asks about
 // something real rather than about a shape the fuzz happened not to produce this seed.
 // someReportAnchor returns one anchor id this run actually put in the report, or "" before any
-// finding has been recorded. Read from the RECORD (the `finding` event's label) rather than by
-// scanning report.md for a token, so the oracle is not testing the reader with the reader.
-// It reads the ANCHOR events, not the findings. Sourcing it from findings assumed every finding
-// splices a marker, which stopped being true when a finding could anchor to a section, an inquiry
-// or a gap (#742/#787): those name something that is not report text, so there is nothing to mark
-// and `show report --anchor` on one correctly finds no window. Asking the anchor events instead
-// asks the question this function's name already claimed to ask.
+// marker has been recorded. Read from the RECORD (the ANCHOR events) rather than by scanning
+// report.md for a token, so the oracle is not testing the reader with the reader. A gap about a
+// section, an inquiry or an anchor names something that is not report text, so there is nothing to
+// mark and `show report --anchor` on one correctly finds no window; the anchor events hold only
+// what was marked.
 // An anchor `retire` took out with its claim is not in the report, and `show report --anchor`
 // refuses it by design; the oracle reads a window, so it skips those.
 func someReportAnchor(run record.Run) string {
@@ -9708,6 +9961,24 @@ func (r *runner) drawnRetireAnchor() string {
 	return ids[r.rng.Intn(len(ids))]
 }
 
+// limitArmAnchor is whether id is one of the limit seed's subjects the run must end on as screenAtLimit
+// judged them — blue's unsound computation, its refuted citation, or that citation's sentence — so no
+// drawn drive judges, reads or mints on it. The seats run concurrently on one generator (lockedRand),
+// so which drawn drive reaches one is the interleaving's: on seed 7 a drawn re-judgement of the
+// computation `sound` (answerFailed) and another lens's cross-arm mint about the citation
+// (crossArmMints) each ended a run on nothing for the screen to fail. limitAnchorLocked is it with r.mu
+// held, the one definition reservedDebtSubject and forcedArmAnchor read too.
+func (r *runner) limitArmAnchor(id string) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.limitAnchorLocked(id)
+}
+
+func (r *runner) limitAnchorLocked(id string) bool {
+	return r.forceScreenUnsound && id != "" &&
+		(id == r.screenUnsoundComputation || id == r.limitDebtCite || id == r.limitDebtSentenceCited)
+}
+
 // forcedArmAnchor is whether id, an anchor of report cur, is one a forced arm placed and acts on, or
 // needs standing, at a later sitting or at the run's end. NO DRAWN RETIRE TAKES ONE: it would leave
 // the arm nothing to act on — a seam with nothing to forge, a chain with no computation to judge, a
@@ -9724,14 +9995,11 @@ func (r *runner) forcedArmAnchor(cur, id string) bool {
 		return true
 	}
 	r.mu.Lock()
-	staleness, owed, limit := r.stalenessAnchor, r.forceOwedComputation, []string{}
-	if r.forceScreenUnsound {
-		limit = append(limit, r.screenUnsoundComputation, r.limitDebtCite)
-	}
+	staleness, owed, limit := r.stalenessAnchor, r.forceOwedComputation, r.limitAnchorLocked(id)
 	mintBare := r.forceMintBare
 	r.mu.Unlock()
 	switch {
-	case id == staleness, slices.Contains(limit, id):
+	case id == staleness, limit:
 		return true
 	case owed && anchor.Kind(id) == "computation":
 		return true
@@ -9834,7 +10102,7 @@ func inquiryCheckCode(class string) feov.Code {
 // checkInquiries is a red lens's part in an inquiry's judgement. The OWNER (record.InquiryOwner)
 // checks every settled inquiry no check stands on and no material gap is about — the blocking item
 // its work list carries for each — and drives each refusal class once a run on the inquiry in that
-// state. Any other lens drives the owner's refusal once a run: its finding or gap about an inquiry
+// state. Any other lens drives the owner's refusal once a run: its gap about an inquiry
 // is its say, and the check is not.
 //
 // AN INQUIRY WHOSE FATE, OR A GAP ABOUT IT, LANDED AFTER THE OWNER'S SITTING OPENED IS LEFT for the
@@ -9886,8 +10154,7 @@ func (r *runner) checkInquiries(seatID string) {
 				noteEither(args, "the inquiry moved under the owner's check", false)
 				continue
 			}
-			// THE VOICE LENS'S GAP ABOUT IT LANDED BESIDE THE CHECK and left again before the re-read —
-			// superseded or closed — so the inquiry reads unchecked on both sides of a refusal that
+			// THE VOICE LENS'S GAP ABOUT IT LANDED BESIDE THE CHECK and closed again before the re-read, so the inquiry reads unchecked on both sides of a refusal that
 			// named the gap (composedsource_test.go).
 			r.mu.Lock()
 			composedBeside := r.composedInquiry == j.ID && r.composedGap != composedBefore
@@ -9959,7 +10226,7 @@ func (r *runner) checkRefused(class, seatID, id, reason string) {
 	}
 }
 
-// recomputeOpenComputations audits the computation answering each open COMPUTE gap, and the gap's minting lens
+// recomputeOpenComputations audits the computation answering each open COMPUTE gap, and the gap's assignee
 // closes on that computation's own comparison rather than on its own say-so. The computation's OWNER
 // reproduces it — executing the bundle where nobody has, else comparing against its standing re-run —
 // and judges its sentence: the one audit that does not end in believing bytes somebody else chose.
@@ -10024,6 +10291,10 @@ func (r *runner) scenarioOf(gapID string) string {
 // blueRespondTo carries out the scenario each open gap was minted with — one decision per gap,
 // taken from the gap rather than from a coin, which is what makes the terminal state assertable.
 func (r *runner) blueRespondTo(seatID string, open []string) {
+	last := ""
+	if r.forceEstoppel {
+		open, last = r.verbatimLast(open)
+	}
 	for _, id := range open {
 		switch r.scenarioOf(id) {
 		case dirApply:
@@ -10034,6 +10305,9 @@ func (r *runner) blueRespondTo(seatID string, open []string) {
 			// able to say whether the branch was never taken, took and found no proposal, took
 			// and found the span already edited away, or ran and was REFUSED. Four causes, one
 			// zero — the plausible-zero shape, in the instrument meant to detect it.
+			if id == last {
+				r.swapToProposal(seatID, id)
+			}
 			cur, err := record.RenderRun(r.run())
 			gid, fo, fn := r.proposalFor(id, cur)
 			switch {
@@ -10073,16 +10347,18 @@ func (r *runner) blueRespondTo(seatID string, open []string) {
 					// still never passed. The coverage gate is a property of the SWEEP, so the
 					// thing that guarantees both arms has to be too.
 					useAccept := applyTurn.Add(1)%2 == 0
-					edit := r.do("edit", seatID).set("--answers", id)
+					// --accept NAMES THE GAP the edit answers, so it carries no --answers beside it.
+					edit := r.do("edit", seatID)
 					if useAccept {
-						edit = edit.bare("--accept").
+						edit = edit.set("--accept", id).
 							set("--reason", "fuzz: accepting red's prescribed fix on "+id+" exactly as recorded")
 					} else {
-						edit = edit.set("--quote", fo).set("--new", fn).
+						edit = edit.set("--answers", id).set("--quote", fo).set("--new", fn).
 							set("--reason", "fuzz: applying red's proposed text verbatim")
 					}
-					if _, err := edit.result(); err != nil {
-						r.noteApplyMiss("blue edit REFUSED: " + firstLine(err.Error()))
+					if out, err := edit.result(); err != nil {
+						r.noteApplyMiss("blue edit REFUSED: " + firstLine(err.Error()) + " — " + firstLine(out))
+						r.noteUnanswered(id, "blue's apply refused: "+firstLine(out))
 						break
 					}
 					r.noteVerbatimGap(id, fn)
@@ -10094,8 +10370,8 @@ func (r *runner) blueRespondTo(seatID string, open []string) {
 		case dirCounter:
 			r.counterEdit(seatID, id)
 		case dirDisputeWon, dirDisputeLost:
-			// AN AXIS THE BENCH SET TAKES NO GRADE MOTION: the record refuses one, and the dispute
-			// contests an axis that is still the parties'.
+			// AN AXIS A RULING LOCKED TAKES NO PROPOSED REGRADE: the dispute contests an axis that is
+			// still the parties'.
 			held := r.benchGrades(id)
 			var free []string
 			for _, d := range disputeDims {
@@ -10112,8 +10388,16 @@ func (r *runner) blueRespondTo(seatID string, open []string) {
 			// 5 would report as a missing dispute event three layers away — which is exactly the
 			// shape the hyphenated grade words produced.
 			proposed := r.gradeOtherThan(r.currentGrade(id, dim))
-			out, err := r.exec("--json", "motion", "grade", "file", "--seat-id", seatID, "--id", id,
-				"--dimension", dim, "--proposed", proposed, "--reason", "fuzz: contesting the grade on "+id)
+			// THE CONTEST IS A PROPOSED REGRADE, filed once per gap: the gap holds one proposal at a
+			// time, and the bench sides with it (dirDisputeWon) or rejects it (dirDisputeLost). It is refused before the gap's first counted exchange, and
+			// blue files it again at a later sitting. A GAP BEFORE THE BENCH IS FILED ON ALL THE SAME: the
+			// record refuses a proposal on a docketed gap, or on one another proposal stands on, and the
+			// refusal kept is what the oracle reads.
+			if r.disputeFiled.has(id) {
+				continue
+			}
+			_, err := r.exec("--json", "motion", "docket", "file", "regrade", "--seat-id", seatID, "--id", id,
+				"--"+dim, proposed, "--reason", "fuzz: contesting the grade on "+id)
 			// THE REFUSAL IS KEPT, because the oracle downstream reports its ABSENCE and cannot
 			// say why. `scenario DISPUTE: G1 has no dispute event` is what a discarded error
 			// looks like from the far end — a coverage report about a drive that ran fine.
@@ -10122,18 +10406,9 @@ func (r *runner) blueRespondTo(seatID string, open []string) {
 					r.disputeRefusals = map[string]string{}
 				}
 				r.disputeRefusals[id] = err.Error()
+				continue
 			}
-			if err == nil {
-				if mid := motionIDOf(out); mid != "" {
-					// The envelope ref keeps (gap_id, dimension) because debate.js routes the
-					// DOCKET on them; the motion id rides alongside so the ruling can name the
-					// ask it answers. Not redundant: the pair says which grade, the id says
-					// which ASK about it, and #312 is the case where one gap and one dimension
-					// had two asks and the pair could not tell them apart.
-					ref := map[string]any{"gap_id": id, "dimension": dim, "proposed": proposed, "motion_id": mid}
-					r.raised = append(r.raised, ref)
-				}
-			}
+			r.disputeFiled.add(id)
 		case dirCompute, dirComputeDrifts:
 			// SETTLE IT BY COMPUTING. The program is written into a bundle of its own and the tool
 			// runs it TWICE in fresh copies, so this drives the real interpreter, the store, the
@@ -10158,7 +10433,7 @@ func (r *runner) blueRespondTo(seatID string, open []string) {
 				// claim of the computation axis. It passed the FABRICATED label "c-fuzz", which named
 				// no citation on the record: a computation claiming a provenance it did not have, and
 				// the report rendered the link. `requireCitation` refuses it now, so this takes
-				// a real anchor off the record — the same discipline someFinding and someCitation
+				// a real anchor off the record — the same discipline someCitation
 				// already impose everywhere else a label is passed.
 				if anchor := r.someCitation(); anchor != "" && r.coin(50) {
 					comp.set("--cites", anchor)
@@ -10172,6 +10447,29 @@ func (r *runner) blueRespondTo(seatID string, open []string) {
 	}
 }
 
+// heldUnexchanged reports whether the last attempt at gapID's proposed regrade was refused by the
+// exchange gate — a proposal waits for the gap's first counted exchange, and a gap whose lens sitting
+// the record cannot close stands NOT MEASURED — or by a ruling's tombstone on it, which bars the dispute
+// the scenario asked for (estopped_refused). The drive files again at each later blue sitting on the gap
+// until one lands, so the refusal kept is the last attempt's: a count the record reaches after blue's
+// last sitting on the gap (a lens sitting closed later, or at the run's end) came too late for any.
+//
+// A GAP THE RECORD HELD BEFORE THE BENCH takes no proposal either: docketed at impasse, its contest is
+// the docketing's and the closings argue it; with another proposal standing on it, the gap holds that
+// one; and blue, having filed its closing on the gap in the sitting, cannot owe it a second. The drive's
+// last attempt refused by any of these is the record's answer to the scenario.
+func (r *runner) heldUnexchanged(gapID string) bool {
+	why := r.disputeRefusals[gapID]
+	for _, held := range []string{tombstoneStands, "a proposal on a gap is admitted once it has had one exchange",
+		"no proposal is filed on a docketed gap", "a gap holds one proposal at a time",
+		"a proposal now would owe it a second closing"} {
+		if strings.Contains(why, held) {
+			return true
+		}
+	}
+	return false
+}
+
 // counterEdit makes a real edit that is NOT red's proposed text.
 func (r *runner) counterEdit(seatID, gapID string) {
 	cur, err := record.RenderRun(r.run())
@@ -10183,11 +10481,41 @@ func (r *runner) counterEdit(seatID, gapID string) {
 		oldSpan, newSpan = newSpan, oldSpan
 	}
 	if !strings.Contains(string(cur), oldSpan) {
+		r.noteUnanswered(gapID, "neither of the counter-edit's spans stands in the report")
 		return
 	}
 	run := r.edgeRun(cur, oldSpan)
-	r.do("edit", seatID).set("--quote", oldSpan+run).set("--new", newSpan+run).
-		set("--answers", gapID).set("--reason", "fuzz: counter-edit, not red's text").admit()
+	a := r.do("edit", seatID).set("--quote", oldSpan+run).set("--new", newSpan+run).
+		set("--answers", gapID).set("--reason", "fuzz: counter-edit, not red's text")
+	out, err := a.result()
+	switch {
+	case err == nil:
+	case heldUntilItsRuling(a.all(), out+err.Error()):
+		// THE FREEZE HOLDS THE SPAN for a statement before the bench: kept, as the oracle's answer.
+		r.noteUnanswered(gapID, "blue's counter-edit held by the freeze: "+firstLine(out))
+	default:
+		r.noteActErr("refused, and the drive expects it admitted: " + err.Error())
+	}
+}
+
+// noteUnanswered keeps why blue's latest edit answering gapID did not land, which the APPLY oracle reads
+// (applyHeldByFreeze) and names beside a gap left with no edit answering it.
+func (r *runner) noteUnanswered(gapID, why string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.unanswered == nil {
+		r.unanswered = map[string]string{}
+	}
+	r.unanswered[gapID] = why
+}
+
+// applyHeldByFreeze reports whether blue's last attempt to answer gapID was refused by the freeze — red's
+// text in a closing holds the span until its ruling — the record's
+// answer to an APPLY the scenario asked for.
+func (r *runner) applyHeldByFreeze(gapID string) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return strings.Contains(r.unanswered[gapID], "holds until its ruling")
 }
 
 // proposalFor returns the concrete pair for ONE gap over the report cur, when it carries one — the
@@ -10371,22 +10699,13 @@ func seatOfRole(role string) string {
 	}[role]
 }
 
-// TestFuzzUnverifiedPath drives the UNVERIFIED terminal verdict deterministically.
-//
-// IT USED TO BE LUCK. debate.js computes UNVERIFIED only for a run that is not halted, whose red
-// never passed, and which did NOT stop at the ceiling — the judged-deadlock exit with gaps still
-// open. In the random sweep that happens about once in sixty runs, because a bench that disposes
-// its whole docket clears the board and the engine grants red a further sitting instead, which
-// then passes. So `outcome --as UNVERIFIED` was an enum value the coverage gate demanded and the
-// sweep supplied by chance: it passed at N=60 with 2 occurrences and 1 at N=40, then failed at
-// N=40 with none. Roughly a one-in-three flake, and it had been one all along.
-//
-// coverage_test.go already refused the other answer, in writing: `outcome --as UNVERIFIED` was
-// once exempted on a claim that the engine had no path to it, a real run falsified that, and the
-// note left behind says an unreachable value should make the sweep SAY so rather than earn an
-// exemption explaining why it never was. So this drives it, the way TestFuzzHaltPath drives
-// HALTED — a terminal shape too disruptive for the random sweep gets a dedicated run, and its
-// invocations land in the same package-level tally the gate reads.
+// TestFuzzUnverifiedPath drives the UNVERIFIED terminal verdict deterministically, on the seat-failure
+// path: the forced run's lenses mint material gaps blue disputes, and every blue-respond sitting ends
+// without its envelope (runner.blueFails), so debate.js stops the debate at blue's NO_PROGRESS_EPOCHS-th
+// failed sitting in a row (seatStop) and stamps UNVERIFIED as the asserted word. The record's docket
+// cycle keeps a run with blue sitting in progress until its epoch limit, which is CEILING, so a run that
+// never stops on a failed seat does not reach UNVERIFIED; this proves the stop, and the record's
+// outcome, as TestFuzzHaltPath drives HALTED.
 func TestFuzzUnverifiedPath(t *testing.T) {
 	releaseGate(t)
 	sweepPath(t)
@@ -10408,8 +10727,9 @@ func TestFuzzUnverifiedPath(t *testing.T) {
 		_ = os.RemoveAll(runDir)
 	}()
 	// THE SAME RUN THE SWEEP BUILDS, because driveDebate is only half of one. Without the lanes'
-	// parts a lens finding has no anchor quote to attach to and is refused, so red mints nothing
-	// and the run takes the engine's degenerate-merge refusal, which is correct and is not this path. The lanes debate.js dispatches record them, as in runOne.
+	// parts a lens's mint has no quote to attach to and is refused, so red mints nothing and the
+	// run takes the engine's degenerate-merge refusal, which is correct and is not this path. The
+	// lanes debate.js dispatches record them, as in runOne.
 	r := newRunner(bin, runDir, newLockedRand(1))
 	// THE CAST SETUP WRITES, as the halt path and the sweep write it. Without it every `dispatch
 	// next` is refused ("the record holds no cast"), the driver's fallback plan dispatches nobody,
@@ -10426,6 +10746,10 @@ func TestFuzzUnverifiedPath(t *testing.T) {
 	}
 	if v, _ := result["verdict"].(string); v != "UNVERIFIED" {
 		t.Fatalf("expected verdict UNVERIFIED, got %q — the terminal path this test exists to drive did not run; %s", v, forcedTrajectory(t, runDir, result))
+	}
+	// THE PATH, not only the word: debate.js writes UNVERIFIED on four arms, and this run's is blue's stop.
+	if msg := r.blueFailsForcedErr(result); msg != "" {
+		t.Fatalf("%s; %s", msg, forcedTrajectory(t, runDir, result))
 	}
 	// AND THE RECORD SAYS SO, not just the returned map. This is the assertion the enum gate
 	// actually depends on: `outcome --as UNVERIFIED` has to be a value the tool WROTE.
@@ -10600,105 +10924,65 @@ func TestSortedKeysIsStableAcrossMapIterationOrder(t *testing.T) {
 	}
 }
 
-// unruledDocketMotions reads the motions projection for every docket motion on gapID that has no
-// ruling yet, in the projection's order — the one the dispatch filed, and any a party filed beside it.
-func (r *runner) unruledDocketMotions(gapID string) []string {
-	// `show` renders json by default (--format); the global --json envelope is not its shape.
-	out, err := r.exec(seat.GroupOf("motions"), "motions", "--seat-id", "judge")
-	if err != nil {
-		return nil
-	}
-	// `show --json` writes the projection's bytes directly — record.MotionsJSON, not a seat
-	// envelope — so the motions sit at the top level.
-	var page struct {
-		Motions []struct {
-			ID      string `json:"id"`
-			Subject string `json:"subject"`
-			Ruled   bool   `json:"ruled"`
-			GapID   string `json:"gap_id"`
-		} `json:"motions"`
-	}
-	if json.Unmarshal([]byte(out), &page) != nil {
+// standingProposals is every proposal on gapID that stands — unanswered, and ended by no concession —
+// as the record folds it (record.Motion.Standing), in filing order: a gap holds one at a time.
+func (r *runner) standingProposals(gapID string) []string {
+	b, ok := r.board()
+	if !ok {
+		r.noteActErr("the record could not be read for the proposals standing on " + gapID)
 		return nil
 	}
 	var ids []string
-	for _, m := range page.Motions {
-		if m.Subject == "docket" && !m.Ruled && m.GapID == gapID {
+	for _, m := range record.MotionsOf(b.Events, b.At) {
+		if m != nil && m.Subject == "docket" && m.GapID == gapID && m.Standing() {
 			ids = append(ids, m.ID)
 		}
 	}
 	return ids
 }
 
-// docketFiler is the seat that files the fallback docket motion the bench then rules: the chair,
-// which sits before the bench does. Never the bench — it rules docket motions and files none, so a
-// filing in its name is refused and the drive would rule nothing.
-const docketFiler = "red-chair"
-
 // settledByFuzzBench is the proposition every fuzz ruling bars, on the record and on the envelope.
 const settledByFuzzBench = "the proposition this ruling bars"
 
-// benchDisposes puts a gap before the bench and rules it, which is TWO acts now.
-//
-// IT WAS ONE, and the difference is the point of #681: `bench opinion --id <gap>` needed only a
-// gap, so the disposition joined to nothing and nothing could ask whether a gap that reached the
-// bench was ever answered. A ruling names the MOTION; the gap rides the filing.
-//
-// THE FILING'S RESULT IS READ RATHER THAN DISCARDED. Both halves used to be `r.admit(...)`.
-// noteExec records a refusal either way, so the run was not blind — but the id is needed here, and
-// a filing that failed would otherwise be followed by a ruling naming an empty motion, which
-// refuses for a second reason and buries the first. Returning early leaves ONE refusal in
-// execFailWhy: the one that actually happened.
-func (r *runner) benchDisposes(seatID, gapID, disposition string, extra ...string) {
-	// THE DISPATCH DOCKETS (plans/roundless.md §III.B.1): `dispatch next` files the docket motion
-	// for a gap at impasse, and the bench rules THAT motion — the record re-readies nothing for a
-	// docketing whose motion stands unruled, so a bench that files a fresh motion and rules it
-	// has, on the record, sat and ruled nothing. Five runs in forty ended UNVERIFIED on exactly
-	// that before this read the board. The fallback filing stays for a gap no dispatch docketed,
-	// and it files as the CHAIR seat, never the bench (the gavel problem in miniature).
-	//
-	// EVERY DOCKET MOTION STANDING ON THE GAP IS RULED, not the first. A party may file one beside the
-	// dispatch's (blue's `motion docket file` drive does not look first), each is a blocker on the
-	// bench's work list, and the plan keys the bench's sitting on the newest filing: a bench that
-	// rules one of two has, on the record, sat for the other and ruled nothing, and is never readied
-	// again — the forced-VERIFIED run ended UNVERIFIED on exactly that, the sibling motion standing
-	// with nobody ready until the terminal sitting ruled it. Two remands in one sitting are one
-	// remand (remandSittingsOf), so ruling each sibling as the scenario says moves no limit.
-	motionIDs := r.unruledDocketMotions(gapID)
+// benchDisposes is the bench answering each docketing standing on gapID, for the outcome want: the
+// dispatch writes the docketing — at impasse, at grade movement, or holding a proposal — and convenes the bench on it, and the bench answers it (docketAnswer). A
+// gap the bench sits on with no docketing standing is open only where the dispatch convened it on
+// nothing, or where an act after the plan that convened it ended its docketing unruled (§III.B5): a party's concession
+// in the same epoch — the raiser's close or `--accept M`, the author's `--accept G` — or an amend of
+// the gap. It reports whether a remand landed.
+func (r *runner) benchDisposes(seatID, gapID, want string, extra ...string) (remanded bool) {
 	// THE BENCH FILES NO DOCKET MOTION: reaching for one on the gap it is about to rule is refused.
 	if r.coin(25) {
-		r.rulerFilingRefused(seatID, "motion", "docket", "file", "--id", gapID, "--reason", "fuzz: the bench docketing "+gapID+" to itself")
+		r.rulerFilingRefused(seatID, "motion", "docket", "file", "close", "--id", gapID, "--as", "not_a_defect",
+			"--verified-by", seatID, "--verified-with", "fuzz: the record read", "--verified-against", "fuzz: the gap as it stands",
+			"--reason", "fuzz: the bench docketing "+gapID+" to itself")
 	}
-	if len(motionIDs) == 0 {
-		out, err := r.exec("motion", "docket", "file", "--json", "--seat-id", docketFiler, "--id", gapID,
-			"--reason", "fuzz: "+gapID+" is contested and is the bench's to settle")
-		if err != nil {
-			return // recorded by noteExec under `motion docket file`
-		}
-		// THE RESULT IS NESTED IN THE ENVELOPE ({"ok":true,"result":{…}}); reading `motion_id` at
-		// the top unmarshals cleanly into a zero, and the ruling below is silently skipped.
-		var filed struct {
-			Result struct {
-				MotionID string `json:"motion_id"`
-			} `json:"result"`
-		}
-		if json.Unmarshal([]byte(out), &filed) != nil || filed.Result.MotionID == "" {
-			return
-		}
-		motionIDs = []string{filed.Result.MotionID}
+	ds := r.standingDocketings(gapID)
+	if len(ds) == 0 && r.openOnRecord(gapID) && !r.endedUnruledSincePlan(gapID) {
+		r.noteActErr("the bench sat on open gap " + gapID + " with no docketing standing on it to answer, and none a concession ended since the plan convened it")
 	}
-	for i, motionID := range motionIDs {
-		// THE BENCH TRIES TO END WITH A TWIN STANDING, and the record refuses its envelope naming
-		// the twin (record.BenchEnvelopeRefusal — the PreToolUse hook denies the envelope call with
-		// it). Driven before the last of two or more motions on the gap is ruled.
-		if i == len(motionIDs)-1 && i > 0 && r.coin(50) {
-			r.envelopeRefusedEarly(seatID, "motion "+motionID+" ")
-		}
-		args := append([]string{"motion", "docket", "rule", "--seat-id", seatID, "--id", motionID,
-			"--as", disposition, "--principle", "correctness", "--tension", "cost",
-			"--review-flag", "none: the scenario the gap came from settles it", "--settled", settledByFuzzBench}, extra...)
-		r.admit(args...)
+	// A REMAND IS OPEN ONLY WHERE BOTH OF THE GAP'S PARTIES SIT AFTER THE RULING: elsewhere the bench
+	// reaches for it, the tool refuses it naming who does not sit, and the bench answers a side.
+	if _, parties := r.sitsAfterRuling(); want == "remanded" && !parties {
+		r.remandWithNoPartiesAfterRefused(seatID, gapID, ds)
+		want = "not_a_defect"
 	}
+	for _, d := range ds {
+		answer, remand, unstated := r.docketAnswer(d.ID, want, extra)
+		if answer == nil {
+			continue
+		}
+		common := []string{"motion", "docket", "rule", "--seat-id", seatID, "--id", d.ID,
+			"--principle", "correctness", "--tension", "cost",
+			"--review-flag", "none: the scenario the gap came from settles it", "--settled", settledByFuzzBench}
+		if unstated != 0 {
+			r.refuseUnstated(d.ID, unstated, append(slices.Clone(common), "--reason", "fuzz: siding with a side that stated nothing"))
+		}
+		if r.benchRules(append(common, answer...)) && remand {
+			remanded = true
+		}
+	}
+	return remanded
 }
 
 // envelopeRefusedEarly drives a seat's envelope while an item it owes stands: the record must refuse
@@ -10779,12 +11063,19 @@ func (r *runner) owesNaming(seatID, standing string) (bool, error) {
 // the last one, with nothing of the seat's own between it and the envelope.
 func (r *runner) envelopeEnds(seatID string) bool {
 	refusal, err := record.EnvelopeRefusal(r.run(), seatID, true)
-	for i := 0; i < 4 && err == nil && refusal != "" && strings.HasPrefix(seatID, "red-lens-"); i++ {
+	for i := 0; i < 4 && err == nil && refusal != "" && (strings.HasPrefix(seatID, "red-lens-") || seatID == "blue-respond"); i++ {
+		// BLUE'S REMEDY OF A CHECK A LENS SITTING ALONGSIDE FAILED after blue's pass is owed the same way.
 		r.dischargeOwed(seatID)
+		if seatID == "blue-respond" {
+			refusal, err = record.EnvelopeRefusal(r.run(), seatID, true)
+			continue
+		}
 		r.answerFailed(seatID)
-		// AN INQUIRY A SIBLING'S ACT LEFT UNCHECKED: a lens sitting alongside closed or regraded the gap
-		// that held it wanting after the owner's pass, and the owner's list now offers its check.
+		// AN INQUIRY OR A QUESTION PART A SIBLING'S ACT LEFT UNCHECKED: a lens sitting alongside closed or
+		// regraded the gap that held it wanting after the owner's pass, and the owner's list now offers
+		// its check.
 		r.checkInquiries(seatID)
+		r.checkQuestionParts(seatID)
 		refusal, err = record.EnvelopeRefusal(r.run(), seatID, true)
 	}
 	switch {
@@ -10816,46 +11107,57 @@ func (r *runner) envelopeEnds(seatID string) bool {
 	return false
 }
 
-// ruleStandingDockets is the terminal bench ruling every docket motion that stands unruled at the
-// exit, each with a disposition that ends it: the terminal prompt names them and says nothing can
-// be remanded — there is no next sitting to remand it to.
+// ruleStandingDockets is the terminal bench answering every docketing that stands at the exit, each
+// with an answer that ends it: the terminal prompt names them and says nothing can be remanded — there
+// is no next sitting to remand it to.
 func (r *runner) ruleStandingDockets(seatID string) {
-	out, err := r.exec(seat.GroupOf("motions"), "motions", "--seat-id", seatID)
-	if err != nil {
-		return // recorded by noteExec; the outcome oracle names the run that ends over it
+	for _, d := range r.standingDocketings("") {
+		r.ruleDocketAtExit(seatID, d.ID)
 	}
-	var page struct {
-		Motions []struct {
-			ID      string `json:"id"`
-			Subject string `json:"subject"`
-			Ruled   bool   `json:"ruled"`
-		} `json:"motions"`
-	}
-	if json.Unmarshal([]byte(out), &page) != nil {
+}
+
+// ruleDocketAtExit is the bench answering docketing id at the run's exit with a side of its pair, or a
+// grade answer: nothing can be remanded, there being no next sitting to remand it to.
+func (r *runner) ruleDocketAtExit(seatID, id string) {
+	want := pick(r.rng, []string{"repaired", "not_a_defect"})
+	answer, _, unstated := r.docketAnswer(id, want, []string{"--final"})
+	if answer == nil {
 		return
 	}
-	for _, m := range page.Motions {
-		if m.Subject != "docket" || m.Ruled {
-			continue
-		}
-		r.ruleDocketAtExit(seatID, m.ID)
+	common := []string{"motion", "docket", "rule", "--seat-id", seatID, "--id", id,
+		"--principle", "correctness", "--tension", "cost",
+		"--review-flag", "none: the run's term ended with this docketing standing", "--settled", settledByFuzzBench,
+		"--reason", "fuzz: ruled at the exit, where nothing can be remanded"}
+	if unstated != 0 {
+		r.refuseUnstated(id, unstated, common)
 	}
+	r.benchRules(append(common, answer...))
 }
 
-// ruleDocketAtExit is the bench ruling one standing docket motion at the run's exit, with a
-// disposition that ends it: nothing can be remanded, there being no next sitting to remand it to.
-func (r *runner) ruleDocketAtExit(seatID, motionID string) {
-	disp := pick(r.rng, []string{"repaired", "not_a_defect", "defect_accepted", "defect_owed_elsewhere", "amends_prior"})
-	r.admit("motion", "docket", "rule", "--seat-id", seatID, "--id", motionID,
-		"--as", disp, "--final", "--principle", "correctness", "--tension", "cost",
-		"--review-flag", "none: the run's term ended with this motion standing", "--settled", settledByFuzzBench,
-		"--reason", "fuzz: ruled at the exit, where nothing can be remanded")
+// docketingsHolding is the docketing standing that holds each of motionIDs, in motionIDs' order: the
+// bench's register at the assembly writes one for each proposal no plan followed.
+func (r *runner) docketingsHolding(motionIDs []string) []string {
+	held := map[string]string{}
+	for _, d := range r.standingDocketings("") {
+		if d.MotionID != "" {
+			held[d.MotionID] = d.ID
+		}
+	}
+	var out []string
+	for _, m := range motionIDs {
+		if d, ok := held[m]; ok {
+			out = append(out, d)
+		} else {
+			r.noteActErr("proposal " + m + ", filed after the last plan, stands at the assembly with no docketing holding it")
+		}
+	}
+	return out
 }
 
-// docketsSinceTheLastPlan is each docket motion standing unruled that was filed after the last plan
-// the record stored. Only a stop that lands mid-turn leaves one: a seat sat after the plan and filed
-// it, so the plan's blockers, which convene the terminal sitting, never named it. A standing docket
-// the last plan does name is the terminal sitting's to rule, and is not among these.
+// docketsSinceTheLastPlan is each proposal standing unruled that was filed after the last plan the
+// record stored. Only a stop that lands mid-turn leaves one: a seat sat after the plan and filed it, so
+// no plan docketed it, and the bench's register at the assembly does. A proposal the last plan does
+// name is the terminal sitting's to rule, and is not among these.
 func (r *runner) docketsSinceTheLastPlan() []string {
 	b, ok := r.board()
 	if !ok {
@@ -10871,15 +11173,23 @@ func (r *runner) docketsSinceTheLastPlan() []string {
 	if n := len(stored); n > 0 {
 		last = stored[n-1].At
 	}
-	ruled := map[string]bool{}
-	for _, e := range b.Events {
-		if m, ok := recordpb.BodyAs[*recordpb.MotionRule](e); ok {
-			ruled[m.GetMotionId()] = true
+	// A PROPOSAL STANDS until its raiser takes it, a concession ends it, or the bench answers the
+	// docketing that holds it, as the record folds it (record.Motion.Standing); a docketing no longer
+	// standing ended the proposal it holds.
+	standing := map[string]bool{}
+	for _, m := range record.MotionsOf(b.Events, b.At) {
+		if m != nil && m.Subject == "docket" && m.Standing() {
+			standing[m.ID] = true
+		}
+	}
+	for _, d := range r.docketings() {
+		if d.MotionID != "" && !d.Standing() {
+			delete(standing, d.MotionID)
 		}
 	}
 	var out []string
 	for i, e := range b.Events {
-		if m, ok := recordpb.BodyAs[*recordpb.Motion](e); ok && i > last && m.GetDocket().GetGapId() != "" && !ruled[m.GetMotionId()] {
+		if m, ok := recordpb.BodyAs[*recordpb.Motion](e); ok && i > last && m.GetDocket().GetGapId() != "" && standing[m.GetMotionId()] {
 			out = append(out, m.GetMotionId())
 		}
 	}
@@ -10992,11 +11302,17 @@ func declarationsAgreeWithBoard(run record.Run, declared int) string {
 // runstatErr is a failed run's error as the RUNSTAT line carries it: its first line, and where the
 // error holds a refused act's envelope — exec puts the act's output after the exit status, on the
 // lines below — the envelope's code and error, so the job log, which keeps RUNSTAT and drops the
-// lines below it, names why the act was refused and not only its exit status.
+// lines below it, names why the act was refused and not only its exit status. An act run without
+// --json prints its refusal as text: the first line of it below the exit status is carried instead.
 func runstatErr(err string) string {
 	line := firstLine(err)
 	if env, ok := refusalEnvelopeIn(err); ok {
-		line += " — refused (" + env.Code + "): " + env.Error
+		return line + " — refused (" + env.Code + "): " + env.Error
+	}
+	if _, rest, ok := strings.Cut(err, "\n"); ok {
+		if below := firstLine(strings.TrimSpace(rest)); below != "" {
+			line += " — " + below
+		}
 	}
 	return line
 }
@@ -11112,59 +11428,50 @@ func TestTheConverseVerdictOracleFiresOnlyOverWorkRedFinished(t *testing.T) {
 	}
 }
 
-// engageSuccessors is blue's R2 act (gblock, 2026-10-23): where its work list names an engaged gap it
-// found closed with an open successor, it records `engage` on exactly those and relays them in its
-// envelope, and the engine sits it once more this epoch. Before the owed set, once per sweep, it
-// asks with a gap the record names as no successor — the refusal the ruling requires.
-func (r *runner) engageSuccessors(seatID string, env map[string]any) {
+// engageOwed is blue's engagement (plans/findings-fold.md X22a): where its work list owes `engage` —
+// in the last epoch blue answers in, on the gaps of blue's minted after its dispatch — it records
+// `engage` on exactly those and relays them in its envelope, and the engine sits it once more this
+// epoch. It relays the gaps it found closed either way. Before the owed set, once per sweep, it asks
+// with an open gap the sitting does not owe — the refusal the write path holds it to.
+func (r *runner) engageOwed(seatID string, env map[string]any) {
 	w, err := record.WorkOfSeat(r.run(), "blue", seatID)
 	if err != nil || w.Engaged == nil {
 		return
 	}
-	var closed, lineage []string
-	for _, f := range w.Engaged.FoundClosed {
-		closed = append(closed, f.ID)
-		lineage = append(lineage, f.Successors...)
+	if len(w.Engaged.FoundClosed) > 0 {
+		found := []any{}
+		for _, f := range w.Engaged.FoundClosed {
+			found = append(found, f.ID)
+		}
+		env["found_closed"] = found
 	}
-	succ := w.Engaged.SuccessorsOwed
-	if len(closed) == 0 {
-		return
-	}
-	found := []any{}
-	for _, id := range closed {
-		found = append(found, id)
-	}
-	env["found_closed"] = found
-	if len(succ) == 0 {
+	owed := w.Engaged.Owed
+	if len(owed) == 0 {
 		return
 	}
 	if engageRefusalPending.CompareAndSwap(true, false) {
-		named := map[string]bool{}
-		for _, g := range lineage {
-			named[g] = true
-		}
 		for _, other := range r.openGaps() {
-			if !named[other] {
+			if !slices.Contains(owed, other) {
 				r.refuse(feov.Validation, "engage", "--seat-id", seatID, "--ids", other)
 				break
 			}
 		}
 	}
-	if _, err := r.exec("engage", "--seat-id", seatID, "--ids", strings.Join(succ, ",")); err != nil {
+	if _, err := r.exec("engage", "--seat-id", seatID, "--ids", strings.Join(owed, ",")); err != nil {
 		return
 	}
 	out := []any{}
-	for _, g := range succ {
+	for _, g := range owed {
 		out = append(out, g)
 	}
-	env["successors"] = out
+	env["engage"] = out
 }
 
-// envelopeReceived is what the harness expects of the engine once debate.js receives env: blue's
-// successors are the gaps the engine sits it on next (againOn). Called only for an envelope the
+// envelopeReceived is what the harness expects of the engine once debate.js receives env: the gaps
+// blue engaged are the gaps the engine sits it on next (againOn). Called only for an envelope the
 // engine is handed, never for one the harness gave up on (envelopeOutcome).
 func (r *runner) envelopeReceived(env map[string]any) {
-	named, _ := env["successors"].([]any)
+	named, _ := env["engage"].([]any)
 	if len(named) == 0 {
 		return
 	}

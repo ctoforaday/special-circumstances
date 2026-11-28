@@ -44,15 +44,13 @@ type MotionJSON struct {
 	RulingRelief string `json:"ruling_relief"`
 	RulingBinds  string `json:"ruling_binds"`
 
-	// Fields carries the subject-specific payload — a grade motion's gap_id/dimension/proposed,
-	// a petition's class. Kept as the record holds them rather than flattened into named columns
+	// Fields carries the subject-specific payload — a docket motion's gap_id, a petition's class. Kept as the record holds them rather than flattened into named columns
 	// that would differ per subject.
 	Fields map[string]string `json:"fields"`
-	// GapID is the gap the motion is ABOUT — a docket or grade motion's — or absent for a subject
-	// about no gap. The projection carried it only inside Fields for grade motions; a docket
-	// motion, the one the bench is dispatched to rule, showed no gap at all, so a bench reading
-	// this page could not tell which docketed gap a motion was for (found by the release sweep:
-	// its bench filed fresh motions and ruled those, and the dispatch's stood unruled).
+	// GapID is the gap the motion is ABOUT — a docket motion's — or absent for a subject about no
+	// gap. A bench reading this page names the docketed gap each motion is for from it (the release
+	// sweep's bench, given no gap here, filed fresh motions and ruled those while the dispatch's stood
+	// unruled).
 	GapID string `json:"gap_id,omitempty"`
 }
 
@@ -108,10 +106,14 @@ func motionsJSONOf(evs []*Event, win WindowIndex) MotionsJSON {
 // motionsView is the motions read from the record. The exchange lives on the families declared
 // here; nothing else on the record decides a motion's state. A position is a motion where its
 // sitting's plan permitted the PASS and the sitting records none (heardPositionsOf), so the
-// position, the plan and the verdict are read with them.
+// position, the plan and the verdict are read with them, and so are the regrades and closes: the raiser's
+// act taking a proposal (accepts) is the proposal's answer.
 var motionsView = declareNarrowedView("motions", rendersEvents(motionsJSONOf),
 	recordpb.EventType_EVENT_TYPE_MOTION,
 	recordpb.EventType_EVENT_TYPE_MOTION_RULE,
+	recordpb.EventType_EVENT_TYPE_REGRADE,
+	recordpb.EventType_EVENT_TYPE_CLOSE,
+	recordpb.EventType_EVENT_TYPE_DOCKETING,
 	recordpb.EventType_EVENT_TYPE_POSITION,
 	recordpb.EventType_EVENT_TYPE_PLAN,
 	recordpb.EventType_EVENT_TYPE_VERDICT)

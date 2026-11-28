@@ -115,7 +115,10 @@ func (r *runner) reservedDebtSubject(subject string) bool {
 	}
 	// THE LIMIT SEED'S CITATION IS READ `refutes` AT THE LIMIT PLAN AND LEFT (screenAtLimit): the run
 	// must end on that debt, so neither the owner's sitting nor blue's remedy clears it.
-	if r.forceScreenUnsound && r.limitDebtCite != "" && subject == r.limitDebtCite {
+	// AND ITS SENTENCE: another lens's claim_contradicts_source gap quoting it discharges the debt the
+	// moment it lands (F9), so a drawn lens's debt on that sentence is left standing too (CI run
+	// 46126830171, seed 7: red-lens-architecture's mint quoting it ended the run on no debt).
+	if r.limitDebtCite != "" && r.limitAnchorLocked(subject) {
 		return true
 	}
 	if !r.forceReadingRemoval || !removalDebtsStand(r.removal.stage) {
@@ -253,7 +256,7 @@ func (r *runner) remedyRemovalSentences(blue string) string {
 	r.mu.Lock()
 	retired, estoppedGap := r.removal.retiredCite, r.removal.estoppedGap
 	r.mu.Unlock()
-	if _, ok := r.do("edit", blue).set("--answers", estoppedGap).bare("--accept").
+	if _, ok := r.do("edit", blue).set("--accept", estoppedGap).
 		set("--reason", "fuzz: accepting red's prescribed fix on "+estoppedGap+" exactly as recorded").admit(); !ok {
 		return "blue's accept of the prescription on the estopped sentence was refused"
 	}
@@ -424,9 +427,10 @@ func TestTheReadingRemovalSeedDrivesEveryArm(t *testing.T) {
 		r := stagedSynthesizedRunner(t)
 		r.register("blue", "blue-respond")
 		r.forcedReadingRemoval("blue-respond")
+		debts := r.readingDebts() // read before r.mu is taken: readingDebts takes it on a read error
 		r.mu.Lock()
 		defer r.mu.Unlock()
-		if r.removal.stage != "" || r.readingRemovalForcedErr() != "" || len(r.readingDebts()) != 0 {
+		if r.removal.stage != "" || r.readingRemovalForcedErr() != "" || len(debts) != 0 {
 			t.Errorf("a run not forced drove the arm (stage %q) or owes it", r.removal.stage)
 		}
 	})

@@ -11,7 +11,6 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
 )
@@ -31,132 +30,13 @@ func migratedEvents(t *testing.T, name string) (record.Merged, map[string]int, m
 	return m, res.In, res.Out, run
 }
 
-// THE ARCHIVED RAISES ARE WRITTEN AS NO EVENT (§III.9 items 1, 3). A raise named a reading by its
-// event and answered nothing a gap does not; the migrated record holds the reading and the gap, and
-// the gap's `found_by` keeps every finding but the raise.
-func TestTheMigratedM30RaiseIsDropped(t *testing.T) {
-	for _, c := range []struct {
-		archive, gap string
-		raises       []string
-		foundBy      []string
-	}{
-		{"2026-10-19_is-91-prime-m30.tar.gz", "G-dc877265", []string{"F-8410bec7"}, []string{"F-9b6251e9"}},
-		{"2026-10-24_is-91-prime-m32.tar.gz", "G-f417112d", []string{"F-d8329c9a", "F-1c990edb", "F-b59925d3", "F-5e7dfd3d"}, nil},
-	} {
-		t.Run(c.archive, func(t *testing.T) {
-			m, in, out, _ := migratedEvents(t, c.archive)
-			minted, closed := false, false
-			for _, e := range m.Events {
-				body, ok := recordpb.Body(e)
-				if !ok {
-					continue
-				}
-				switch b := body.(type) {
-				case *recordpb.Finding:
-					if slices.Contains(c.raises, b.GetId()) {
-						t.Errorf("raise %s was written, as a finding about %s %q", b.GetId(), recordpb.Word(b.GetAboutKind()), b.GetAboutRef())
-					}
-				case *recordpb.Mint:
-					if b.GetGapId() == c.gap {
-						minted = true
-						if !slices.Equal(b.GetFoundBy(), c.foundBy) {
-							t.Errorf("%s found_by %q, want %q", c.gap, b.GetFoundBy(), c.foundBy)
-						}
-					}
-				case *recordpb.Close:
-					closed = closed || b.GetGapId() == c.gap
-				}
-			}
-			// Both gaps were closed in their archives, and stay closed unless the close is a lost act
-			// (its lens's sitting holds no delivery), listed in the manifest.
-			res, _ := MigratedArchive(t, c.archive)
-			wantClosed := !LostCloseGaps(t, c.archive, res)[c.gap]
-			if !minted || closed != wantClosed {
-				t.Errorf("%s minted %v, closed %v; the archive minted and closed it, and its close is lost: %v", c.gap, minted, closed, !wantClosed)
-			}
-			if in["finding"] != out["finding"]+len(c.raises) {
-				t.Errorf("findings in %d, out %d: each of the %d raise(s) is read and written as no event", in["finding"], out["finding"], len(c.raises))
-			}
-		})
-	}
-}
-
-// A FINDING ABOUT AN ANCHOR IS NO RAISE (§III.9 item 1). A raise is recognised by a ref that names no
-// anchor; a finding about a citation, and one about a proof (respelled to the computation's anchor
-// before the test runs), come forward as findings about an anchor. Both are seeded into m30's stream,
-// after the anchors they name, in the shape its epoch wrote.
-func TestAFindingAboutAnAnchorIsNoRaise(t *testing.T) {
-	const name = "2026-10-19_is-91-prime-m30.tar.gz"
-	from := recordtest.ExtractArchive(t, name)
-	evs, err := archivedSource(t, from).Events()
-	if err != nil {
-		t.Fatal(err)
-	}
-	finding := func(after OldEvent, id, kind, ref string) OldEvent {
-		return OldEvent{ID: 1<<40 + after.ID, SeatID: "red-lens-evidence", Round: after.Round, TS: after.TS,
-			Key: "red-lens-evidence:finding:" + id, Word: "finding", Fields: map[string]any{
-				"id": id, "finding_key": "", "text": "the sentence overstates its source",
-				"severity": "low", "likelihood": "low", "impact": "low", "location": "",
-				"about_kind": kind, "about_ref": ref}}
-	}
-	var stream []OldEvent
-	seeded := 0
-	for _, old := range evs {
-		stream = append(stream, old)
-		if old.Word == "proof" && old.Fields["proof_id"] == "P-e8532ebe" {
-			stream = append(stream,
-				finding(old, "F-0000a1c0", "anchor", "C-73119c8d"),
-				finding(old, "F-0000b2d0", "proof", "P-7de24bab"))
-			seeded += 2
-		}
-	}
-	if seeded != 2 {
-		t.Fatalf("the archive holds no proof P-e8532ebe to seed after")
-	}
-	to := recordtest.TmpRun(t)
-	if _, err := copyChannels(from, to); err != nil {
-		t.Fatal(err)
-	}
-	dst := runtest.New(t, to)
-	res, err := replayInOrder(sliceOf(stream), "", Entries(), dst, Options{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(res.Refusals) != 0 {
-		t.Fatalf("%d refusal(s); the first: %+v", len(res.Refusals), res.Refusals[0])
-	}
-	m, err := record.MergedEvents(dst)
-	if err != nil {
-		t.Fatal(err)
-	}
-	want := map[string]string{"F-0000a1c0": "C-73119c8d", "F-0000b2d0": "K-7de24bab"}
-	for _, e := range m.Events {
-		f, ok := recordpb.BodyAs[*recordpb.Finding](e)
-		if !ok {
-			continue
-		}
-		ref, seededHere := want[f.GetId()]
-		if !seededHere {
-			continue
-		}
-		delete(want, f.GetId())
-		if f.GetAboutKind() != recordpb.AboutKind_ABOUT_KIND_ANCHOR || f.GetAboutRef() != ref {
-			t.Errorf("finding %s came forward about %s %q, want anchor %q", f.GetId(), recordpb.Word(f.GetAboutKind()), f.GetAboutRef(), ref)
-		}
-	}
-	if len(want) != 0 {
-		t.Errorf("findings %v were not written: a finding about an anchor is no raise", want)
-	}
-}
-
-// M23'S READINGS COME FORWARD AS READINGS (§III.9). m23 raised nothing: its corroborations and its
-// readings of citations are carried, none naming a gap, and its refuting corroboration (written as
-// event 400) is a reading of the source its lens found.
+// M23'S READINGS COME FORWARD AS READINGS (§III.9): its corroborations and its readings of citations
+// are carried, none naming a gap, and its refuting corroboration (written as event 400) is a reading
+// of the source its lens found.
 func TestM23CorroborationReadingComesForward(t *testing.T) {
 	m, in, out, _ := migratedEvents(t, "2026-10-13_is-91-prime-m23.tar.gz")
-	if in["verify"] != out["verify"] || in["finding"] != out["finding"] {
-		t.Errorf("verify in %d out %d, finding in %d out %d: m23 holds no raise, and every reading comes forward",
-			in["verify"], out["verify"], in["finding"], out["finding"])
+	if in["verify"] != out["verify"] {
+		t.Errorf("verify in %d out %d: every reading comes forward", in["verify"], out["verify"])
 	}
 	found, cited := 0, 0
 	for _, e := range m.Events {
@@ -256,8 +136,16 @@ func TestTheMigratedRedCitationsAreReadingsOfTheirSources(t *testing.T) {
 					citeURLs[u] = true
 				}
 			}
-			if in["verify"] != out["verify"] || in["blue_edit"] != out["blue_edit"] {
-				t.Fatalf("verify in %d out %d, blue_edit in %d out %d: each comes forward", in["verify"], out["verify"], in["blue_edit"], out["blue_edit"])
+			// A QUOTELESS READING AND A SETTLED EDIT ARE WRITTEN AS NO EVENT (EventSchema 80); every
+			// other one comes forward.
+			man, _ := MigratedArchive(t, la.name)
+			quoteless := map[int64]bool{}
+			for _, id := range man.QuotelessReadings {
+				quoteless[id] = true
+			}
+			if in["verify"]-len(man.QuotelessReadings) != out["verify"] || in["blue_edit"]-len(man.SettledEdits) != out["blue_edit"] {
+				t.Fatalf("verify in %d out %d (%d quoteless), blue_edit in %d out %d (%d settled): each other comes forward",
+					in["verify"], out["verify"], len(man.QuotelessReadings), in["blue_edit"], out["blue_edit"], len(man.SettledEdits))
 			}
 			type readingKey struct{ claim string }
 			verifies := map[readingKey][]*recordpb.Verify{}
@@ -287,6 +175,9 @@ func TestTheMigratedRedCitationsAreReadingsOfTheirSources(t *testing.T) {
 			}
 			reReadings := 0
 			for _, old := range srcVerify {
+				if quoteless[old.ID] {
+					continue
+				}
 				held, _ := old.Fields["label"].(string)
 				named, _ := old.Fields["anchor"].(string)
 				s, namedOne := dropped[named]
@@ -311,7 +202,9 @@ func TestTheMigratedRedCitationsAreReadingsOfTheirSources(t *testing.T) {
 						old.ID, held, named, len(verifies[k]), s.url, s.title)
 				}
 			}
-			if wantRe := map[string]int{"2026-09-02_quadratic-formula.tar.gz": 3}[la.name]; reReadings != wantRe {
+			// quadratic's third re-reading (source event 758) quoted only a finding's token and the
+			// label's, and is the quoteless reading written as no event.
+			if wantRe := map[string]int{"2026-09-02_quadratic-formula.tar.gz": 2}[la.name]; reReadings != wantRe {
 				t.Errorf("%d re-reading(s) of a label; the census holds %d", reReadings, wantRe)
 			}
 			sources, err := record.CitedSources(run)
@@ -323,22 +216,22 @@ func TestTheMigratedRedCitationsAreReadingsOfTheirSources(t *testing.T) {
 					t.Errorf("cited source %s is no blue cite", s.Label)
 				}
 			}
-			// b9's edits 164 and 167 reopened the evidence lens's finding and its label c-d49a32c4; they
-			// land reopening exactly the finding and the gap they answer (which the migration of b9's
-			// unlabelled edits 114 and 115 adds too) — the label removed, never respelled to "".
+			// b9's edits 164 and 167 reopened the evidence lens's finding F-84381c8e and its label
+			// c-d49a32c4; they land reopening exactly the gap they answer — the finding and the label
+			// removed, never respelled to "".
 			if la.name == "2026-09-11_is-91-prime-b9.tar.gz" {
 				landed := 0
 				for _, e := range edits {
-					if !slices.Contains(e.GetReopened(), "F-84381c8e") {
+					if !slices.Contains(e.GetReopened(), "G-ddb5c38b") {
 						continue
 					}
 					landed++
-					if got := e.GetReopened(); !slices.Equal(got, []string{"F-84381c8e", "G-ddb5c38b"}) {
-						t.Errorf("a b9 edit reopened %q; want exactly [F-84381c8e G-ddb5c38b], the list without its label", got)
+					if got := e.GetReopened(); !slices.Equal(got, []string{"G-ddb5c38b"}) {
+						t.Errorf("a b9 edit reopened %q; want exactly [G-ddb5c38b], the list without its finding and its label", got)
 					}
 				}
 				if landed != 2 {
-					t.Errorf("%d b9 edit(s) reopen F-84381c8e; edits 164 and 167 both do", landed)
+					t.Errorf("%d b9 edit(s) reopen G-ddb5c38b; edits 164 and 167 both do", landed)
 				}
 			}
 			// The render holds no label, and the Bibliography no url only a label carried.
@@ -349,8 +242,27 @@ func TestTheMigratedRedCitationsAreReadingsOfTheirSources(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			// A seat's prose keeps the label it wrote. quadratic's R3-4 names c-95969800 in its problem,
+			// and the risk matrix prints it: Translation 7 drops the link R4-1's mint named R3-4 by (a
+			// moved class and location), so R3-4 stands open as its own gap (plans/findings-fold.md
+			// §III.B8, the moved-field residue).
+			inOpenProblem := map[string]string{}
+			if la.name == "2026-09-02_quadratic-formula.tar.gz" {
+				inOpenProblem["c-95969800"] = "G-057d5781"
+			}
+			fam, err := record.FamilyOf(run)
+			if err != nil {
+				t.Fatal(err)
+			}
 			for sp := range dropped {
-				if strings.Contains(string(md), sp) {
+				if !strings.Contains(string(md), sp) {
+					continue
+				}
+				gap, open := inOpenProblem[sp], false
+				for _, g := range fam.Gaps {
+					open = open || g.ID == gap && g.Open && strings.Contains(g.Mint.GetProblem(), sp)
+				}
+				if !open {
 					t.Errorf("the assembled report holds %s", sp)
 				}
 			}

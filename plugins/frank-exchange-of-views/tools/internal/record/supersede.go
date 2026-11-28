@@ -1,11 +1,14 @@
 package record
 
 import (
+	"slices"
+
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
 // THE RECORD HOLDS ACTS, AND EVERY ACT STANDS. A seat that recorded something wrong answers it with
@@ -47,10 +50,12 @@ type supersederKey struct {
 	typ     recordpb.EventType
 	subject recordpb.MotionSubject
 	keyed   protoreflect.Name
+	// role is the answering seat's role, where one act's answer differs by who took it: the chair's
+	// carry restates a closure it cannot answer with a gap. Empty matches every role.
+	role string
 }
 
 const (
-	subjectGrade    = recordpb.MotionSubject_MOTION_SUBJECT_GRADE
 	subjectDocket   = recordpb.MotionSubject_MOTION_SUBJECT_DOCKET
 	subjectPetition = recordpb.MotionSubject_MOTION_SUBJECT_PETITION
 	subjectPosition = recordpb.MotionSubject_MOTION_SUBJECT_POSITION
@@ -59,38 +64,37 @@ const (
 // superseders holds a row for every type whose second act the record refuses and some command
 // records (RefusesARepeat), and for the numbered types whose answer a seat would otherwise guess.
 //
-// NO ROW IS A STATEMENT TOO, and two are deliberate. An anchor, a finding and a mint are keyed on an
-// id the tool mints per act, so a second with the same key is a retried write and nothing else. No
+// NO ROW IS A STATEMENT TOO, and two are deliberate. An anchor and a mint are keyed on an id the
+// tool mints per act, so a second with the same key is a retried write and nothing else. No
 // verb records an observe. An inquiry's check keys on no label, and a second check while one stands
 // is refused by its own rule (requireInquiryCheck), which names what makes it owed again.
 //
 // A RULING'S ROW IS THE RULER'S, the one seat that can repeat it — and the ruler files nothing on
-// the subject it rules (rulerfiles.go), so no row sends it to a new motion of that subject. The
-// chair answers its own ruling on a grade by putting the gap before the bench. Nothing sits above
-// the bench, so it answers its own ruling on a docket motion as it answers one on a petition, in a
-// declaration: a holding every seat is given, which moves no gap — the gap is before the bench
-// again when another seat files a docket motion on it, and the row says so. What a seat that
-// DISAGREES with a grade ruling does — a docket motion on the gap, or a new grade motion while the
-// gap is open — reaches that seat through its prompt and the `motion` pages, since the record
-// refuses it neither.
+// the subject it rules (rulerfiles.go), so no row sends it to a new motion of that subject. Nothing
+// sits above the bench, so it answers its own ruling on a docket motion as it answers one on a
+// petition, in a declaration: a holding every seat is given, which moves no gap — the gap is before
+// the bench again only on a new docketing of it, and the row says so.
 var superseders = map[supersederKey]superseder{
-	{typ: recordpb.EventType_EVENT_TYPE_INQUIRY}:                            {act: "a new record of the inquiry's fate"},
-	{typ: recordpb.EventType_EVENT_TYPE_CERTIFY}:                            {act: "a new certification", own: true},
-	{typ: recordpb.EventType_EVENT_TYPE_CITE}:                               {act: "a new citation", own: true},
-	{typ: recordpb.EventType_EVENT_TYPE_CLOSE}:                              {act: "a docket motion on the gap"},
-	{typ: recordpb.EventType_EVENT_TYPE_CLOSING}:                            {act: "a new closing on the gap", own: true},
-	{typ: recordpb.EventType_EVENT_TYPE_DECLARE}:                            {act: "a new declaration", own: true},
-	{typ: recordpb.EventType_EVENT_TYPE_HALT}:                               {act: "a new halt", own: true},
-	{typ: recordpb.EventType_EVENT_TYPE_LOG}:                                {act: "a new log entry", own: true},
-	{typ: recordpb.EventType_EVENT_TYPE_MOTION_RULE, subject: subjectGrade}: {act: "a docket motion on the gap"},
+	{typ: recordpb.EventType_EVENT_TYPE_INQUIRY}: {act: "a new record of the inquiry's fate"},
+	{typ: recordpb.EventType_EVENT_TYPE_CERTIFY}: {act: "a new certification", own: true},
+	{typ: recordpb.EventType_EVENT_TYPE_CITE}:    {act: "a new citation", own: true},
+	{typ: recordpb.EventType_EVENT_TYPE_CLOSE}: {act: "a new gap on the defect where it still stands in the report: " +
+		"a closed gap stays closed, and no mint names it"},
+	{typ: recordpb.EventType_EVENT_TYPE_CLOSE, role: "chair"}: {act: "a log entry: a carry restates a closure the record holds, " +
+		"which stands as its lens made it, and a defect still in the report is a new gap of the lens that finds it"},
+	{typ: recordpb.EventType_EVENT_TYPE_CLOSING}: {act: "a new closing on the gap", own: true},
+	{typ: recordpb.EventType_EVENT_TYPE_DECLARE}: {act: "a new declaration", own: true},
+	{typ: recordpb.EventType_EVENT_TYPE_HALT}:    {act: "a new halt", own: true},
+	{typ: recordpb.EventType_EVENT_TYPE_LOG}:     {act: "a new log entry", own: true},
 	{typ: recordpb.EventType_EVENT_TYPE_MOTION_RULE, subject: subjectDocket}: {act: "a declaration, which moves no gap: " +
-		"the gap comes before you again only in a docket motion another seat files"},
+		"the gap comes before you again only on a new docketing of it"},
 	{typ: recordpb.EventType_EVENT_TYPE_MOTION_RULE, subject: subjectPetition}: {act: "a declaration"},
 	{typ: recordpb.EventType_EVENT_TYPE_MOTION_RULE, subject: subjectPosition}: {act: "a declaration"},
 	{typ: recordpb.EventType_EVENT_TYPE_OUTCOME}:                               {whole: "a certification: the outcome stands once it is recorded, and after it the record takes no seat act but your register for the assemble occasion, your declaration, your certification, the assembly and a log entry"},
 	{typ: recordpb.EventType_EVENT_TYPE_POSITION}:                              {act: "a new position", own: true},
 	{typ: recordpb.EventType_EVENT_TYPE_COMPUTATION}:                           {act: "a new computation", own: true},
 	{typ: recordpb.EventType_EVENT_TYPE_REGRADE}:                               {act: "a new regrade", own: true, while: "while the gap is open"},
+	{typ: recordpb.EventType_EVENT_TYPE_AMEND}:                                 {act: "a new amend", own: true, while: "while the gap is open"},
 	{typ: recordpb.EventType_EVENT_TYPE_REPRODUCE}:                             {act: "a new judgement of the same computation anchor — a seat's latest judgement of a sentence is its verdict on it", own: true},
 	{typ: recordpb.EventType_EVENT_TYPE_SPOT_CHECK}:                            {act: "a new spot-check", own: true},
 	{typ: recordpb.EventType_EVENT_TYPE_VERDICT}:                               {whole: "a log entry: a PASS ends the debate, so no chair sitting follows it and no act answers it"},
@@ -111,6 +115,8 @@ type Answer struct {
 	Act string
 	// When says which acts of a verb the row is for, where one verb's help states two rows.
 	When string
+	// Role is the answering seat's role the row is for; empty when the row is every role's.
+	Role string
 }
 
 // Clause is the row as a sentence part, after "if it was wrong, …": the act to say so in.
@@ -121,22 +127,21 @@ func (a Answer) Clause() string {
 // AnswerTo is the act that answers a wrong act of this type and body, or false where the table
 // holds no row — a refusal then ends without a tail rather than send a seat to an act it has to
 // guess.
-func AnswerTo(typ recordpb.EventType, body proto.Message) (Answer, bool) {
-	k := supersederKey{typ: typ}
+func AnswerTo(role string, typ recordpb.EventType, body proto.Message) (Answer, bool) {
+	k := supersederKey{typ: typ, role: role}
 	if b, ok := body.(*recordpb.MotionRule); ok {
 		k.subject = b.Subject()
 	}
 	field := keyField(body)
-	k.keyed = field
-	row, ok := superseders[k]
-	if !ok {
-		k.keyed = ""
-		row, ok = superseders[k]
+	for _, r := range []string{role, ""} {
+		for _, f := range []protoreflect.Name{field, ""} {
+			k.role, k.keyed = r, f
+			if row, ok := superseders[k]; ok {
+				return Answer{Subject: k.subject, Keyed: string(k.keyed), Act: row.render(typ, field), When: row.when, Role: r}, true
+			}
+		}
 	}
-	if !ok {
-		return Answer{}, false
-	}
-	return Answer{Subject: k.subject, Keyed: string(k.keyed), Act: row.render(typ, field), When: row.when}, true
+	return Answer{}, false
 }
 
 // AnswersTo is every row the table holds for a type, in a stable order — what a verb's help reads,
@@ -145,17 +150,26 @@ func AnswersTo(typ recordpb.EventType) []Answer {
 	var out []Answer
 	subjects := append([]recordpb.MotionSubject{recordpb.MotionSubject_MOTION_SUBJECT_UNSPECIFIED}, subjectOrder()...)
 	fields := append([]protoreflect.Name{""}, keyFields...)
+	roles := []string{""}
+	for k := range superseders {
+		if k.typ == typ && k.role != "" && !slices.Contains(roles, k.role) {
+			roles = append(roles, k.role)
+		}
+	}
+	slices.Sort(roles[1:])
 	for _, s := range subjects {
 		for _, f := range fields {
-			row, ok := superseders[supersederKey{typ: typ, subject: s, keyed: f}]
-			if !ok {
-				continue
+			for _, r := range roles {
+				row, ok := superseders[supersederKey{typ: typ, subject: s, keyed: f, role: r}]
+				if !ok {
+					continue
+				}
+				field := f
+				if field == "" {
+					field = typeKeyField(typ)
+				}
+				out = append(out, Answer{Subject: s, Keyed: string(f), Act: row.render(typ, field), When: row.when, Role: r})
 			}
-			field := f
-			if field == "" {
-				field = typeKeyField(typ)
-			}
-			out = append(out, Answer{Subject: s, Keyed: string(f), Act: row.render(typ, field), When: row.when})
 		}
 	}
 	return out
@@ -196,8 +210,8 @@ func (s superseder) render(typ recordpb.EventType, field protoreflect.Name) stri
 
 // SupersedingAnswer words the tail every refusal of a repeated act ends with, or "" where the
 // table holds no row.
-func SupersedingAnswer(typ recordpb.EventType, body proto.Message) string {
-	a, ok := AnswerTo(typ, body)
+func SupersedingAnswer(seatID string, typ recordpb.EventType, body proto.Message) string {
+	a, ok := AnswerTo(seatclass.RoleOfSeat(seatID), typ, body)
 	if !ok {
 		return ""
 	}

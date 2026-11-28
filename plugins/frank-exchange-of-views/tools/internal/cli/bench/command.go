@@ -1,7 +1,7 @@
 // Package bench is the bench's contract: it rules, and never originates.
 //
 // There is no mint verb here. The bench disposes what the parties bring and
-// publishes opinions; a bench that could originate findings would be a third
+// publishes opinions; a bench that could originate gaps would be a third
 // adversary wearing a judge's robes.
 package bench
 
@@ -20,7 +20,6 @@ func Verbs() []*cobra.Command {
 		newHalt(),
 		newCertify(),
 		newDeclare(),
-		seat.Regrade("regrade-bench"),
 		newOutcome(),
 		newAssemble(),
 		seat.Log(),

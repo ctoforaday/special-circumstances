@@ -91,7 +91,7 @@ func TestGapAnchorSitsAtTheQuoteEnd(t *testing.T) {
 	}
 }
 
-// MINT AND FINDING REFUSE WHAT THE UNIQUE-QUOTE CHECK REFUSES, in the placement words, and record
+// MINT REFUSES WHAT THE UNIQUE-QUOTE CHECK REFUSES, in the placement words, and record
 // nothing. A quote that occurs twice in two paragraphs is ambiguous, including one whose first
 // match crosses a blank line — it is told it repeats, never that it may not cross; #552's shape,
 // a quote across a blank line holding a phrase that occurs earlier, is refused for crossing.
@@ -107,40 +107,32 @@ func TestMintRefusesWhatLocateUniqueRefused(t *testing.T) {
 		{"first match crosses, also inside one paragraph", "saw costs rose", "occurs more than once in the report"},
 		{"inside a fence", "code line here", "code fence"},
 	} {
-		for _, verb := range []string{"mint", "finding"} {
-			t.Run(verb+"/"+c.name, func(t *testing.T) {
-				runDir := newRun(t)
-				writeReport(t, runDir, report)
-				registerChairOnce(t, runDir)
-				registerLensOnce(t, runDir)
-				placed := func() int {
-					return countType(t, runDir, recordpb.EventType_EVENT_TYPE_MINT) + countType(t, runDir, recordpb.EventType_EVENT_TYPE_FINDING) +
-						countType(t, runDir, recordpb.EventType_EVENT_TYPE_ANCHOR)
-				}
-				before := placed()
-				var err error
-				if verb == "mint" {
-					_, err = mintQuote(t, runDir, "K", c.quote)
-				} else {
-					_, err = run(t, "finding", "--run", runDir, "--seat-id", lensSeat, "--key", "F1", "--quote", c.quote,
-						"--reason", "r", "--severity", "low", "--likelihood", "low", "--impact", "low")
-				}
-				if err == nil || !strings.Contains(err.Error(), c.says) {
-					t.Fatalf("refusal = %v, want it to say %q", err, c.says)
-				}
-				if strings.Contains(err.Error(), "one edit per site") {
-					t.Errorf("a placement refusal advises one edit per site: %v", err)
-				}
-				if after := placed(); after != before {
-					t.Errorf("a refused %s appended %d event(s)", verb, after-before)
-				}
-			})
-		}
+		t.Run("mint/"+c.name, func(t *testing.T) {
+			runDir := newRun(t)
+			writeReport(t, runDir, report)
+			registerChairOnce(t, runDir)
+			registerLensOnce(t, runDir)
+			placed := func() int {
+				return countType(t, runDir, recordpb.EventType_EVENT_TYPE_MINT) +
+					countType(t, runDir, recordpb.EventType_EVENT_TYPE_ANCHOR)
+			}
+			before := placed()
+			_, err := mintQuote(t, runDir, "K", c.quote)
+			if err == nil || !strings.Contains(err.Error(), c.says) {
+				t.Fatalf("refusal = %v, want it to say %q", err, c.says)
+			}
+			if strings.Contains(err.Error(), "one edit per site") {
+				t.Errorf("a placement refusal advises one edit per site: %v", err)
+			}
+			if after := placed(); after != before {
+				t.Errorf("a refused mint appended %d event(s)", after-before)
+			}
+		})
 	}
 }
 
 // NO VERB PLACES AN ANCHOR ON A HEADING. Every placing verb refuses a quote that ends in a heading,
-// appends nothing, and says so; a gap or a finding is told how to name the whole section instead.
+// appends nothing, and says so; a gap is told how to name the whole section instead.
 func TestNoVerbPlacesAnAnchorOnAHeading(t *testing.T) {
 	const report = "# Title\n\n## Method\n\nThe sieve runs once.\n"
 	for _, c := range []struct {
@@ -149,12 +141,6 @@ func TestNoVerbPlacesAnAnchorOnAHeading(t *testing.T) {
 		act     func(t *testing.T, runDir string) error
 	}{
 		{"lens mint", true, func(t *testing.T, runDir string) error { _, err := mintQuote(t, runDir, "K", "Method"); return err }},
-		{"lens finding", true, func(t *testing.T, runDir string) error {
-			registerLensOnce(t, runDir)
-			_, err := run(t, "finding", "--run", runDir, "--seat-id", lensSeat, "--key", "F1", "--quote", "Method",
-				"--reason", "r", "--severity", "low", "--likelihood", "low", "--impact", "low")
-			return err
-		}},
 		{"blue cite", false, func(t *testing.T, runDir string) error {
 			registerBlue(t, runDir)
 			withFetcher(t, &fakeFetcher{resp: map[string][]byte{"https://m/1": []byte("<html>the method</html>")}})
@@ -191,7 +177,7 @@ func TestNoVerbPlacesAnAnchorOnAHeading(t *testing.T) {
 			if !strings.Contains(err.Error(), "quote a sentence of the section's text") {
 				t.Errorf("refusal does not say what to quote: %v", err)
 			}
-			for _, typ := range []recordpb.EventType{recordpb.EventType_EVENT_TYPE_MINT, recordpb.EventType_EVENT_TYPE_FINDING,
+			for _, typ := range []recordpb.EventType{recordpb.EventType_EVENT_TYPE_MINT,
 				recordpb.EventType_EVENT_TYPE_ANCHOR, recordpb.EventType_EVENT_TYPE_CITE, recordpb.EventType_EVENT_TYPE_COMPUTATION, recordpb.EventType_EVENT_TYPE_VERIFY} {
 				if n := countType(t, runDir, typ); n != 0 {
 					t.Errorf("a refused %s appended %d %v event(s)", c.verb, n, typ)
@@ -205,9 +191,9 @@ func TestNoVerbPlacesAnAnchorOnAHeading(t *testing.T) {
 // heading line, or makes a heading of the line an anchor stands on, is refused and records nothing;
 // an anchor already on a heading — an archived carry — refuses no edit, its own heading's included.
 func TestNoEditPutsAnAnchorOnAHeading(t *testing.T) {
-	const report = "# Title\n\n## Method<!--fx:F-0000aaaa-->\n\nThe sieve runs once<!--fx:F-0000bbbb-->.\n"
+	const report = "# Title\n\n## Method<!--gap:G-0000aaaa-->\n\nThe sieve runs once<!--gap:G-0000bbbb-->.\n"
 	for _, c := range []struct{ name, quote, new string }{
-		{"carried into a heading", "The sieve runs once<!--fx:F-0000bbbb-->", "## The sieve runs once<!--fx:F-0000bbbb-->"},
+		{"carried into a heading", "The sieve runs once<!--gap:G-0000bbbb-->", "## The sieve runs once<!--gap:G-0000bbbb-->"},
 		{"made a heading around it", "The sieve", "## The sieve"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
@@ -215,7 +201,7 @@ func TestNoEditPutsAnAnchorOnAHeading(t *testing.T) {
 			writeReport(t, runDir, report)
 			registerBlue(t, runDir)
 			_, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat, "--key", "E1", "--quote", c.quote, "--new", c.new, "--reason", "r")
-			if want := "this edit puts <!--fx:F-0000bbbb--> on a section heading"; err == nil || !strings.Contains(err.Error(), want) {
+			if want := "this edit puts <!--gap:G-0000bbbb--> on a section heading"; err == nil || !strings.Contains(err.Error(), want) {
 				t.Fatalf("refusal = %v, want %q", err, want)
 			}
 			if !strings.Contains(err.Error(), "keep the anchor on its sentence in the section's text") {
@@ -240,8 +226,8 @@ func TestNoEditPutsAnAnchorOnAHeading(t *testing.T) {
 		}
 	})
 	for _, c := range []struct{ name, quote, new, want string }{
-		{"an archived anchor on a heading, another edit", "sieve runs", "sieve ran", "## Method<!--fx:F-0000aaaa-->\n\nThe sieve ran once"},
-		{"an archived anchor on a heading, its heading", "## Method<!--fx:F-0000aaaa-->", "## Methods<!--fx:F-0000aaaa-->", "## Methods<!--fx:F-0000aaaa-->\n"},
+		{"an archived anchor on a heading, another edit", "sieve runs", "sieve ran", "## Method<!--gap:G-0000aaaa-->\n\nThe sieve ran once"},
+		{"an archived anchor on a heading, its heading", "## Method<!--gap:G-0000aaaa-->", "## Methods<!--gap:G-0000aaaa-->", "## Methods<!--gap:G-0000aaaa-->\n"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			runDir := newRun(t)
@@ -302,17 +288,15 @@ func TestEveryPlacerAppendsItsAnchorAfterItsAct(t *testing.T) {
 // sentence as `show report` prints it, with the anchors already on it; the act and its Anchor store
 // that quote with every anchor token out, and the new anchor stands where the typed quote puts it —
 // at the end of the sentence's words, before the anchors it already carried. Reproduced from
-// universe m16, where a mint, a finding and their Anchors stored `…rejects it)<!--computation:…-->`.
+// universe m16, where a mint and its Anchor stored `…rejects it)<!--computation:…-->`.
 func TestEveryPlacerStoresItsQuoteWithoutAnchors(t *testing.T) {
-	const held, visible = "<!--fx:F-0000beef-->", "Costs rose sharply."
+	const held, visible = "<!--gap:G-0000beef-->", "Costs rose sharply."
 	const quote = "Costs rose sharply" + held + "."
 	for _, c := range []struct {
 		name, seat string
 		args       []string
 		id, loc    func(*record.Event) string
 	}{
-		{"finding", lensSeat, []string{"finding", "--key", "K1", "--reason", "t", "--severity", "low", "--likelihood", "low", "--impact", "low"},
-			func(e *record.Event) string { return e.GetFinding().GetId() }, func(e *record.Event) string { return e.GetFinding().GetLocation() }},
 		{"mint", lensSeat, nil,
 			func(e *record.Event) string { return e.GetMint().GetGapId() }, func(e *record.Event) string { return e.GetMint().GetLocation() }},
 		{"cite", blueSeat, []string{"cite", "--url", "https://example.org/s", "--title", "S"},

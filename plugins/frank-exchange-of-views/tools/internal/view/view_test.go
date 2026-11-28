@@ -245,7 +245,7 @@ func TestMarkdownLedgerAndArchive(t *testing.T) {
 		recordtest.At(t, seatID, seatID+":mint:G1", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G1"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Problem: proto.String("an open problem"), Location: proto.String("§2"), RequiredFix: proto.String("do the thing"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_HIGH)}),
 		recordtest.At(t, seatID, seatID+":mint:G2", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G2"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("a closed problem"), Location: proto.String("§3")}),
 		recordtest.At(t, seatID, seatID+":mint:G3", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G3"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("an unclassed problem"), Location: proto.String("§4")}),
-		recordtest.At(t, seatID, seatID+":close:G2", &recordpb.Close{GapId: proto.String("G2"), Prose: proto.String("verified at the leaf"), ClosureClass: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED_WITH_REGRESSION), Successor: proto.String("G3"), AnchorSeat: proto.String("L1"), AnchorTool: proto.String("git show"), AnchorTarget: proto.String("7bc501e:f")}),
+		recordtest.At(t, seatID, seatID+":close:G2", &recordpb.Close{GapId: proto.String("G2"), Prose: proto.String("verified at the leaf"), ClosureClass: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED), AnchorSeat: proto.String("L1"), AnchorTool: proto.String("git show"), AnchorTarget: proto.String("7bc501e:f")}),
 	})
 	open, closed, err := record.BoardCounts(runtest.Open(t, runDir))
 	if err != nil {
@@ -275,16 +275,13 @@ func TestMarkdownLedgerAndArchive(t *testing.T) {
 	if !strings.Contains(ledger, "class spec_underspecification") {
 		t.Errorf("a gap's class must be rendered:\n%s", ledger)
 	}
-	if !strings.Contains(ledger, "G2 | repaired_with_regression | a closed problem | G3") {
+	if !strings.Contains(ledger, "G2 | repaired | a closed problem") {
 		t.Errorf("closure index row is wrong:\n%s", ledger)
 	}
 
 	archive := md(t, runDir, "archive")
 	if !strings.Contains(archive, "verification anchor: L1 | git show | 7bc501e:f") {
 		t.Errorf("the anchor triple is not in the archive:\n%s", archive)
-	}
-	if !strings.Contains(archive, "successor: G3") {
-		t.Errorf("the successor is not in the archive:\n%s", archive)
 	}
 	if strings.Contains(archive, "G1") {
 		t.Error("an OPEN gap appears in the archive")
@@ -307,75 +304,6 @@ func TestMarkdownArchiveShowsCarriedClosures(t *testing.T) {
 	}
 }
 
-// THE ANOMALY HALF OF THIS TEST IS GONE; the unminted-findings half is what it was really for.
-//
-// It asserted a "multi-nonce seat" anomaly and a `## render anomalies` footer, produced when one
-// seat had two shard files. There are no shards and no nonce: both dispatches are rows, nothing
-// selects a winner, and nothing is dropped — so the anomaly it looked for cannot occur and the
-// footer that printed it is deleted rather than left permanently empty.
-//
-// What survives is the question that still has an answer: does the ledger name lens findings that
-// no gap names? That footer is a live work list, and it is the half that was ever load-bearing.
-func TestMarkdownSurfacesUnmintedFindings(t *testing.T) {
-	runDir := t.TempDir()
-	lens := "red-lens-evidence"
-	writeShard(t, runDir, []*record.Event{
-		recordtest.At(t, lens, lens+":finding:F-f0000002", &recordpb.Finding{Id: proto.String("F-f0000002"), Text: proto.String(strings.Repeat("long prose ", 40))}),
-		recordtest.At(t, lens, lens+":finding:F-f0000001", &recordpb.Finding{Id: proto.String("F-f0000001"), Text: proto.String("short")}),
-	})
-	ledger := md(t, runDir, "ledger")
-	if !strings.Contains(ledger, "## lens findings no gap was minted from") {
-		t.Errorf("the undisposed footer is missing:\n%s", ledger)
-	}
-	// EACH LINE NAMES ITS FINDING BY ID AND AREA, exactly: the id alone does not say which lens's.
-	if want := "\n- red-lens-evidence F-f0000001 (evidence): short\n"; !strings.Contains(ledger, want) {
-		t.Errorf("the footer line is not %q:\n%s", want, ledger)
-	}
-	if want := "\n- red-lens-evidence F-f0000002 (evidence): long prose "; !strings.Contains(ledger, want) {
-		t.Errorf("the truncated finding's line does not begin %q:\n%s", want, ledger)
-	}
-	for _, line := range strings.Split(ledger, "\n") {
-		if strings.HasPrefix(line, "- "+lens+" F") {
-			prose := line[strings.Index(line, ": ")+2:]
-			if len(utf16.Encode([]rune(prose))) > 120 {
-				t.Errorf("unminted-finding prose was not truncated: %d units", len(utf16.Encode([]rune(prose))))
-			}
-		}
-	}
-}
-
-// A GAP'S found_by NAMES EACH FINDING BY ID AND AREA, exactly, and a finding a gap names leaves the
-// footer. Two findings from two lenses: the area is each finding's own lens's, and never the minting
-// seat's.
-func TestTheBoardNamesAGapsFindingsByIDAndArea(t *testing.T) {
-	runDir := t.TempDir()
-	writeShard(t, runDir, []*record.Event{
-		chairSits(t, 1),
-		recordtest.At(t, "red-lens-adversary", "red-lens-adversary:finding:1", &recordpb.Finding{Id: proto.String("F-7cdcd115"), Text: proto.String("the bound is loose")}),
-		recordtest.At(t, "red-lens-dark-side", "red-lens-dark-side:finding:1", &recordpb.Finding{Id: proto.String("F-0badf00d"), Text: proto.String("the misuse is unaddressed")}),
-		recordtest.At(t, "red-lens-logic", "red-lens-logic:finding:1", &recordpb.Finding{Id: proto.String("F-0000aaa1"), Text: proto.String("nobody minted this")}),
-		recordtest.At(t, "red-lens-adversary", "red-lens-adversary:mint:1", &recordpb.Mint{GapId: proto.String("G-5e10a3c2"), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
-			AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Problem: proto.String("p1"),
-			Severity: recordtest.P(recordpb.Grade_GRADE_HIGH), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_HIGH),
-			// The last found_by names no finding on the record: it prints bare, never as nothing.
-			FoundBy: []string{"F-7cdcd115", "F-0badf00d", "F-0000dead"}}),
-	})
-	ledger := md(t, runDir, "ledger")
-	if want := " | found_by F-7cdcd115 (adversary),F-0badf00d (dark-side),F-0000dead\n"; !strings.Contains(ledger, want) {
-		t.Errorf("the gap's found_by is not %q:\n%s", want, ledger)
-	}
-	_, footer, ok := strings.Cut(ledger, "## lens findings no gap was minted from")
-	if !ok {
-		t.Fatalf("the unminted footer is missing:\n%s", ledger)
-	}
-	if want := "\n- red-lens-logic F-0000aaa1 (logic): nobody minted this\n"; !strings.Contains(footer, want) {
-		t.Errorf("the footer line is not %q:\n%s", want, footer)
-	}
-	if strings.Contains(footer, "F-7cdcd115") || strings.Contains(footer, "F-0badf00d") {
-		t.Errorf("a finding a gap names is listed as minted from by none:\n%s", footer)
-	}
-}
-
 func TestTelemetryIsComputed(t *testing.T) {
 	runDir := t.TempDir()
 	r1 := "red-chair"
@@ -387,27 +315,18 @@ func TestTelemetryIsComputed(t *testing.T) {
 	})
 	writeShard(t, runDir, []*record.Event{
 		chairSits(t, 2),
-		// THE LINEAGE MINT. `supersedes` is what makes a gap a lineage mint — not the closure's
-		// successor, which is a different edge — and it is what repair_regression counts. The
-		// edge_deltas assertion reads the mass drop across that edge: G1 is medium x high (6),
-		// this one is low x low (1), so the repair moved 5 points of mass down.
 		recordtest.At(t, r2, r2+":mint:G3", &recordpb.Mint{Severity: recordtest.P(recordpb.Grade_GRADE_LOW),
 			GapId:           proto.String("G3"),
 			Class:           recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(),
 			Problem:         proto.String("p3"),
 			AcceptanceCheck: proto.String("the check runs"),
 			CheckKind:       recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
-			Supersedes:      []string{"G1"},
 			Likelihood:      recordtest.P(recordpb.Grade_GRADE_LOW),
 			Impact:          recordtest.P(recordpb.Grade_GRADE_LOW),
 		}),
-		// A LINEAGE closure: it reports a regression and names the epoch-2 gap carrying it forward,
-		// which is what makes repair_regression's ratio 1 rather than 0. The record refuses this
-		// closure class without a successor, so the fixture cannot express the half-state.
 		recordtest.At(t, r2, r2+":close:G1", &recordpb.Close{
 			GapId:        proto.String("G1"),
-			ClosureClass: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED_WITH_REGRESSION),
-			Successor:    proto.String("G3"),
+			ClosureClass: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED),
 			Prose:        proto.String("verified at the leaf"),
 		}),
 	})
@@ -438,24 +357,12 @@ func TestTelemetryIsComputed(t *testing.T) {
 		t.Errorf("epoch 1 mass = %v, want 7", got)
 	}
 
-	var r2line map[string]any
-	if err := json.Unmarshal([]byte(lines[1]), &r2line); err != nil {
-		t.Fatal(err)
-	}
-	rr := r2line["repair_regression"].(map[string]any)
-	if rr["closures"] != float64(1) || rr["lineage_mints"] != float64(1) || rr["ratio"] != float64(1) {
-		t.Errorf("epoch 2 repair_regression = %v", rr)
-	}
-	ed := r2line["edge_deltas"].(map[string]any)
-	if ed["down_mass"] != float64(5) || ed["up_mass"] != float64(0) {
-		t.Errorf("epoch 2 edge_deltas = %v, want down 5 / up 0", ed)
-	}
 }
 
 // THE STOPPING SIGNAL (#284). Severity answers "how bad"; it can sit flat for epochs while
 // the KIND of defect being found moves — and that phase change is what tells the bench the
 // remaining work is cheaper to shake out in execution than in review. The distribution and
-// the repeat rate against the previous epoch are what make "the findings changed character"
+// the repeat rate against the previous epoch are what make "the defects changed character"
 // readable without re-reading every gap's prose.
 func TestTelemetryCarriesTheClassDistributionAndRepeatRate(t *testing.T) {
 	runDir := t.TempDir()
@@ -659,7 +566,7 @@ func TestMarkdownDebateAndInquiry(t *testing.T) {
 			Likelihood:      recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			Impact:          recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 		}),
-		// RED'S CLOSING IS THE MINTING LENS'S: the party to the gap's dispute.
+		// RED'S CLOSING IS THE ASSIGNEE'S: the party to the gap's dispute.
 		recordtest.At(t, lens, lens+":closing:G1", &recordpb.Closing{GapId: proto.String("G1"), Text: proto.String("red closes")}),
 	})
 	writeShard(t, runDir, []*record.Event{
@@ -689,19 +596,18 @@ func TestMarkdownDebateAndInquiry(t *testing.T) {
 			Status:    recordtest.P(recordpb.InquiryStatus_INQUIRY_STATUS_UNDERWAY),
 		}),
 	})
-	// THE BENCH'S DISPOSITION IS A DOCKET MOTION'S RULING, and the LEAD row needs both halves:
-	// the gap comes from the FILING through record.Motions, the disposition from the RULING.
-	// Seeded alone, the ruling renders a LEAD line naming the empty string for its gap.
+	// THE BENCH'S DISPOSITION IS A DOCKETING'S RULING, and the LEAD row needs both halves:
+	// the gap comes from the DOCKETING through record.DocketRulingGap, the disposition from the
+	// RULING. Seeded alone, the ruling renders a LEAD line naming the empty string for its gap.
 	writeShard(t, runDir, []*record.Event{
-		recordtest.At(t, merge, merge+":motion:M1", &recordpb.Motion{
-			MotionId: proto.String("M1"),
-			Basis:    proto.String("red cannot settle G1"),
-			Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}},
+		recordtest.At(t, merge, merge+":docketing:M1", &recordpb.Docketing{
+			DocketingId: proto.String("M1"), GapId: proto.String("G1"),
+			Cause: recordpb.DocketingCause_DOCKETING_CAUSE_IMPASSE.Enum(), Basis: proto.String("red cannot settle G1"),
 		}),
 		recordtest.At(t, judge, judge+":motion-rule:M1", &recordpb.MotionRule{
-			MotionId: proto.String("M1"),
-			Opinion:  proto.String("because"),
+			Opinion: proto.String("because"),
 			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
+				DocketingId: proto.String("M1"), SidedWith: recordpb.SidedWith_SIDED_WITH_RAISER.Enum(),
 				Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED),
 				Principle:   proto.String("correctness first"),
 				Tension:     proto.String("speed against certainty"),

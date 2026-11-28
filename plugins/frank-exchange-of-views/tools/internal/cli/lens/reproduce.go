@@ -347,5 +347,5 @@ func (r reproduceResult) Human() string {
 		return "computation " + r.Anchor + " (bundle " + short + ") REPRODUCES — executing it gives this computation's recorded output byte for byte. " + judged
 	}
 	return "computation " + r.Anchor + " (bundle " + short + ") DOES NOT REPRODUCE.\n  recorded: " + r.Recorded + "\n  now:      " + r.Got +
-		"\n  Either the computation depends on something that moved, or the recorded output is not what the program produces. Both are findings; neither is recorded for you. " + judged
+		"\n  Either the computation depends on something that moved, or the recorded output is not what the program produces. Both are defects; neither is recorded for you. " + judged
 }
