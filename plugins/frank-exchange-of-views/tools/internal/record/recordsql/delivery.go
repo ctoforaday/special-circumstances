@@ -27,8 +27,8 @@ type DeliveryRow struct {
 	SittingID  int64 // 0 for a row in no sitting
 	Head       int64
 	SatThrough bool
-	// Whole is a lens's delivery being the whole report; Lens is whether the seat is a lens at all.
-	Whole, Lens bool
+	// Whole is a lens's delivery being the whole report; false for a seat that is no lens.
+	Whole bool
 }
 
 const (
@@ -73,7 +73,7 @@ func ReportDeliveries(q Querier) ([]DeliveryRow, error) {
 		if err := rows.Scan(&r.EventID, &r.SeatID, &r.SittingID, &r.Head, &r.SatThrough, &whole); err != nil {
 			return nil, fmt.Errorf("reading report_delivery: %w", err)
 		}
-		r.Whole, r.Lens = whole.Bool, whole.Valid
+		r.Whole = whole.Bool
 		out = append(out, r)
 	}
 	return out, rows.Err()
