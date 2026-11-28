@@ -191,6 +191,7 @@ func TestEveryExpectationIsReachableOnItsBoard(t *testing.T) {
 		}},
 		"reproduce":   {"a recorded computation", func(b Board) bool { return len(b.Computations) > 0 }},
 		"regrade":     {"a gap whose grade can move", func(b Board) bool { return len(b.Gaps) > 0 }},
+		"amend":       {"a gap whose wording can be restated", func(b Board) bool { return len(b.Gaps) > 0 }},
 		"close":       {"an open gap", func(b Board) bool { return len(b.Gaps) > 0 }},
 		"closing":     {"a gap to argue about", func(b Board) bool { return len(b.Gaps) > 0 }},
 		"spot-check":  {"a CLOSED gap in the archive", func(b Board) bool { return anyClosed(b) }},

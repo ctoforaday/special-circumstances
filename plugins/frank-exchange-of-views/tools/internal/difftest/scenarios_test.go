@@ -135,6 +135,28 @@ func scenarios() []scenario {
 			},
 		},
 		{
+			// oracle (T-B53): an amended gap's open row, closed row and risk cell carry [amended ×N],
+			// and an unamended gap's none; each prints the current version of its wording.
+			name: "an_amended_gap_is_marked_on_its_row",
+			cmds: []cmd{
+				base("register", "--run", "{RUN}", "--seat-id", "red-chair"),
+				base("register", "--run", "{RUN}", "--seat-id", "red-lens-evidence"),
+				readStep("red-lens-evidence"),
+				base("mint", "--about-kind", "section", "--about", "Findings", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "spec_underspecification", "--check-kind", "document", "--check", "the first check",
+					"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "the first wording, amended twice"),
+				base("mint", "--about-kind", "section", "--about", "Findings", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "unsourced_claim", "--check-kind", "document", "--check", "the second check",
+					"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "the second wording, amended then closed"),
+				base("mint", "--about-kind", "section", "--about", "Findings", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "false_universal", "--check-kind", "document", "--check", "the third check",
+					"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "the third wording, never amended"),
+				base("amend", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--id", "GAP001", "--problem", "the first gap restated once", "--reason", "the defect is narrower"),
+				base("amend", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--id", "GAP002", "--acceptance-check", "the second check, relaxed", "--reason", "the check asked too much"),
+				base("close", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--id", "GAP002", "--as", "repaired", "--verified-by", "L1", "--verified-with", "Read",
+					"--verified-against", "report.md#S2", "--reason", "the relaxed check is met"),
+				base("register", "--run", "{RUN}", "--seat-id", "red-lens-evidence"),
+				base("amend", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--id", "GAP001", "--problem", "the first gap restated twice", "--required-fix", "the fix, restated", "--reason", "narrower still"),
+			},
+		},
+		{
 			name: "multi_nonce_terminal_event_wins", // oracle: the 8/50 duplicate-dispatch anomaly
 			cast: castOf("evidence"),                // the chair sits under a cast
 			cmds: []cmd{

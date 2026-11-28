@@ -199,10 +199,11 @@ func (a blueAnswer) answered() bool { return a.at != 0 }
 
 // blueAnswersOf is blue's answer to each gap of open, by gap: the one reading of it, which the gap's
 // lens is handed (blueAnswers) and owes while it has not sat since (lensOwesOf). The inquiry a gap is
-// anchored on is its mint's, as the gap view's about columns are. A remanded gap's answer is read
-// after its latest remand ruling only (remandFloorsOf, off motions — motionsAt's fold of evs, which
-// a caller that already holds it passes rather than folding twice): a sitting opened before it, and
-// an act recorded before it, answers nothing the remand asks.
+// anchored on is its mint's, as the gap view's about columns are. A remanded or amended gap's answer
+// is read after its floor only (answerFloorsOf: its latest remand ruling, off motions — motionsAt's
+// fold of evs, which a caller that already holds it passes rather than folding twice — or its latest
+// amend): a sitting opened before it, and an act recorded before it, answers nothing the remand asks
+// or the amended demand states.
 func blueAnswersOf(evs []*Event, win WindowIndex, open map[string]bool, motions []*Motion) map[string]blueAnswer {
 	out := map[string]blueAnswer{}
 	inquiryOf := map[string]string{} // gap -> the inquiry it is anchored on
@@ -211,7 +212,7 @@ func blueAnswersOf(evs []*Event, win WindowIndex, open map[string]bool, motions 
 			inquiryOf[m.GetGapId()] = m.GetAboutRef()
 		}
 	}
-	floor := remandFloorsOf(motions, open)
+	floor := answerFloorsOf(evs, win, motions, open)
 	fateGaps := fateActsOf(evs)
 	after := func(g string, e *Event) bool { return win.Of(e).ID > floor[g] }
 	at := func(g string, e *Event) {
@@ -345,12 +346,20 @@ func retireAnswers(e *Event) string {
 	return ""
 }
 
-// remandFloorsOf is the events.id of the latest remand ruling on each gap of open — the place after
-// which blue's answer to it is read (blueAnswersOf) — off the motion fold the bench's other readers
-// take (motionsAt, read at events.id), so a remand is the ruling the docket's disposition says it
-// is. A gap the bench never remanded has none, and every answer counts.
-func remandFloorsOf(motions []*Motion, open map[string]bool) map[string]int64 {
+// answerFloorsOf is the events.id after which the author's answer to each gap of open is read
+// (blueAnswersOf): the later of its latest remand ruling — off the motion fold the bench's other
+// readers take (motionsAt, read at events.id), so a remand is the ruling the docket's disposition
+// says it is — and its latest amend, by its minter or the bench's for-raiser application (§III.B3):
+// an amend restates the demand, so an answer before it answers a wording the gap no longer states.
+// A regrade moves no floor: it changes no fix or check an answer must meet. A gap neither remanded
+// nor amended has none, and every answer counts.
+func answerFloorsOf(evs []*Event, win WindowIndex, motions []*Motion, open map[string]bool) map[string]int64 {
 	out := map[string]int64{}
+	for _, e := range evs {
+		if a, ok := recordpb.BodyAs[*recordpb.Amend](e); ok && open[a.GetGapId()] {
+			out[a.GetGapId()] = max(out[a.GetGapId()], win.Of(e).ID)
+		}
+	}
 	remanded := recordpb.Word(recordpb.Disposition_DISPOSITION_REMANDED)
 	for _, m := range motions {
 		if m.Subject == "docket" && m.Ruling == remanded && open[m.GapID] {

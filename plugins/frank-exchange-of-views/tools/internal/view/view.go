@@ -280,18 +280,18 @@ func ledgerMD(in Input) []byte {
 		// The two `undefined`-sentinel fields are read as POINTERS, not getters: absence is what
 		// prints `undefined`, and a field written empty is a different fact.
 		var class, check *string
-		if m := g.Mint; m != nil {
+		if m := g.Current(); m != nil {
 			check = m.AcceptanceCheck
 			if m.Class != nil {
 				class = proto.String(recordpb.Word(m.GetClass()))
 			}
 		}
 		ledgerParts = append(ledgerParts, fmt.Sprintf("### %s — %s\n%s\nseverity %s | %s x %s | cx %s | class %s%s\nrequired_fix: %s\nacceptance_check: %s\n",
-			g.ID, truncate(g.Mint.GetProblem(), 100),
+			g.ID, truncate(g.Current().GetProblem(), 100),
 			g.Mint.GetLocation(),
 			gradeText(g.Severity), gradeText(g.Likelihood), gradeText(g.Impact), gradeText(g.ComplexityCost), undefStr(class),
 			regraded,
-			g.Mint.GetRequiredFix(),
+			g.Current().GetRequiredFix(),
 			undefStr(check)))
 	}
 	ledgerParts = append(ledgerParts, "## CLOSURE INDEX", "")
@@ -306,7 +306,7 @@ func ledgerMD(in Input) []byte {
 		if cc == "" {
 			cc = "repaired"
 		}
-		ledgerParts = append(ledgerParts, fmt.Sprintf("%s | %s | %s", g.ID, cc, truncate(g.Mint.GetProblem(), 60)))
+		ledgerParts = append(ledgerParts, fmt.Sprintf("%s | %s | %s", g.ID, cc, truncate(g.Current().GetProblem(), 60)))
 	}
 	ledgerParts = append(ledgerParts, anomalyFooter)
 	return []byte(strings.Join(ledgerParts, "\n"))
@@ -340,7 +340,7 @@ func archiveMD(in Input) []byte {
 			anchor = "CARRIED from " + undefStr(carriedFrom)
 		}
 		archiveParts = append(archiveParts, fmt.Sprintf("## %s — %s\n%s\nverification anchor: %s\n",
-			g.ID, cc, g.Mint.GetProblem(), anchor))
+			g.ID, cc, g.Current().GetProblem(), anchor))
 	}
 	return []byte(strings.Join(archiveParts, "\n"))
 }

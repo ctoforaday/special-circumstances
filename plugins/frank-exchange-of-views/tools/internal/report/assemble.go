@@ -350,6 +350,16 @@ func urlDest(u string) string {
 	return strings.NewReplacer(`\`, `\\`, "(", `\(`, ")", `\)`, "&", "&amp;").Replace(u)
 }
 
+// amendedNote is the tool marker on a report row of a gap its minter amended: ` **[amended ×N]**`, N
+// its amends, so a demand restated after the mint — a check relaxed and then closed included — is
+// visible on the row; `show changes --id` holds each version (picked 2026-11-26, "Mark it on the row").
+func amendedNote(g *record.Gap) string {
+	if n := len(g.Amends); n > 0 {
+		return fmt.Sprintf(" **[amended ×%d]**", n)
+	}
+	return ""
+}
+
 // abstractNote is what the reader is told about a citation that rests on the work's abstract
 // alone — the copy the run held was the abstract page, so what the text draws from it is what the
 // abstract says, not what the study shows. In the note and in the Bibliography for the reason
@@ -719,8 +729,12 @@ func riskMatrix(bj record.BoardJSON) string {
 		if strings.TrimSpace(risk) == "" {
 			risk = g.ID
 		}
+		marker := ""
+		if g.Amends > 0 {
+			marker = fmt.Sprintf(" **[amended ×%d]**", g.Amends)
+		}
 		b.WriteString(fmt.Sprintf("| %s | %s | %s | %s | %s |\n",
-			cell(anchor.Concise(risk)), grade(g.Likelihood), grade(g.Impact), grade(g.ComplexityCost), cell(anchor.Concise(g.RequiredFix))))
+			cell(anchor.Concise(risk))+marker, grade(g.Likelihood), grade(g.Impact), grade(g.ComplexityCost), cell(anchor.Concise(g.RequiredFix))))
 	}
 	b.WriteString(riskMatrixFooter())
 	return b.String()
@@ -838,13 +852,13 @@ func boardSection(run record.Run, fam record.Family) string {
 			// render as ONE sentence-shaped paragraph, because that is what markdown does with
 			// a single newline. Forty-five kilobytes of the archived docket read that way.
 			open = append(open, fmt.Sprintf("### %s — %s\n%s  \nseverity %s | %s x %s | cx %s | class %s%s  \nrequired_fix: %s%s  \nacceptance_check: %s%s%s",
-				g.ID, oneLine(g.Mint.GetProblem()),
+				g.ID, oneLine(g.Current().GetProblem())+amendedNote(g),
 				oneLine(g.Mint.GetLocation()),
 				gradeWord(g.Severity), gradeWord(g.Likelihood), gradeWord(g.Impact), gradeWord(g.ComplexityCost), grade(recordpb.Word(g.Mint.GetClass())),
 				regraded,
-				oneLine(g.Mint.GetRequiredFix()),
-				fixProposal(g.Mint),
-				oneLine(g.Mint.GetAcceptanceCheck()),
+				oneLine(g.Current().GetRequiredFix()),
+				fixProposal(g.Current()),
+				oneLine(g.Current().GetAcceptanceCheck()),
 				mintReason(g.Mint),
 				readFor(read[g.ID], "  \n")))
 		} else {
@@ -867,7 +881,7 @@ func boardSection(run record.Run, fam record.Family) string {
 			if cc == "" {
 				cc = "closed (no recorded class)"
 			}
-			closed = append(closed, fmt.Sprintf("- %s | %s | %s%s%s", g.ID, cc, oneLine(g.Mint.GetProblem()), regradeHistory(g), closureDetail(g, read[g.ID])))
+			closed = append(closed, fmt.Sprintf("- %s | %s | %s%s%s", g.ID, cc, oneLine(g.Current().GetProblem())+amendedNote(g), regradeHistory(g), closureDetail(g, read[g.ID])))
 		}
 	}
 	var b strings.Builder
@@ -954,8 +968,8 @@ func closureDetail(g *record.Gap, read []string) string {
 	for _, r := range read {
 		add(readForLabel, r)
 	}
-	add("required_fix", g.Mint.GetRequiredFix())
-	add("acceptance_check", g.Mint.GetAcceptanceCheck())
+	add("required_fix", g.Current().GetRequiredFix())
+	add("acceptance_check", g.Current().GetAcceptanceCheck())
 	if c := g.Closure; c != nil {
 		att := oneLine(c.GetProse())
 		if att == "" {

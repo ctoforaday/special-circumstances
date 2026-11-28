@@ -61,14 +61,29 @@ const minEstoppelOverlap = 40
 // `BlueEdit.accepted` tells the two apart where that matters; estoppel does not care which.
 func appliedVerbatim(evs []*Event, gaps map[string]*Gap) map[string]string {
 	out := map[string]string{}
+	// THE PRESCRIPTION AN EDIT APPLIED IS THE ONE IN FORCE AT THE EDIT (wordingAt): the mint's, or the
+	// result of the gap's latest amend before the edit in record order.
+	amended := map[string]*recordpb.Amend{}
 	for _, e := range evs {
+		if a, ok := recordpb.BodyAs[*recordpb.Amend](e); ok {
+			amended[a.GetGapId()] = a
+			continue
+		}
 		ed, ok := recordpb.BodyAs[*recordpb.BlueEdit](e)
 		// The bench's application of red's closing text on a for-raiser answer is no offer blue took.
 		if !ok || !ed.GetAppliedVerbatim() || seatclass.RoleOfSeat(e.GetSeatId()) == "bench" {
 			continue
 		}
-		if g, ok := gaps[ed.GetAnswers()]; ok && g.Mint != nil && g.Mint.GetFixNew() != "" {
-			out[ed.GetAnswers()] = g.Mint.GetFixNew()
+		g, ok := gaps[ed.GetAnswers()]
+		if !ok || g.Mint == nil {
+			continue
+		}
+		fix := g.Mint.GetFixNew()
+		if a := amended[ed.GetAnswers()]; a != nil {
+			fix = a.GetResultFixNew()
+		}
+		if fix != "" {
+			out[ed.GetAnswers()] = fix
 		}
 	}
 	return out
@@ -161,7 +176,7 @@ func DeclineStatsOf(evs []*Event, gaps map[string]*Gap) (offered, applied, decli
 		}
 	}
 	for id, g := range gaps {
-		if g.Mint == nil || g.Mint.GetFixBasis() != "verified" {
+		if g.Mint == nil || !verifiedOnAnyVersion(g) {
 			continue
 		}
 		offered++
@@ -173,6 +188,20 @@ func DeclineStatsOf(evs []*Event, gaps map[string]*Gap) (offered, applied, decli
 		}
 	}
 	return offered, applied, declined
+}
+
+// verifiedOnAnyVersion reports whether any version of g's wording — the mint's or an amend's —
+// carries a verified prescription: an offer made is counted once, whichever version made it.
+func verifiedOnAnyVersion(g *Gap) bool {
+	if g.Mint.GetFixBasis() == "verified" {
+		return true
+	}
+	for _, a := range g.Amends {
+		if a.GetResultFixBasis() == "verified" {
+			return true
+		}
+	}
+	return false
 }
 
 // Proposal is the pair a gap's mint prescribes, as an edit of report applies it — the pair the board
@@ -198,10 +227,21 @@ func proposalAt(q recordsql.Querier, gapID, report string) (old, fixNew string, 
 	return old, fixNew, true, nil
 }
 
-// prescriptionAt is the location and text gapID's mint recorded, as q holds them.
+// prescriptionAt is gapID's location, fixed at its mint, and its prescription in force — the latest
+// amend's stamped result, else the mint's — as q holds them.
 func prescriptionAt(q recordsql.Querier, gapID string) (loc, fix string, found bool, err error) {
 	var l, f sql.NullString
 	found, err = queryRowAt(q, []any{&l, &f}, `SELECT "location", "fix_new" FROM "mint" WHERE "gap_id" = ?`, gapID)
+	if err != nil || !found {
+		return l.String, f.String, found, err
+	}
+	// THE PRESCRIPTION IN FORCE IS THE CURRENT VERSION: an amend's stamped result supersedes the
+	// mint's; the location is fixed at the mint.
+	var af sql.NullString
+	amended, err := queryRowAt(q, []any{&af}, `SELECT "result_fix_new" FROM "amend" WHERE "gap_id" = ? ORDER BY "event_id" DESC LIMIT 1`, gapID)
+	if amended {
+		f = af
+	}
 	return l.String, f.String, found, err
 }
 

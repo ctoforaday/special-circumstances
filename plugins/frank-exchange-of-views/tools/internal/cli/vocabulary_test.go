@@ -158,10 +158,6 @@ func TestEveryRequiredFieldIsMarkedInTheHelp(t *testing.T) {
 		"tombstone": "written by the tool beside the act that ends a gap's standing; no verb records one",
 		// A docketing is the tool putting a gap before the bench; the dispatch writes it.
 		"docketing": "written by the dispatch when it puts a gap before the bench; no verb records one",
-		// An amend is written by migrate, replaying an archived supersede link as the restatement of
-		// its first gap (Translation 7); the verb that records one lands with its help (R4), and this
-		// row goes with it.
-		"amend": "written by migrate, replaying an archived supersede link; no verb records one yet",
 	}
 
 	// THE TYPES COME FROM THE SCHEMA, and requiredness from the annotation on each field — the Go

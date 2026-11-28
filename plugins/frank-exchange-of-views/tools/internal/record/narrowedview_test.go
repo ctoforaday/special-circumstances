@@ -74,6 +74,7 @@ func TestEveryNarrowedViewRendersWhatTheWholeRecordWould(t *testing.T) {
 		recordtest.Event(t, "blue-respond", &recordpb.Retire{Claim: str("the claim the computation backed"), Reason: str("superseded"),
 			Anchors: []string{"K-00000001"}}),
 		recordtest.Event(t, "red-chair", &recordpb.Regrade{GapId: str("G2"), Impact: recordtest.P(recordpb.Grade_GRADE_HIGH), Basis: str("moved")}),
+		recordtest.Event(t, "red-chair", &recordpb.Amend{GapId: str("G2"), Problem: str("restated"), Basis: str("narrower")}),
 		// The chair's plan permitted the PASS and its position withholds it, so the bench hears it:
 		// a position motion (motions), read off the plan and the verdicts of the sitting.
 		recordtest.Event(t, "red-chair", &recordpb.Plan{Printed: str(passPermittedPlanPrinted())}),

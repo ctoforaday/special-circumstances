@@ -25,9 +25,9 @@ import (
 // until it sits through a sitting opened after that record, and its work list hands it each such
 // source in the meantime (composedItemsOf). Narration in an inquiry's reason or method is a
 // report_voice gap about the inquiry, and blue answers it by recording the fate again (fateActsOf).
-// A gap's problem and fix change only by a successor, so narration in another seat's gap is a
-// proposed supersede of that gap carrying the reworded text, which its assignee may accept — the
-// voice lens's own gap it supersedes itself, and its own mints it does not owe.
+// A gap's problem and fix change only by its minter's amend, so narration in another seat's gap is
+// the voice lens's gap on that gap, which the gap's minter answers by amending it — the voice lens's
+// own gap it amends itself, and its own mints it does not owe.
 
 // composedSourceAuditor is the lens whose audit of the report covers the composed sections' sources.
 const composedSourceAuditor = "red-lens-voice"
@@ -87,6 +87,13 @@ func composedSourcesOf(evs []*Event, ids []int64, win WindowIndex, open []blocke
 			minters[g.id] = a
 		}
 	}
+	// THE PRINTED WORDING IS THE CURRENT VERSION: the latest amend's stamped result, else the mint's.
+	wording := map[string]*recordpb.Amend{}
+	for _, e := range evs {
+		if a, ok := recordpb.BodyAs[*recordpb.Amend](e); ok {
+			wording[a.GetGapId()] = a
+		}
+	}
 	for i, e := range evs {
 		m, ok := recordpb.BodyAs[*recordpb.Mint](e)
 		if !ok {
@@ -96,12 +103,16 @@ func composedSourcesOf(evs []*Event, ids []int64, win WindowIndex, open []blocke
 		if !ok {
 			continue
 		}
+		problem, fix := m.GetProblem(), m.GetRequiredFix()
+		if a := wording[m.GetGapId()]; a != nil {
+			problem, fix = a.GetResultProblem(), a.GetResultRequiredFix()
+		}
 		out = append(out, composedSource{
 			subject: about(SubjectGap, m.GetGapId()),
 			at:      ids[i],
 			owed:    "the printed problem and fix of gap " + m.GetGapId(),
 			what: fmt.Sprintf("gap %s, minted by %s, is open, and the risk matrix prints the first sentence of its problem and of its fix as report text — risk: %q; mitigation: %q",
-				m.GetGapId(), minter, anchor.Concise(m.GetProblem()), anchor.Concise(m.GetRequiredFix())),
+				m.GetGapId(), minter, anchor.Concise(problem), anchor.Concise(fix)),
 		})
 	}
 	slices.SortStableFunc(out, func(a, b composedSource) int { return cmp.Compare(a.at, b.at) })

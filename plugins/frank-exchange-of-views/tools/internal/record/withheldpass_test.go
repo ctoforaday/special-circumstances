@@ -281,7 +281,7 @@ func TestThePositionRulingIsRefusedWrongWork(t *testing.T) {
 }
 
 // AN UPHELD POSITION NAMING A GAP IS THAT GAP'S REMAND, to every reader of a remand: blue's answer to
-// it is read after the ruling (remandFloorsOf), and the ruling is a change to the gap a seat that sat
+// it is read after the ruling (answerFloorsOf), and the ruling is a change to the gap a seat that sat
 // before it has not read (staleOf).
 func TestAnUpheldPositionNamingAGapIsItsRemand(t *testing.T) {
 	b := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().

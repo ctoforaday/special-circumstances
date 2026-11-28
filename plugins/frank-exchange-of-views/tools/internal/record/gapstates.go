@@ -86,8 +86,14 @@ func gapStatesOf(r familyReads) ([]*Gap, error) {
 	byID := eventsByID(evs, win)
 	mints := map[string]*recordpb.Mint{}
 	regrades := map[string][]*recordpb.Regrade{}
-	for _, e := range evs {
+	amends := map[string][]*recordpb.Amend{}
+	amendAt := map[string][]int64{}
+	ids := win.IDs(evs)
+	for i, e := range evs {
 		switch m := mustBody(e).(type) {
+		case *recordpb.Amend:
+			amends[m.GetGapId()] = append(amends[m.GetGapId()], m)
+			amendAt[m.GetGapId()] = append(amendAt[m.GetGapId()], ids[i])
 		case *recordpb.Mint:
 			if _, seen := mints[m.GetGapId()]; !seen {
 				mints[m.GetGapId()] = m
@@ -101,6 +107,8 @@ func gapStatesOf(r familyReads) ([]*Gap, error) {
 		g := &Gap{
 			ID: row.id, Epoch: row.epoch, Open: row.open, Mint: mints[row.id],
 			Regrades:       regrades[row.id],
+			Amends:         amends[row.id],
+			amendAt:        amendAt[row.id],
 			Severity:       gradeOrZero(row.sev),
 			Likelihood:     gradeOrZero(row.lik),
 			Impact:         gradeOrZero(row.imp),
@@ -203,7 +211,7 @@ func gapFamilyActs(evs []*Event) []*Event {
 	var out []*Event
 	for _, e := range evs {
 		switch e.GetType() {
-		case recordpb.EventType_EVENT_TYPE_MINT, recordpb.EventType_EVENT_TYPE_REGRADE,
+		case recordpb.EventType_EVENT_TYPE_MINT, recordpb.EventType_EVENT_TYPE_REGRADE, recordpb.EventType_EVENT_TYPE_AMEND,
 			recordpb.EventType_EVENT_TYPE_CLOSE, recordpb.EventType_EVENT_TYPE_MOTION_RULE:
 			out = append(out, e)
 		}

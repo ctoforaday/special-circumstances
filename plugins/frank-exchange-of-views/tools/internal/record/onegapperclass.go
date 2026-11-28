@@ -225,7 +225,7 @@ func openGapsOfClassAt(q recordsql.Querier, class recordpb.GapClass) ([]heldGap,
 	if noRecord(q) {
 		return nil, nil
 	}
-	rows, err := q.Query(`SELECT "gap_id", COALESCE("minted_by", ''), COALESCE("problem", ''),
+	rows, err := q.Query(`SELECT "gap_id", COALESCE("minted_by", ''), COALESCE("current_problem", ''),
 	           COALESCE("about_kind", ''), COALESCE("about_ref", ''), COALESCE("location", '')
 	           FROM "gap" WHERE "open" AND "class" = ? ORDER BY "minted_seq"`, recordpb.Word(class))
 	if err != nil {
@@ -258,7 +258,8 @@ func withRuledGapsOfClassAt(q recordsql.Querier, held []heldGap, class recordpb.
 		}
 		g := heldGap{id: t.Gap, ruling: t}
 		found, err := queryRowAt(q, []any{&g.problem, &g.aboutKind, &g.aboutRef, &g.location},
-			`SELECT "problem", COALESCE("about_kind", ''), COALESCE("about_ref", ''), COALESCE("location", '') FROM "mint" WHERE "gap_id" = ? AND "class" = ?`,
+			`SELECT COALESCE((SELECT a."result_problem" FROM "amend" a WHERE a."gap_id" = m."gap_id" ORDER BY a."event_id" DESC LIMIT 1), m."problem"),
+			        COALESCE(m."about_kind", ''), COALESCE(m."about_ref", ''), COALESCE(m."location", '') FROM "mint" m WHERE m."gap_id" = ? AND m."class" = ?`,
 			t.Gap, recordpb.Word(class))
 		if err != nil {
 			return nil, err

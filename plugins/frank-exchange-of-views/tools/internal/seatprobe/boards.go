@@ -550,6 +550,40 @@ The working group's standard has been withdrawn since the benchmark was run.
 	}
 }
 
+// lensAmend: a lens's own open gap whose printed problem misstates the report — it names a 45% figure
+// where the report states 40% — while the defect it means, a headline figure with no derivation,
+// still stands. The accounted move restates the gap's wording on its one id; a close would drop a
+// standing defect, and a second gap would hold the PASS twice for one.
+func lensAmend() Board {
+	return Board{
+		Name: "lens-amend", Seat: "red-lens-evidence",
+		Report: `# What does the benchmark actually measure? — research report
+
+## TL;DR
+
+The benchmark measures end-to-end latency and shows a 40% improvement.
+
+## Findings
+
+The improvement is 40% against the prior release.
+`,
+		Gaps: []Gap{{
+			Key: "improvement", Class: "derivation_status_overclaim",
+			Location: `The improvement is 40% against the prior release.`,
+			Problem:  "The report claims a 45% improvement with no derivation a reader can re-run.",
+			Fix:      "State the baseline, the measurement and the arithmetic, or drop the percentage.",
+			Check:    "The report states the baseline, the measurement and the arithmetic behind the 45%.", CheckKind: "document",
+			Severity: "medium", Likelihood: "high", Impact: "medium", Complexity: "low",
+			Baits: "amend",
+			Why: "This lens's own gap prints 45% where the report says 40%: the defect stands, its wording does not, " +
+				"and only the gap's minter restates it.",
+		}},
+		Expect: []Expectation{
+			{Seat: "red-lens-evidence", Verb: "amend", Because: "G1's problem and check name a 45% figure the report never states; the report's figure is 40%, and it still has no derivation. The defect stands, so the gap stays open; its printed wording is wrong, and the risk matrix prints it as report text. The minter restates its own gap's wording on the same id — a close would drop a standing defect, and a fresh gap would hold the PASS twice for one defect."},
+		},
+	}
+}
+
 // lensOCRVerify: a lens holding a citation of OCR text with a page. Its own board rather than a
 // line on lens-audit, so that sitting stays a situation and not a checklist (see lensDispose).
 func lensOCRVerify() Board {
@@ -939,7 +973,7 @@ Each prime up to the square root of 91 was tried as a divisor in turn.
 // Boards is every named starting position, keyed by name.
 func Boards() map[string]Board {
 	out := map[string]Board{}
-	for _, b := range []Board{arithmetic(), sources(), docket(), audit(), adjudicate(), lensAudit(), lensDispose(), lensOCRVerify(), lensClosing(), lensAccept(), lensInquiry(), sitting(), boundary(), blocked()} {
+	for _, b := range []Board{arithmetic(), sources(), docket(), audit(), adjudicate(), lensAudit(), lensDispose(), lensAmend(), lensOCRVerify(), lensClosing(), lensAccept(), lensInquiry(), sitting(), boundary(), blocked()} {
 		out[b.Name] = b
 	}
 	return out

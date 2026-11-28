@@ -37,9 +37,10 @@ type ChangesJSON struct {
 	} `json:"counts"`
 }
 
-// ChangesGapJSON is what a gap's mint asked of blue: the defect, the fix, the exact text where the lens
-// prescribed one, and the check it re-audits against. Empty strings are the mint's own empties — a gap
-// minted with no required_fix or no prescribed text — never a field this projection failed to read.
+// ChangesGapJSON is what a gap asks of blue now: the defect, the fix, the exact text where the lens
+// prescribed one, and the check it re-audits against — its current version, the latest amend's or the
+// mint's — and Versions, each amend's wording in record order. Empty strings are the gap's own empties
+// — a gap with no required_fix or no prescribed text — never a field this projection failed to read.
 type ChangesGapJSON struct {
 	ID              string `json:"id"`
 	Problem         string `json:"problem"`
@@ -50,6 +51,20 @@ type ChangesGapJSON struct {
 	Location string `json:"location"`
 	FixNew   string `json:"fix_new"`
 	FixBasis string `json:"fix_basis"`
+	// Versions is the gap's history after its mint: each amend, its event and the wording it left.
+	Versions []GapVersionJSON `json:"versions"`
+}
+
+// GapVersionJSON is one amend of a gap: the event that wrote it, its reason, and the gap's wording
+// once it stood (Amend.result_*).
+type GapVersionJSON struct {
+	EventID         int64  `json:"event_id"`
+	Reason          string `json:"reason"`
+	Problem         string `json:"problem"`
+	RequiredFix     string `json:"required_fix"`
+	AcceptanceCheck string `json:"acceptance_check"`
+	FixNew          string `json:"fix_new"`
+	FixBasis        string `json:"fix_basis"`
 }
 
 // EditJSON is one recorded change, with the text on both sides: an edit, or a retire (Retired), whose
@@ -106,8 +121,12 @@ func ChangesOf(run Run, gapID string) (ChangesJSON, error) {
 			if !noRecord(q) {
 				var err error
 				if found, err = queryRowAt(q, []any{&problem, &fix, &check, &loc, &fixNew, &basis},
-					`SELECT "problem", "required_fix", "acceptance_check", "location", "fix_new", "fix_basis"
-					   FROM "mint" WHERE "gap_id" = ?`, gapID); err != nil {
+					`SELECT COALESCE(a."result_problem", m."problem"), COALESCE(a."result_required_fix", m."required_fix"),
+					        COALESCE(a."result_acceptance_check", m."acceptance_check"), m."location",
+					        CASE WHEN a."event_id" IS NULL THEN m."fix_new" ELSE a."result_fix_new" END,
+					        CASE WHEN a."event_id" IS NULL THEN m."fix_basis" ELSE a."result_fix_basis" END
+					   FROM "mint" m LEFT JOIN "amend" a ON a."event_id" = (SELECT max(a2."event_id") FROM "amend" a2 WHERE a2."gap_id" = m."gap_id")
+					  WHERE m."gap_id" = ?`, gapID); err != nil {
 					return fmt.Errorf("reading gap %s's mint: %w", gapID, err)
 				}
 			}
@@ -116,6 +135,11 @@ func ChangesOf(run Run, gapID string) (ChangesJSON, error) {
 			}
 			g.ID, g.Problem, g.RequiredFix, g.AcceptanceCheck = gapID, problem.String, fix.String, check.String
 			g.Location, g.FixNew, g.FixBasis = loc.String, fixNew.String, basis.String
+			versions, err := gapVersionsAt(q, gapID)
+			if err != nil {
+				return err
+			}
+			g.Versions = versions
 			out.Gap = &g
 		}
 		if noRecord(q) {
@@ -163,4 +187,24 @@ func ChangesJSONBytes(run Run, gapID string) ([]byte, error) {
 		return nil, err
 	}
 	return append(b, '\n'), nil
+}
+
+// gapVersionsAt is gapID's amends on q's record, in record order, each with the wording it stamped.
+func gapVersionsAt(q recordsql.Querier, gapID string) ([]GapVersionJSON, error) {
+	out := []GapVersionJSON{}
+	rows, err := q.Query(`SELECT "event_id", "basis", COALESCE("result_problem", ''), COALESCE("result_required_fix", ''),
+	    COALESCE("result_acceptance_check", ''), COALESCE("result_fix_new", ''), COALESCE("result_fix_basis", '')
+	  FROM "amend" WHERE "gap_id" = ? ORDER BY "event_id"`, gapID)
+	if err != nil {
+		return nil, fmt.Errorf("reading gap %s's amends: %w", gapID, err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var v GapVersionJSON
+		if err := rows.Scan(&v.EventID, &v.Reason, &v.Problem, &v.RequiredFix, &v.AcceptanceCheck, &v.FixNew, &v.FixBasis); err != nil {
+			return nil, err
+		}
+		out = append(out, v)
+	}
+	return out, rows.Err()
 }

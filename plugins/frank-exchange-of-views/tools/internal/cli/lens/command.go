@@ -23,6 +23,7 @@ func Verbs() []*cobra.Command {
 		newMint(),
 		newClose(),
 		seat.Regrade("regrade"),
+		newAmend(),
 		newVerify(),
 		newRenderPage(),
 		newReproduce(),

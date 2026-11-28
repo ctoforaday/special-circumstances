@@ -259,6 +259,7 @@ Usage:
   feov-record [command]
 
 Available Commands:
+  amend       restate your own open gap's wording — its problem, required fix, acceptance check or prescription — with your reason
   close       close a gap with the verification you did THIS sitting, naming what you checked it against
   closing     your closing argument on a docketed gap of yours, with your text — owed once per docketing, before the bench rules it
   fetch       cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes

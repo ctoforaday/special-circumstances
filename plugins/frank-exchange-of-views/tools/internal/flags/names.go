@@ -186,6 +186,11 @@ const (
 	Problem = "problem"
 	Fix     = "fix"
 	Check   = "check"
+	// An amend's restatement of a gap's wording, each in the mint's sense: the Amend body's own field
+	// names, so an amend's flag says which field of the gap it replaces.
+	RequiredFix     = "required-fix"
+	AcceptanceCheck = "acceptance-check"
+	FixNew          = "fix-new"
 	// CheckKind says what would SETTLE the acceptance check — read a document, run a
 	// computation, or verify a source. It is what lets red demand evidence prose cannot fake.
 	CheckKind = "check-kind"
@@ -335,7 +340,7 @@ func All() []string {
 		As, Confidence, Bridge, Occasion,
 		Severity, Likelihood, Impact, Complexity,
 		Class,
-		Problem, Fix, Check, CheckKind, Type, SourceSpan, SourceLines, TextSha, Page, Via, At, About, AboutKind, Question, Hypothesis, PartText, Dir, Cites, Variance, ExpectError,
+		Problem, Fix, Check, RequiredFix, AcceptanceCheck, FixNew, CheckKind, Type, SourceSpan, SourceLines, TextSha, Page, Via, At, About, AboutKind, Question, Hypothesis, PartText, Dir, Cites, Variance, ExpectError,
 		CarriedFrom,
 		VerifiedBy, VerifiedWith, VerifiedAgainst, Anchor, Match, Search,
 		Principle, Tension, ReviewFlag, Relief, Binds,

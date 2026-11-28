@@ -1229,6 +1229,11 @@ func validate(w writeView, seatID string, typ recordpb.EventType, body proto.Mes
 				return err
 			}
 		}
+		// AN AMEND CHANGES SOMETHING: the schema's CHECK holds it for every writer; refused here first,
+		// in the verb's words.
+		if b.Problem == nil && b.RequiredFix == nil && b.AcceptanceCheck == nil && b.FixNew == nil {
+			return feov.Errorf(feov.Validation, "an amend restates at least one of the gap's wording: --problem, --required-fix, --acceptance-check or --fix-new; each one you omit keeps the current one, so an amend naming none restates nothing. Nothing was recorded")
+		}
 		if err := requireGap(q, b.GetGapId(), "--id"); err != nil {
 			return err
 		}

@@ -110,6 +110,8 @@ func requiredProbes() map[string]requiredProbe {
 		"--class", "spec_underspecification", "--check-kind", "document", "--check", "c",
 		"--severity", "low", "--likelihood", "low", "--impact", "low", "--complexity", "low",
 		"--problem", "p", "--fix", "f", "--reason", "r")}
+	// Two wording fields, so the omission of either still restates one: no wording flag is required alone.
+	probes["lens amend"] = requiredProbe{seat: lensSeat, args: fixed("amend", "--id", "G1", "--problem", "p", "--required-fix", "f", "--reason", "r")}
 	probes["lens render-page"] = requiredProbe{seat: lensSeat, fullIsRefused: true,
 		args: fixed("render-page", "--sha", strings.Repeat("a", 64), "--page", "1")}
 	probes["lens verify"] = requiredProbe{seat: lensSeat,

@@ -935,3 +935,33 @@ func TestTheOpenGapRowNamesItsClassWord(t *testing.T) {
 		t.Errorf("the open gap's row must carry `class false_universal`:\n%s", got)
 	}
 }
+
+// T-B53: AN AMENDED GAP IS MARKED ON ITS ROW, and prints its current version. The open row and the
+// closed index each carry ` **[amended ×N]**`, N the gap's amends, after the latest problem; an
+// unamended gap's rows carry none. (The risk cell is pinned by difftest's
+// an_amended_gap_is_marked_on_its_row golden.)
+func TestAnAmendedGapIsMarkedOnItsRow(t *testing.T) {
+	mint := func(problem string) *recordpb.Mint {
+		return &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"),
+			Class: recordpb.GapClass_GAP_CLASS_FALSE_UNIVERSAL.Enum(), Problem: proto.String(problem),
+			RequiredFix: proto.String("the minted fix"), AcceptanceCheck: proto.String("the minted check")}
+	}
+	amend := func(problem string) *recordpb.Amend {
+		return &recordpb.Amend{ResultProblem: proto.String(problem), ResultRequiredFix: proto.String("the amended fix"), ResultAcceptanceCheck: proto.String("the minted check")}
+	}
+	board := &boardT{GapOrder: []string{"G1", "G2", "G3"}, Gaps: map[string]*record.Gap{
+		"G1": {ID: "G1", Open: true, Mint: mint("the minted problem"), Amends: []*recordpb.Amend{amend("restated once"), amend("restated twice")}},
+		"G2": {ID: "G2", Open: false, HasClosed: true, Mint: mint("the closed problem"), Amends: []*recordpb.Amend{amend("closed, restated")},
+			Closure: &recordpb.Close{ClosureClass: recordpb.Disposition_DISPOSITION_REPAIRED.Enum()}},
+		"G3": {ID: "G3", Open: true, Mint: mint("never restated")},
+	}}
+	got := boardSection(record.Run{}, board.fam())
+	for _, want := range []string{"### G1 — restated twice **[amended ×2]**", "required_fix: the amended fix", "- G2 | repaired | closed, restated **[amended ×1]**", "### G3 — never restated\n"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("the board section does not hold %q:\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, "the minted problem") || strings.Contains(got, "the closed problem") {
+		t.Errorf("an amended gap's row prints a superseded version:\n%s", got)
+	}
+}

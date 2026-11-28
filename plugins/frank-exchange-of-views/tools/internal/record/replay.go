@@ -3,6 +3,8 @@ package record
 import (
 	"fmt"
 
+	"google.golang.org/protobuf/proto"
+
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
@@ -173,6 +175,46 @@ type Gap struct {
 	// current severity against the floor. It is the gap view's "material" column, which FamilyOf
 	// reads.
 	Material bool
+	// Amends is the gap's amends in record order, each with its stamped resulting wording, and
+	// amendAt their events.id: the versions of its wording after the mint's (WordingAt).
+	Amends  []*recordpb.Amend
+	amendAt []int64
+}
+
+// Current is the gap's wording now: the mint with its latest amend's stamped wording.
+func (g *Gap) Current() *recordpb.Mint {
+	if len(g.Amends) == 0 {
+		return g.Mint
+	}
+	return versionOf(g.Mint, g.Amends[len(g.Amends)-1])
+}
+
+// WordingAt is the gap's wording as it stood at event id: the mint with the problem, required fix,
+// acceptance check and prescription the latest amend at or before id stamped (Amend.result_*), else
+// the mint's own. Every other field is the mint's — an amend restates wording only. nil for a gap
+// with no mint.
+func (g *Gap) WordingAt(id int64) *recordpb.Mint {
+	if g.Mint == nil {
+		return nil
+	}
+	var a *recordpb.Amend
+	for i, at := range g.amendAt {
+		if at <= id {
+			a = g.Amends[i]
+		}
+	}
+	return versionOf(g.Mint, a)
+}
+
+// versionOf is mint with amend a's stamped wording, the version a leaves; mint itself for no a.
+func versionOf(mint *recordpb.Mint, a *recordpb.Amend) *recordpb.Mint {
+	if a == nil || mint == nil {
+		return mint
+	}
+	m := proto.CloneOf(mint)
+	m.Problem, m.RequiredFix, m.AcceptanceCheck = a.ResultProblem, a.ResultRequiredFix, a.ResultAcceptanceCheck
+	m.FixNew, m.FixBasis = a.ResultFixNew, a.ResultFixBasis
+	return m
 }
 
 // GradeAt returns the gap's grade on ONE axis, and whether that axis is one this binary knows.

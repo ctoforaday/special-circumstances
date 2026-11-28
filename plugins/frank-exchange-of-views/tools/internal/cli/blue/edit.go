@@ -694,7 +694,7 @@ func bunchedRefusal(run record.Run, report, old, applied string, exact bool) err
 		switch anchor.Kind(id) {
 		case "gap":
 			if g := fam.Gap(id); g != nil && g.Mint != nil {
-				about = g.Mint.GetProblem()
+				about = g.Current().GetProblem()
 			}
 		case "computation":
 			for _, p := range computations {

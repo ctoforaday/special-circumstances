@@ -186,6 +186,10 @@ type GapJSON struct {
 	// sentence that the scorecard then failed to parse back out.
 	Closure  map[string]any   `json:"closure"`
 	Regrades []map[string]any `json:"regrades"`
+	// Amends is how many times the gap's minter amended its wording: its problem, required fix,
+	// acceptance check and prescription above are the latest version's (`show changes --id` holds
+	// each).
+	Amends int `json:"amends"`
 }
 
 // strs normalizes a nil string slice to an empty one.
@@ -332,6 +336,7 @@ var boardView = declareNarrowedView("board", boardJSONOfRecord,
 	recordpb.EventType_EVENT_TYPE_MINT,
 	recordpb.EventType_EVENT_TYPE_MOTION_RULE,
 	recordpb.EventType_EVENT_TYPE_REGRADE,
+	recordpb.EventType_EVENT_TYPE_AMEND,
 	// for each open gap's backing: the anchor ledger (backingOf), the families evidenceView reads.
 	recordpb.EventType_EVENT_TYPE_CITE,
 	recordpb.EventType_EVENT_TYPE_VERIFY,
@@ -365,9 +370,13 @@ func boardJSONOfRecord(q recordsql.Querier, evs []*Event, win WindowIndex) (Boar
 	// looked up in evs); the regrade history is every regrade, in record order.
 	byID := eventsByID(evs, win)
 	regrades := map[string][]*Event{}
+	amends := map[string]int{}
 	for _, e := range evs {
-		if m, ok := mustBody(e).(*recordpb.Regrade); ok {
+		switch m := mustBody(e).(type) {
+		case *recordpb.Regrade:
 			regrades[m.GetGapId()] = append(regrades[m.GetGapId()], e)
+		case *recordpb.Amend:
+			amends[m.GetGapId()]++
 		}
 	}
 
@@ -381,8 +390,8 @@ func boardJSONOfRecord(q recordsql.Querier, evs []*Event, win WindowIndex) (Boar
 	}
 	rows, err := q.Query(`SELECT "gap_id", "minted_epoch", "open",
 	    "current_severity", "current_likelihood", "current_impact", "current_complexity_cost",
-	    "class", "location", "about_kind", "about_ref", "problem", "mint_reason", "required_fix",
-	    "acceptance_check", "check_kind", "awaiting_evidence", "fix_basis", "fix_new", "minted_by", "minted_event",
+	    "class", "location", "about_kind", "about_ref", "current_problem", "mint_reason", "current_required_fix",
+	    "current_acceptance_check", "check_kind", "awaiting_evidence", "current_fix_basis", "current_fix_new", "minted_by", "minted_event",
 	    ` + gapClosureColumns + `,
 	    "material", "remanded", "docket_direction", "evidence_answered", "answers_retired_event"
 	  FROM "gap" ORDER BY "minted_event"`)
@@ -454,6 +463,7 @@ func boardJSONOfRecord(q recordsql.Querier, evs []*Event, win WindowIndex) (Boar
 			}
 			gj.Closure = m
 		}
+		gj.Amends = amends[id]
 		for _, e := range regrades[id] {
 			m, err := bodyMap(mustBody(e))
 			if err != nil {
@@ -1106,10 +1116,10 @@ func workReadsAt(q recordsql.Querier) (workReads, error) {
 	}
 	rows, err := q.Query(`SELECT "gap_id", "open", "awaiting_evidence", "remanded", "docket_direction", "docket_settled",
 	    "current_severity", "current_likelihood", "current_impact", "current_complexity_cost",
-	    "class", "location", "about_kind", "about_ref", "problem", "check_kind", "minted_event",
+	    "class", "location", "about_kind", "about_ref", "current_problem", "check_kind", "minted_event",
 	    "material", "class_material",
-	    "required_fix", "acceptance_check", "minted_by", "unruled_docket_filed" IS NOT NULL, "standing_docketing" IS NOT NULL,
-	    "fix_basis", "fix_new", ` + gapClosureColumns + `,
+	    "current_required_fix", "current_acceptance_check", "minted_by", "unruled_docket_filed" IS NOT NULL, "standing_docketing" IS NOT NULL,
+	    "current_fix_basis", "current_fix_new", ` + gapClosureColumns + `,
 	    "answers_retired_event"
 	  FROM "gap" ORDER BY "minted_event"`)
 	if err != nil {
