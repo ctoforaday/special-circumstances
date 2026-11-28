@@ -28,10 +28,10 @@
 // sent a message for a conversation another process holds adopts it anyway, so a wake goes only
 // where ConversationBusy, excluding the daemon, finds no holder.
 //
-// Stated limit: the holder check sees only the processes of telepathy's own pid namespace, and a
-// server that has resumed a conversation without yet opening its database. A process outside it
-// that holds the conversation — an agy on the host while telepathy runs in a container sharing its
-// data — is invisible, and a wake can then create a second writer.
+// Stated limit: the holder check sees only the processes of telepathy's own pid namespace, and does
+// not see a server that has resumed a conversation without yet opening its database. A process
+// outside the namespace that holds the conversation — an agy on the host while telepathy runs in a
+// container sharing its data — is invisible, and a wake can then create a second writer.
 package peer
 
 import (

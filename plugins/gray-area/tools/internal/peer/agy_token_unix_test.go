@@ -63,6 +63,13 @@ func TestReadDaemonTokenRefuses(t *testing.T) {
 			t.Errorf("%s: the refusal carries the token: %v", name, err)
 		}
 	}
+	was := currentUID
+	currentUID = func() int { return os.Getuid() + 1 }
+	_, err := ReadDaemonToken(good)
+	currentUID = was
+	if err == nil || !strings.Contains(err.Error(), "belongs to another user") {
+		t.Errorf("a file of another owner = %v, want it refused", err)
+	}
 	if _, err := ReadDaemonToken(sub); err == nil || !strings.Contains(err.Error(), "not a regular file") {
 		t.Errorf("a directory = %v, want it refused as not a regular file", err)
 	}

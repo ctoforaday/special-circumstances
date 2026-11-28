@@ -31,7 +31,7 @@ func ReadDaemonToken(path string) (string, error) {
 	if st.Mode().Perm()&0o077 != 0 {
 		return "", fmt.Errorf("%s is readable or writable by group or others (mode %04o); it must be 0600", path, st.Mode().Perm())
 	}
-	if sys, ok := st.Sys().(*syscall.Stat_t); !ok || int(sys.Uid) != os.Getuid() {
+	if sys, ok := st.Sys().(*syscall.Stat_t); !ok || int(sys.Uid) != currentUID() {
 		return "", fmt.Errorf("%s belongs to another user", path)
 	}
 	b, err := io.ReadAll(io.LimitReader(f, int64(len(DaemonTokenVar))+maxTokenLen+3))
@@ -44,6 +44,10 @@ func ReadDaemonToken(path string) (string, error) {
 	}
 	return tok, nil
 }
+
+// currentUID is the caller's uid, against which the token file's owner is checked; a variable so a
+// test can stand in another user without being root.
+var currentUID = os.Getuid
 
 // WriteDaemonToken writes a fresh random token to path (directory 0700, file 0600), replacing any
 // token there by rename.
@@ -69,6 +73,10 @@ func WriteDaemonToken(path string) error {
 		return err
 	}
 	if _, err := tmp.WriteString(DaemonTokenVar + "=" + tok + "\n"); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Sync(); err != nil {
 		tmp.Close()
 		return err
 	}

@@ -38,9 +38,36 @@ func TestDaemonAddressFindsTheHTTPPort(t *testing.T) {
 	want := serve(t, "tcp", "127.0.0.1:0", http.StatusUnauthorized, connectMissing)
 	serve(t, "tcp", "127.0.0.1:0", http.StatusBadRequest, httpsRefusal)
 	serve(t, "tcp", "127.0.0.1:0", http.StatusUnauthorized, `{"code":"unauthenticated","message":"unauthenticated: invalid CSRF token"}`)
+	serve(t, "tcp", "127.0.0.1:0", http.StatusOK, connectMissing)
 	got, err := DaemonAddress(NewAgyClient(2*time.Second), os.Getpid())
 	if err != nil || got != want {
 		t.Fatalf("DaemonAddress = %q, %v; want %q", got, err, want)
+	}
+}
+
+// THE LOOKUP TAKES ONE REQUEST'S TIME, not one per port: ports that never answer are probed at once.
+func TestDaemonAddressProbesAtOnce(t *testing.T) {
+	for i := 0; i < 4; i++ {
+		ln, err := net.Listen("tcp", "127.0.0.1:0") // accepted by the kernel, never answered
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { ln.Close() })
+	}
+	began := time.Now()
+	_, err := DaemonAddress(NewAgyClient(300*time.Millisecond), os.Getpid())
+	if took := time.Since(began); err == nil || took > time.Second {
+		t.Errorf("four hung ports took %s (err %v), want one 300ms timeout, not four", took, err)
+	}
+}
+
+func TestDaemonListens(t *testing.T) {
+	addr := serve(t, "tcp", "127.0.0.1:0", http.StatusOK, "")
+	if ok, err := DaemonListens(os.Getpid(), addr); !ok || err != nil {
+		t.Errorf("DaemonListens(self, %s) = %v, %v; want true", addr, ok, err)
+	}
+	if ok, _ := DaemonListens(os.Getpid(), "127.0.0.1:1"); ok {
+		t.Errorf("DaemonListens(self, 127.0.0.1:1) = true, want false")
 	}
 }
 

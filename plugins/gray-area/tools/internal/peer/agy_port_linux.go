@@ -12,9 +12,11 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 // DaemonAddress finds the HTTP (Connect) address of the language server process pid serves. Its
@@ -31,10 +33,28 @@ func DaemonAddress(client *http.Client, pid int) (string, error) {
 	if len(addrs) == 0 {
 		return "", fmt.Errorf("pid %d holds no loopback TCP socket in LISTEN state", pid)
 	}
+	// The probes run at once, so the lookup takes one request's time, bounded by client, however
+	// many ports the process holds.
+	type answer struct {
+		status int
+		body   []byte
+		err    error
+	}
+	answers := make([]answer, len(addrs))
+	var wg sync.WaitGroup
+	for i, addr := range addrs {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			a := &answers[i]
+			a.status, a.body, a.err = probe(client, addr)
+		}()
+	}
+	wg.Wait()
 	var found []string
 	var seen []string
-	for _, addr := range addrs {
-		status, body, err := probe(client, addr)
+	for i, addr := range addrs {
+		status, body, err := answers[i].status, answers[i].body, answers[i].err
 		switch {
 		case err != nil:
 			seen = append(seen, fmt.Sprintf("%s: %v", addr, err))
@@ -49,6 +69,16 @@ func DaemonAddress(client *http.Client, pid int) (string, error) {
 		return "", fmt.Errorf("%d of pid %d's listening ports answer as its HTTP port (%s)", len(found), pid, strings.Join(seen, "; "))
 	}
 	return found[0], nil
+}
+
+// DaemonListens reports whether process pid still holds a loopback socket in LISTEN state at addr:
+// the check that a token goes to the process it was provisioned for, made just before it is sent.
+func DaemonListens(pid int, addr string) (bool, error) {
+	addrs, err := listenAddrs(pid)
+	if err != nil {
+		return false, err
+	}
+	return slices.Contains(addrs, addr), nil
 }
 
 // probe posts an empty Heartbeat with no token to addr.

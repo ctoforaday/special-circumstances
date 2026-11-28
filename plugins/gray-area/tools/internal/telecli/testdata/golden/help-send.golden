@@ -25,10 +25,12 @@ daemon started and when the conversation last recorded a step.
 
 A wake needs, in this order: Linux; a conversation under the CLI daemon root
 (~/.gemini/antigravity-cli); the daemon's token in
-$XDG_CONFIG_HOME/gray-area/antigravity-daemon.env, which the human provisions with
-telepathy agy-provision (it is read before any network contact); a running daemon;
-its HTTP port, read from /proc; and no process but the daemon holding the
-conversation — its presence/<id>.lock, or its conversations/<id>.db open. A
+$XDG_CONFIG_HOME/gray-area/antigravity-daemon.env (else ~/.config), which the human
+provisions with telepathy agy-provision (it is read before any network contact;
+agy-provision refuses a non-default $XDG_CONFIG_HOME, so a provisioned token is
+always at the default path); a running daemon; its HTTP port, read from /proc and
+checked again just before the token is sent; and no process but the daemon holding
+the conversation — its presence/<id>.lock, or its conversations/<id>.db open. A
 conversation another process holds gets no wake, because a language server sent a
 message for a conversation another holds adopts it and the two then write it at
 once; that holder's next turn reads the mailbox. A wake that fails leaves the message

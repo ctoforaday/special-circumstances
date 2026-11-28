@@ -2,6 +2,7 @@ package telecli
 
 import (
 	"errors"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -56,14 +57,14 @@ func TestProvisionWritesBothFiles(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := "[Service]\nEnvironmentFile=-" + h.env.TokenFile + "\nExecStartPost=-" + h.env.AgyTelepathy + " agy-wake\n"
+	want := "[Service]\nEnvironmentFile=-" + h.env.TokenFile + "\nExecStartPost=-" + h.env.AgyTelepathy + " agy-wake --token-file " + h.env.TokenFile + "\n"
 	if !strings.HasSuffix(string(b), want) {
 		t.Errorf("drop-in =\n%s\nwant it to end\n%s", b, want)
 	}
 	if st, _ := os.Stat(dropIn); st.Mode().Perm() != 0o644 {
 		t.Errorf("drop-in mode %04o, want 0644", st.Mode().Perm())
 	}
-	for _, s := range []string{"the human runs:\n  systemctl --user daemon-reload && systemctl --user restart antigravity-cli-daemon.service", "ends every turn running on the daemon"} {
+	for _, s := range []string{"the human runs:\n  systemctl --user daemon-reload && systemctl --user restart antigravity-cli-daemon.service", "ends every turn running on the daemon", "waits until agy-wake has finished"} {
 		if !strings.Contains(out, s) {
 			t.Errorf("stdout lacks %q:\n%s", s, out)
 		}
@@ -102,12 +103,34 @@ func TestProvisionRefusesOffLinuxAndUnsafePaths(t *testing.T) {
 		t.Errorf("off Linux: exit %d, %s", code, errOut)
 	}
 	h.env.GOOS = "linux"
-	h.env.AgyTelepathy = "/home/a b/telepathy"
-	if _, errOut, code := h.run(t, "agy-provision"); code != 1 || !strings.Contains(errOut, "cannot be written into a systemd unit") {
-		t.Errorf("a path with a space: exit %d, %s", code, errOut)
+	for _, p := range []string{"/home/a b/telepathy", "/home/a%h/telepathy", "/home/a$HOME/telepathy"} {
+		h.env.AgyTelepathy = p
+		if _, errOut, code := h.run(t, "agy-provision"); code != 1 || !strings.Contains(errOut, "cannot be written into a systemd unit") {
+			t.Errorf("%q: exit %d, %s", p, code, errOut)
+		}
 	}
 	if _, err := os.Stat(h.env.TokenFile); err == nil {
 		t.Errorf("a refused run wrote the token file")
+	}
+}
+
+// A CONFIGURATION DIRECTORY THE USER MANAGER DOES NOT READ IS REFUSED, before anything is written.
+func TestProvisionRefusesAForeignConfigHome(t *testing.T) {
+	h, _ := provisionEnv(t)
+	h.env.Getenv = func(k string) string {
+		return map[string]string{"HOME": "/home/u", "XDG_CONFIG_HOME": "/home/u/elsewhere"}[k]
+	}
+	if _, errOut, code := h.run(t, "agy-provision"); code != 1 || !strings.Contains(errOut, "not ~/.config") {
+		t.Errorf("exit %d, %s", code, errOut)
+	}
+	if _, err := os.Stat(h.env.TokenFile); err == nil {
+		t.Errorf("a refused run wrote the token file")
+	}
+	h.env.Getenv = func(k string) string {
+		return map[string]string{"HOME": "/home/u", "XDG_CONFIG_HOME": "/home/u/.config/"}[k]
+	}
+	if _, errOut, code := h.run(t, "agy-provision"); code != 0 {
+		t.Errorf("~/.config spelled out: exit %d, %s", code, errOut)
 	}
 }
 
@@ -255,9 +278,52 @@ func TestAgyWakeBoundWithADaemonThatNeverAnswers(t *testing.T) {
 	}
 }
 
-// THE WHOLE RUN ENDS WITHIN ITS BOUND, whatever the daemon does: systemd stops the daemon when a
-// start command outlives the start timeout. A port that never appears ends the wait at 45 s; a
-// conversation reached after the bound is named and not woken.
+// --TOKEN-FILE NAMES THE FILE the drop-in passes, in place of the default.
+func TestAgyWakeTokenFileFlag(t *testing.T) {
+	w := newWakeWorld(t)
+	queueMessage(t, w.brain, agyPeer, "m1", mailboxJSON("telepathy", "2026-09-09T09:00:00Z"))
+	moved := filepath.Join(t.TempDir(), "token.env")
+	if err := os.Rename(w.tokenFile, moved); err != nil {
+		t.Fatal(err)
+	}
+	if _, errOut, _ := w.run(t, "agy-wake"); !strings.Contains(errOut, "not run: no daemon token file at") {
+		t.Errorf("without the flag: %s", errOut)
+	}
+	if _, errOut, _ := w.run(t, "agy-wake", "--token-file", moved); !strings.Contains(errOut, "woke "+agyPeer) {
+		t.Errorf("with the flag: %s", errOut)
+	}
+}
+
+// PORTS THAT NEVER ANSWER cannot hold agy-wake past its bound: the real port lookup probes them at
+// once, each probe cut to the time left.
+func TestAgyWakeBoundWithHungPorts(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("the daemon's port is read from /proc")
+	}
+	w := newWakeWorld(t)
+	queueMessage(t, w.brain, agyPeer, "m1", mailboxJSON("telepathy", "2026-09-09T09:00:00Z"))
+	for i := 0; i < 4; i++ {
+		ln, err := net.Listen("tcp", "127.0.0.1:0") // accepted by the kernel, never answered
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { ln.Close() })
+	}
+	w.env.CurrentDaemon = func() (peer.ServerIdentity, bool) { return peer.ServerIdentity{PID: os.Getpid()}, true }
+	w.env.DaemonAddress = peer.DaemonAddress
+	w.env.Now, w.env.Sleep = time.Now, time.Sleep
+	w.env.WakeBound, w.env.SendTimeout = 600*time.Millisecond, 30*time.Second
+	began := time.Now()
+	_, errOut, code := w.run(t, "agy-wake")
+	if took := time.Since(began); code != 0 || took > 2*time.Second || !strings.Contains(errOut, "not run: the daemon's HTTP port cannot be told") {
+		t.Errorf("exit %d after %s, want 0 within the 600ms bound and a margin:\n%s", code, took, errOut)
+	}
+}
+
+// THE WAIT AND THE CONVERSATIONS ARE BOUNDED, on an injected clock: a port that never appears ends
+// the wait by 45 s, and a conversation reached after the 60 s bound is named and not woken. The
+// requests' own timeouts are TestAgyWakeBoundWithADaemonThatNeverAnswers' and
+// TestAgyWakeBoundWithHungPorts'.
 func TestAgyWakeBound(t *testing.T) {
 	w := newWakeWorld(t)
 	queueMessage(t, w.brain, agyPeer, "m1", mailboxJSON("telepathy", "2026-09-09T09:00:00Z"))

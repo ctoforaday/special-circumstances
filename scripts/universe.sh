@@ -287,6 +287,8 @@ universe_env() {
   for entry in "$HOST_XDG_CONFIG_HOME"/* "$HOST_XDG_CONFIG_HOME"/.[!.]*; do
     [ -e "$entry" ] || continue
     case "${entry##*/}" in gray-area|systemd) continue ;; esac
+    # Something the universe made there itself is kept: ln -s onto a directory would link inside it.
+    { [ -e "$XDG_CONFIG_HOME/${entry##*/}" ] || [ -L "$XDG_CONFIG_HOME/${entry##*/}" ]; } && continue
     ln -s "$entry" "$XDG_CONFIG_HOME/${entry##*/}"
   done
   # No credential file in the universe, link or copy: one would be a refresh token it could rotate.

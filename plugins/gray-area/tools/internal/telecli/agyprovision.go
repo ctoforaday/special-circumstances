@@ -36,11 +36,17 @@ On Linux it:
      that variable as its token; no hook, MCP server or agent shell receives it.
      A running daemon keeps its old token, so wakes fail until it restarts;
   2. writes the systemd drop-in
-     $XDG_CONFIG_HOME/systemd/user/antigravity-cli-daemon.service.d/telepathy.conf,
-     which gives the daemon that file as its environment and runs
-     ~/.gemini/config/plugins/gray-area/bin/telepathy agy-wake (agy's own install,
-     whose path does not change between releases) after each start;
+     ~/.config/systemd/user/antigravity-cli-daemon.service.d/telepathy.conf, which
+     gives the daemon that file as its environment and runs
+     ~/.gemini/config/plugins/gray-area/bin/telepathy agy-wake --token-file <file>
+     (agy's own install, whose path does not change between releases) after each
+     start;
   3. prints the restart the human runs. It runs no systemctl itself.
+
+It refuses a $XDG_CONFIG_HOME other than ~/.config: the systemd user manager reads
+drop-ins from ~/.config/systemd/user, and telepathy send reads the token at the
+default path. The file is handed to every command the unit runs (its other
+ExecStart and ExecStartPre lines too), all of which run as the same user.
 
 It warns when agy's install of telepathy is missing or does not know agy-wake: the
 drop-in then runs nothing useful until a release carrying agy-wake is installed
@@ -55,9 +61,12 @@ telepathy agents lists them beforehand.`,
 			if env.goos() != "linux" {
 				return errors.New("the daemon's token is provisioned on Linux only")
 			}
+			if cfg, home := env.getenv("XDG_CONFIG_HOME"), env.getenv("HOME"); cfg != "" && home != "" && filepath.Clean(cfg) != filepath.Join(home, ".config") {
+				return fmt.Errorf("$XDG_CONFIG_HOME is %s, not ~/.config: the systemd user manager reads drop-ins from ~/.config/systemd/user and telepathy send reads the token at the default path, so the files would be stranded; run it with $XDG_CONFIG_HOME unset", cfg)
+			}
 			for _, p := range []string{env.TokenFile, env.DropInDir, env.AgyTelepathy} {
 				if !unitSafePath(p) {
-					return fmt.Errorf("%q cannot be written into a systemd unit: it is empty, relative, or holds whitespace, a quote, a backslash or %%", p)
+					return fmt.Errorf("%q cannot be written into a systemd unit: it is empty, relative, or holds whitespace, a quote, a backslash, $ or %%", p)
 				}
 			}
 			if err := peer.WriteDaemonToken(env.TokenFile); err != nil {
@@ -67,18 +76,18 @@ telepathy agents lists them beforehand.`,
 			body := "# Written by telepathy agy-provision; run it again to rotate the token.\n" +
 				"[Service]\n" +
 				"EnvironmentFile=-" + env.TokenFile + "\n" +
-				"ExecStartPost=-" + env.AgyTelepathy + " agy-wake\n"
+				"ExecStartPost=-" + env.AgyTelepathy + " agy-wake --token-file " + env.TokenFile + "\n"
 			if err := writeFileAtomic(dropIn, []byte(body), 0o644); err != nil {
 				return fmt.Errorf("the token is written to %s, but the drop-in was not: %w", env.TokenFile, err)
 			}
 			out := cmd.OutOrStdout()
 			fmt.Fprintf(out, "wrote a new daemon token to %s (a running daemon refuses wakes until it restarts)\n", env.TokenFile)
-			fmt.Fprintf(out, "wrote %s: the daemon reads its token from that file and runs %s agy-wake after each start\n", dropIn, env.AgyTelepathy)
+			fmt.Fprintf(out, "wrote %s: the daemon reads its token from that file and runs %s agy-wake --token-file %s after each start\n", dropIn, env.AgyTelepathy, env.TokenFile)
 			if why := env.wakeVerbMissing(); why != "" {
 				fmt.Fprintf(out, "WARNING: %s; the drop-in's agy-wake does nothing until a release carrying it is installed there\n", why)
 			}
 			fmt.Fprintf(out, "for live wakes the human runs:\n  %s\n", restartCommand)
-			fmt.Fprintln(out, "the restart ends every turn running on the daemon, and the start wakes every daemon conversation with mail waiting (telepathy agents lists them)")
+			fmt.Fprintln(out, "the restart ends every turn running on the daemon, waits until agy-wake has finished (up to about a minute), and the start wakes every daemon conversation with mail waiting (telepathy agents lists them)")
 			return nil
 		},
 	}
@@ -104,9 +113,9 @@ func (e *Env) wakeVerbMissing() string {
 }
 
 // unitSafePath reports whether p can stand in a systemd unit line unquoted: absolute, and free of
-// whitespace, quotes, backslashes and % (systemd's specifier character).
+// whitespace, quotes, backslashes, $ (systemd's variable expansion) and % (its specifier character).
 func unitSafePath(p string) bool {
-	return filepath.IsAbs(p) && !strings.ContainsAny(p, " \t\r\n\"'\\%")
+	return filepath.IsAbs(p) && !strings.ContainsAny(p, " \t\r\n\"'\\%$")
 }
 
 // writeFileAtomic writes b to path with mode, creating its directory, by rename of a temporary file.
@@ -125,6 +134,10 @@ func writeFileAtomic(path string, b []byte, mode os.FileMode) error {
 		return err
 	}
 	if _, err := tmp.Write(b); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Sync(); err != nil {
 		tmp.Close()
 		return err
 	}

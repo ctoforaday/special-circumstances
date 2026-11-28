@@ -20,7 +20,8 @@ const (
 )
 
 func newAgyWakeCmd(env *Env) *cobra.Command {
-	return &cobra.Command{
+	var tokenFile string
+	cmd := &cobra.Command{
 		Use:   "agy-wake",
 		Short: "wake every Antigravity daemon conversation with mail waiting (systemd runs it at each daemon start)",
 		Long: `Starts a turn, through Antigravity's remote-control daemon, in every conversation
@@ -36,9 +37,13 @@ port, then sends each such conversation the wake message telepathy send uses,
 unless another process holds it (that holder's next turn reads the mailbox). It
 does not wake for agy's own notices, for earlier wake messages, or for a message
 whose file is missing or does not parse: none of those is mail an agent is owed.
-The whole run ends within 60 seconds, each request within 5, because systemd stops
-the daemon when a start command outlives the start timeout; a conversation not
-reached by then is named. It prints one line per conversation to stderr (the
+Every request is cut to the time left of a 60-second bound, at most 5 seconds each,
+and the probes of the daemon's ports run at once, because systemd stops the daemon
+when a start command outlives the start timeout; the local reads (systemctl, /proc,
+the mailboxes) are not cut, so the run ends at the bound plus at most the last of
+them. A conversation not reached in time is named. --token-file names the token
+file (the drop-in passes the one agy-provision wrote); without it, the default
+path telepathy send reads. It prints one line per conversation to stderr (the
 daemon's journal) and exits 0 whatever it found, so it never fails the daemon's
 start.
 
@@ -47,10 +52,15 @@ the daemon took it. It keeps no record between runs, so every daemon start wakes
 every conversation still holding unread mail, however old.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			if tokenFile != "" {
+				env.TokenFile = tokenFile
+			}
 			runAgyWake(env, cmd.ErrOrStderr())
 			return nil
 		},
 	}
+	cmd.Flags().StringVar(&tokenFile, "token-file", "", "the daemon's token file (default $XDG_CONFIG_HOME/gray-area/antigravity-daemon.env)")
+	return cmd
 }
 
 // runAgyWake is agy-wake's whole run, every line to log. Nothing it meets fails it.

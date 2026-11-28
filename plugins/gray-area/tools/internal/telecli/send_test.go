@@ -66,6 +66,10 @@ func newSendWorld(t *testing.T) *sendWorld {
 		t.Error("the daemon's port was looked up where no test expected it")
 		return "", errors.New("unexpected")
 	}
+	w.env.DaemonListens = func(int, string) (bool, error) {
+		t.Error("the daemon's port was checked where no test expected it")
+		return false, errors.New("unexpected")
+	}
 	w.env.GOOS = "linux"
 	return w
 }
@@ -107,6 +111,7 @@ func (w *sendWorld) provisioned(t *testing.T, status int) (addr string, got <-ch
 		}
 		return addr, nil
 	}
+	w.env.DaemonListens = func(pid int, a string) (bool, error) { return pid == newDaemon.PID && a == addr, nil }
 	return addr, ch
 }
 
@@ -213,6 +218,23 @@ func TestSendWithoutAConfigurationDirectory(t *testing.T) {
 	}
 	if out := w.sendFromClaude(t); !strings.Contains(out, "not woken: no configuration directory, so no daemon token file") {
 		t.Errorf("stdout = %q", out)
+	}
+}
+
+// THE TOKEN GOES ONLY TO A PORT THE DAEMON STILL HOLDS: checked just before the request, so a port
+// the daemon let go of meanwhile, and another process took, never receives it.
+func TestSendSendsNoTokenToAnAddressTheDaemonLeft(t *testing.T) {
+	w := newSendWorld(t)
+	addr, got := w.provisioned(t, http.StatusOK)
+	w.env.DaemonListens = func(int, string) (bool, error) { return false, nil }
+	out := w.sendFromClaude(t)
+	if !strings.Contains(out, "not woken: the daemon (pid 284285) no longer listens at "+addr+", so its token is not sent there") {
+		t.Errorf("stdout = %q", out)
+	}
+	select {
+	case m := <-got:
+		t.Errorf("the token went to an address the daemon no longer holds: %v", m)
+	default:
 	}
 }
 

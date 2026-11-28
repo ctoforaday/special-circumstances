@@ -52,9 +52,6 @@ func TestLiveAntigravityMailboxWake(t *testing.T) {
 	b, c, m, w, s := r.createConv(), r.createConv(), r.createConv(), r.createConv(), r.createConv()
 	srv := r.startServer(host, r.token)
 	daemon := peer.ServerIdentity{PID: srv.pid}
-	if st, ok := peer.ProcessStartTime(srv.pid); ok {
-		daemon.StartTime = st
-	}
 
 	t.Run("ChosenTokenIsHonoured", func(t *testing.T) {
 		addr, err := peer.DaemonAddress(peer.NewAgyClient(5*time.Second), srv.pid)

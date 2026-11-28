@@ -63,8 +63,8 @@ func NewAgyClient(timeout time.Duration) *http.Client {
 }
 
 // WakeSender is the sender of the wake message, and WakeTitle and WakeContent its title and text:
-// the exact message measured (agy 1.5.18, V1 7/7) to start a turn that first reads every queued
-// mailbox message. It asks for nothing, so a wake repeated or lost costs a turn at most. A wake
+// the exact message measured (agy 1.5.18) to start a turn that first reads the queued mailbox
+// message: 4 of 4 wakes in V1 (three idle conversations, one loaded) and once on the real daemon. It asks for nothing, so a wake repeated or lost costs a turn at most. A wake
 // leaves its own entry in the mailbox under this sender until a turn reads it.
 const (
 	WakeSender  = "telepathy-wake"

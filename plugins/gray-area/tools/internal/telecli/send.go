@@ -60,10 +60,12 @@ daemon started and when the conversation last recorded a step.
 
 A wake needs, in this order: Linux; a conversation under the CLI daemon root
 (~/.gemini/antigravity-cli); the daemon's token in
-$XDG_CONFIG_HOME/gray-area/antigravity-daemon.env, which the human provisions with
-telepathy agy-provision (it is read before any network contact); a running daemon;
-its HTTP port, read from /proc; and no process but the daemon holding the
-conversation — its presence/<id>.lock, or its conversations/<id>.db open. A
+$XDG_CONFIG_HOME/gray-area/antigravity-daemon.env (else ~/.config), which the human
+provisions with telepathy agy-provision (it is read before any network contact;
+agy-provision refuses a non-default $XDG_CONFIG_HOME, so a provisioned token is
+always at the default path); a running daemon; its HTTP port, read from /proc and
+checked again just before the token is sent; and no process but the daemon holding
+the conversation — its presence/<id>.lock, or its conversations/<id>.db open. A
 conversation another process holds gets no wake, because a language server sent a
 message for a conversation another holds adopts it and the two then write it at
 once; that holder's next turn reads the mailbox. A wake that fails leaves the message
@@ -215,6 +217,13 @@ func (e *Env) daemonAddress(client *http.Client, pid int) (string, error) {
 	return peer.DaemonAddress(client, pid)
 }
 
+func (e *Env) daemonListens(pid int, addr string) (bool, error) {
+	if e.DaemonListens != nil {
+		return e.DaemonListens(pid, addr)
+	}
+	return peer.DaemonListens(pid, addr)
+}
+
 func sameCanonicalPath(a, b string) bool {
 	if a == "" || b == "" {
 		return false
@@ -336,6 +345,12 @@ func (w wakeDaemon) wakeAt(addr, agyRoot, conversation string) string {
 		return "cannot inspect whether another process holds the conversation: " + h.Detail
 	default:
 		return fmt.Sprintf("held by pid %d, not the daemon, whose next turn reads the mailbox; a wake through the daemon would make a second writer", h.PID)
+	}
+	switch ok, err := w.env.daemonListens(w.id.PID, addr); {
+	case err != nil:
+		return fmt.Sprintf("cannot tell whether the daemon (pid %d) still listens at %s, so its token is not sent: %v", w.id.PID, addr, err)
+	case !ok:
+		return fmt.Sprintf("the daemon (pid %d) no longer listens at %s, so its token is not sent there", w.id.PID, addr)
 	}
 	if err := peer.SendWake(w.client, addr, w.token, conversation); err != nil {
 		return fmt.Sprintf("the wake failed: %v", err)

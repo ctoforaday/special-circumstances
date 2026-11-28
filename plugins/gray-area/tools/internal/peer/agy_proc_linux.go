@@ -48,15 +48,6 @@ func CurrentDaemon() (ServerIdentity, bool) {
 	return ServerIdentity{}, false
 }
 
-// ProcessStartTime returns the kernel start time (clock ticks since boot) of pid from /proc/<pid>/stat.
-func ProcessStartTime(pid int) (int64, bool) {
-	if pid <= 0 {
-		return 0, false
-	}
-	_, _, start, err := readProcStat(pid)
-	return start, err == nil && start > 0
-}
-
 // otherDBHolder finds a live process (regardless of comm) other than excludePID that holds
 // <agyRoot>/conversations/<conversation>.db (or its -wal/-shm) open.
 // Fails CLOSED: if /proc cannot be read, agyRoot cannot be canonicalised, or a same-UID

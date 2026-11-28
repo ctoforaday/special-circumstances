@@ -12,11 +12,17 @@ On Linux it:
      that variable as its token; no hook, MCP server or agent shell receives it.
      A running daemon keeps its old token, so wakes fail until it restarts;
   2. writes the systemd drop-in
-     $XDG_CONFIG_HOME/systemd/user/antigravity-cli-daemon.service.d/telepathy.conf,
-     which gives the daemon that file as its environment and runs
-     ~/.gemini/config/plugins/gray-area/bin/telepathy agy-wake (agy's own install,
-     whose path does not change between releases) after each start;
+     ~/.config/systemd/user/antigravity-cli-daemon.service.d/telepathy.conf, which
+     gives the daemon that file as its environment and runs
+     ~/.gemini/config/plugins/gray-area/bin/telepathy agy-wake --token-file <file>
+     (agy's own install, whose path does not change between releases) after each
+     start;
   3. prints the restart the human runs. It runs no systemctl itself.
+
+It refuses a $XDG_CONFIG_HOME other than ~/.config: the systemd user manager reads
+drop-ins from ~/.config/systemd/user, and telepathy send reads the token at the
+default path. The file is handed to every command the unit runs (its other
+ExecStart and ExecStartPre lines too), all of which run as the same user.
 
 It warns when agy's install of telepathy is missing or does not know agy-wake: the
 drop-in then runs nothing useful until a release carrying agy-wake is installed

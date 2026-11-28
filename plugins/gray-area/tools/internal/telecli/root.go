@@ -57,7 +57,8 @@ type Env struct {
 	// systemd drop-in directory, and AgyTelepathy agy's own install of this binary, which the
 	// drop-in runs at each daemon start. Getenv reads the calling process's environment.
 	// CurrentDaemon, ConversationBusy and DaemonAddress probe the local daemon, the conversation's
-	// holders and the daemon's port. RunProgram runs a program and reports its error (agy-provision
+	// holders and the daemon's port; DaemonListens re-checks, just before a token is sent, that the
+	// daemon's process still holds that port. RunProgram runs a program and reports its error (agy-provision
 	// asks AgyTelepathy whether it knows agy-wake). GOOS is the platform a wake is judged for
 	// (runtime.GOOS when empty). SendTimeout bounds one request to a language server (5 seconds
 	// when zero); WakeBound bounds a whole agy-wake run (60 seconds when zero); Sleep waits between
@@ -71,6 +72,7 @@ type Env struct {
 	CurrentDaemon    func() (peer.ServerIdentity, bool)
 	ConversationBusy func(agyRoot, conversation string, excludePID int) peer.Holder
 	DaemonAddress    func(client *http.Client, pid int) (string, error)
+	DaemonListens    func(pid int, addr string) (bool, error)
 	RunProgram       func(path string, args ...string) error
 	GOOS             string
 	SendTimeout      time.Duration
@@ -87,6 +89,7 @@ func Defaults() Env {
 		CurrentDaemon:    peer.CurrentDaemon,
 		ConversationBusy: peer.ConversationBusy,
 		DaemonAddress:    peer.DaemonAddress,
+		DaemonListens:    peer.DaemonListens,
 		RunProgram:       runProgram,
 		GOOS:             runtime.GOOS,
 	}
