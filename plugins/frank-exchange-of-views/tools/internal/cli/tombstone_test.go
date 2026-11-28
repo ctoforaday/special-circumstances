@@ -238,15 +238,16 @@ func TestABenchRulingIsFinalForItsText(t *testing.T) {
 		}
 	})
 
-	// (16) A SECTION GAP'S RULING STANDS FOR THE RUN while its gap carries no token (the section token is
-	// R4's): a proposal on it is refused, and a mint of its class about the section is refused to
-	// every minter naming the ruling (§III.B6's section arm), while one of another class lands.
+	// (16) A SECTION GAP'S RULING STANDS UNTIL AN EDIT MEETS THE SECTION: a proposal on it is refused,
+	// naming that end, and a mint of its class about the section is refused to every minter naming the
+	// ruling (§III.B6's section arm), while one of another class lands; blue's edit of the section's
+	// text ends the ruling, and the ruled class about the section then lands.
 	t.Run("a section gap", func(t *testing.T) {
 		runDir := newRun(t)
 		impasseBoard(t, runDir, 1, 1)
 		d := ruleAtImpasse(t, runDir, false)
 		asSeat(t, runDir, blueSeat, "register")
-		actRefusedNaming(t, runDir, "the author's proposal on the ruled section gap", blueSeat, []string{"docketing " + d, "tombstone", "it stands for the run"},
+		actRefusedNaming(t, runDir, "the author's proposal on the ruled section gap", blueSeat, []string{"docketing " + d, "tombstone", `edit meeting section "Findings" ends it`},
 			"motion", "docket", "file", "regrade", "--id", boardGap, "--severity", "low", "--reason", "the harm needs two failures")
 		mintAbout := func(class string) (string, error) {
 			args := []string{"--run", runDir, "--seat-id", otherLens, "--about-kind", "section", "--about", "Findings", "--class", class,
@@ -264,6 +265,16 @@ func TestABenchRulingIsFinalForItsText(t *testing.T) {
 		}
 		if out, err := mintAbout(otherClass); err != nil {
 			t.Errorf("a mint of another class about the section: %v %s", err, out)
+		}
+		if out, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat, "--key", "SEC", "--quote", "The findings stand here.",
+			"--new", "The findings stand here, restated.", "--reason", "the section says it plainly"); err != nil {
+			t.Fatalf("blue's edit of the section's text: %v %s", err, out)
+		}
+		if rows, _ := tombstoneRows(t, runDir); len(rows) == 0 || !rows[len(rows)-1].GetEnds() || rows[len(rows)-1].GetGapId() != boardGap {
+			t.Errorf("blue's edit meeting the section wrote tombstone rows %v, want the end of %s's", rows, boardGap)
+		}
+		if out, err := mintAbout(class); err != nil {
+			t.Errorf("a mint of the ruled class about the section after the ruling ended: %v %s", err, out)
 		}
 	})
 

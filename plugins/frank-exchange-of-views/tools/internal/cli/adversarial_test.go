@@ -271,5 +271,6 @@ func adversarialRun(t *testing.T) string {
 	t.Helper()
 	runDir := castRun(t)
 	castSeats(t, runDir)
+	findingsSection(t, runDir) // the section the scenarios' gaps are about
 	return runDir
 }

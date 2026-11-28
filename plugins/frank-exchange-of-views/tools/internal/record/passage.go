@@ -1,6 +1,10 @@
 package record
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportheading"
+)
 
 // THE GAP ARRIVES WITH ITS PASSAGE, SO THE AUDITOR IS NOT NAVIGATING (#1091).
 //
@@ -30,8 +34,8 @@ const passageLimit = 6000
 // to the next heading at the same level or shallower. A gap whose anchor stands at no prose has no
 // passage, and its reader reads the report.
 func PassageAround(report string, at int) string {
-	from, level := sectionStart(report, at)
-	to := sectionEnd(report, at, level)
+	from, level := reportheading.SectionStart(report, at)
+	to := reportheading.SectionEnd(report, at, level)
 	sec := strings.TrimSpace(report[from:to])
 	if len(sec) <= passageLimit {
 		return sec
@@ -53,64 +57,6 @@ func PassageAround(report string, at int) string {
 	return head + "\n\n[…this section runs to " + itoaLen(len(sec)) +
 		" characters and is shown in part, around the quoted text; the whole report is still one read away…]\n\n" +
 		strings.TrimSpace(sec[lo:hi])
-}
-
-// sectionStart is the offset of the heading line governing at, and that heading's level. Level 0
-// with offset 0 means the quote sits before any heading — the report's preamble is its section.
-func sectionStart(report string, at int) (int, int) {
-	for i := lineStart(report, at); ; {
-		if lvl := headingLevel(report, i); lvl > 0 {
-			return i, lvl
-		}
-		if i == 0 {
-			return 0, 0
-		}
-		i = lineStart(report, i-1)
-	}
-}
-
-// sectionEnd is the offset of the next heading at the same level or shallower, or the end.
-func sectionEnd(report string, from, level int) int {
-	// LEVEL 0 IS "NO HEADING GOVERNS THIS", which is text before the document's first heading. It
-	// ends at the NEXT heading of any level — defaulting it to 1 made a `##` fail to stop it, so a
-	// quote in an unheaded preamble swallowed the first real section.
-	if level == 0 {
-		level = 6
-	}
-	for i := from; i < len(report); {
-		nl := strings.IndexByte(report[i:], '\n')
-		if nl < 0 {
-			return len(report)
-		}
-		i += nl + 1
-		if lvl := headingLevel(report, i); lvl > 0 && lvl <= level {
-			return i
-		}
-	}
-	return len(report)
-}
-
-// headingLevel is the number of leading '#' on the line beginning at i, or 0 if it is not an ATX
-// heading. A '#' not followed by a space is not one — `#1091` in prose is not a section.
-func headingLevel(report string, i int) int {
-	n := 0
-	for i+n < len(report) && report[i+n] == '#' {
-		n++
-	}
-	if n == 0 || n > 6 || i+n >= len(report) || report[i+n] != ' ' {
-		return 0
-	}
-	return n
-}
-
-func lineStart(s string, at int) int {
-	if at > len(s) {
-		at = len(s)
-	}
-	if i := strings.LastIndexByte(s[:at], '\n'); i >= 0 {
-		return i + 1
-	}
-	return 0
 }
 
 func itoaLen(n int) string {

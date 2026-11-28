@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
@@ -59,7 +60,7 @@ func requireOneGapPerClassAndSubject(w writeView, seatID string, m *recordpb.Min
 		inquiry = m.GetAboutRef()
 	// A SECTION AND A GAP ARE SUBJECTS ONLY OF A RULING'S TOMBSTONE (§III.B6): a section holds many
 	// sentences, so two open gaps of a class on it are two defects; a ruling on one bars its class on
-	// the section, keyed by the heading every reader of headings uses, to every minter. A section
+	// the section, keyed by the token on its heading (sameSection), to every minter. A section
 	// assembly composes takes no bar (#1942). A gap on a gap is barred by a ruling on a gap of its
 	// class about the same gap, keyed on that gap's id.
 	case recordpb.AboutKind_ABOUT_KIND_SECTION:
@@ -118,8 +119,19 @@ func requireOneGapPerClassAndSubject(w writeView, seatID string, m *recordpb.Min
 		}
 	}
 	if section != "" {
+		var report *string
 		for _, g := range held {
-			if g.ruling != nil && g.aboutKind == recordpb.Word(recordpb.AboutKind_ABOUT_KIND_SECTION) && reportheading.HeadingKey(g.aboutRef) == section {
+			if g.ruling == nil || g.aboutKind != recordpb.Word(recordpb.AboutKind_ABOUT_KIND_SECTION) {
+				continue
+			}
+			if report == nil {
+				text, err := w.report()
+				if err != nil {
+					return fmt.Errorf("the report could not be rendered, so whether a ruling stands on section %q cannot be told: %w", m.GetAboutRef(), err)
+				}
+				report = &text
+			}
+			if sameSection(*report, g, m.GetAboutRef()) {
 				return refuse(g, "section "+strconv.Quote(m.GetAboutRef()))
 			}
 		}
@@ -295,4 +307,21 @@ func oneGapRefusal(w writeView, seatID string, m *recordpb.Mint, g heldGap, subj
 			"What you see wrong in %s — its problem, fix, check or weight — is a gap of yours about %s, which %s answers. "+
 			"A defect that stands in the report after %s closes is a new gap of yours. Nothing was written",
 		g.id, g.assignee, subject, recordpb.Word(m.GetClass()), g.problem, g.id, g.id, g.id, g.id, g.assignee, g.id)
+}
+
+// sameSection is whether ruled section gap g is about the section ref keys in report: by g's token,
+// where the report holds it — on the heading ref keys, whatever that heading now reads, so a renamed
+// heading keeps its ruling and a new heading of g's old words is another section — and by the heading's
+// key where it holds none (an archived section gap about a section missing at its mint).
+func sameSection(report string, g heldGap, ref string) bool {
+	tok := anchor.Token(g.id)
+	if !strings.Contains(report, tok) {
+		return reportheading.HeadingKey(g.aboutRef) == reportheading.HeadingKey(ref)
+	}
+	for _, h := range anchortext.HeadingsKeyed(report, ref) {
+		if strings.Contains(report[h.Start:h.Stop], tok) {
+			return true
+		}
+	}
+	return false
 }

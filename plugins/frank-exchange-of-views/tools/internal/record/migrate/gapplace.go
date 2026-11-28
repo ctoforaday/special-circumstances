@@ -200,11 +200,11 @@ func (p *placer) edit(b *recordpb.BlueEdit) error {
 	// THE EDIT'S TOUCHED PARAGRAPHS, STAMPED ONCE HERE (EventSchema 80): the replay holds the report
 	// before the edit and after it, which nothing after migration can rebuild without replaying
 	// again, so the archived edit is given what a live edit stamps at its write — and its reopened
-	// anchors computed from them as a live edit's are. The paragraphs are the splice's: a token the
+	// anchors computed as a live edit's are (bluedoc.Reopened). The paragraphs are the splice's: a token the
 	// edit takes stands in them, as the archived edit left it, and the list's removes come after.
 	oldParas, newParas := bluedoc.TouchedParagraphs(text, after, start, end)
 	b.OldParagraphs, b.NewParagraphs = proto.String(oldParas), proto.String(newParas)
-	reopened := bluedoc.ReopenedAnchors(oldParas, newParas)
+	reopened := bluedoc.Reopened(text, after, start, end)
 	for _, id := range reopened {
 		if isGap(id) && !slices.Contains(b.Reopened, id) {
 			p.census.Shapes["reopened"]++ // a gap whose sentence the archived edit changed

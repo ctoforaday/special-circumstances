@@ -194,7 +194,8 @@ func newEdit() *cobra.Command {
 			// sentence nobody read, and nothing said so. Text moves through this verb alone,
 			// so the no-loss computation and the requires-review mark belong on this one channel.
 			//
-			// Computed from the paragraphs the edit touched, before and after (TouchedParagraphs),
+			// Computed from the paragraphs the edit touched, before and after (TouchedParagraphs), and the
+			// sections its span meets (bluedoc.Reopened),
 			// cut from the render the validation used, which is the report the edit lands on — and
 			// stamped on the edit, its own record of what it changed.
 			start, end, located := bluedoc.SpliceSpan(peek, oldStr, exact)
@@ -203,7 +204,7 @@ func newEdit() *cobra.Command {
 			}
 			oldParas, newParas := bluedoc.TouchedParagraphs(peek, planned, start, end)
 			body.OldParagraphs, body.NewParagraphs = proto.String(oldParas), proto.String(newParas)
-			body.Reopened = bluedoc.ReopenedAnchors(oldParas, newParas)
+			body.Reopened = bluedoc.Reopened(peek, planned, start, end)
 			if err := refuseBaredAnchors(peek, planned); err != nil {
 				return err
 			}
@@ -458,14 +459,14 @@ func AcceptPair(l *record.Landing, body *recordpb.BlueEdit, gapID, loc, fix stri
 	}
 	body.Old, body.New = proto.String(a.Old), proto.String(a.Applied)
 	// Stamped as every edit's write stamps it: the paragraphs it touched, before and after, and what
-	// it reopened read from them.
+	// it reopened read from them and from the sections its span meets (bluedoc.Reopened).
 	start, end, located := bluedoc.SpliceSpan(report, a.Old, a.Exact)
 	if !located {
 		return feov.Errorf(feov.Conflict, "the edit planned over the report and its span no longer locates in it by replay's rule: %q", a.Old)
 	}
 	oldParas, newParas := bluedoc.TouchedParagraphs(report, a.Planned, start, end)
 	body.OldParagraphs, body.NewParagraphs = proto.String(oldParas), proto.String(newParas)
-	body.Reopened = bluedoc.ReopenedAnchors(oldParas, newParas)
+	body.Reopened = bluedoc.Reopened(report, a.Planned, start, end)
 	if a.Exact {
 		body.ExactSpan = proto.Bool(true)
 	}

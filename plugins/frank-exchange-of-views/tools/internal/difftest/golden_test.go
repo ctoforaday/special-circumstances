@@ -191,7 +191,8 @@ func prepareRun(t *testing.T, bin, runDir string, m *nonceMapper, files map[stri
 		seedCast(t, runDir, cast)
 	}
 	// A quoted gap anchors into the report and is refused unless its --quote quote is
-	// present, so the report carries the scenario quotes (a claim under ## S2 / ## S4).
+	// present, so the report carries the scenario quotes (a claim under ## S2 / ## S4); a section gap
+	// names a heading the report holds, so it carries the Findings section the scenarios mint about.
 	//
 	// THE REPORT IS RECORDED AS ONE PART, under the harness: a scenario stands for a run whose lanes
 	// recorded their parts, and a scenario with no cast seats no lane to record one. blue-synthesize
@@ -202,7 +203,7 @@ func prepareRun(t *testing.T, bin, runDir string, m *nonceMapper, files map[stri
 		t.Fatalf("setup register: exit %d\nstderr: %s", inv.code, inv.stderr)
 	}
 	recordtest.Seed(t, runDir, recordtest.At(t, record.HarnessSeat, record.HarnessSeat+":setup:report",
-		&recordpb.ReportPart{Text: proto.String("## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n")}))
+		&recordpb.ReportPart{Text: proto.String("## Findings\n\nThe findings stand under this heading.\n\n## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n")}))
 	m.observe(filepath.Join(runDir, "records"))
 }
 

@@ -349,6 +349,7 @@ func seatRunForContracts(t *testing.T) string {
 	}
 	// REAL REFERENTS, so an --id in a probe names something. Without these the reference checks
 	// fire before the flag-specific ones and this gate measures the wrong refusal.
+	findingsSection(t, runDir)
 	if _, err := run(t, "mint", "--about-kind", "section", "--about", "Findings", "--run", runDir, "--seat-id", "red-lens-evidence",
 		"--key", "contract-seed", "--class", "spec_underspecification",
 		"--problem", "p", "--fix", "f",

@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 
 	"google.golang.org/protobuf/proto"
@@ -482,13 +483,25 @@ func tombstoneEnds(aboutKind, ref string) string {
 		if ref != "" {
 			return "question part " + ref + "'s next coverage"
 		}
-	// A SECTION GAP'S TOKEN is R4's (the heading placement and ReopenedAnchors meeting the section):
-	// until a section gap carries one, no edit lists it and its tombstone stands for the run, as the
-	// words say; the end row (subjectEnds) reads the token once it exists.
+	// A SECTION IN BLUE'S TEXT: its token heads it, and an edit meeting the section lists the token
+	// (bluedoc.Reopened). A composed section takes no token and its tombstone stands for the run.
+	case recordpb.Word(recordpb.AboutKind_ABOUT_KIND_SECTION):
+		if !composedSection(ref) {
+			return "an edit meeting section " + strconv.Quote(ref)
+		}
 	case recordpb.Word(recordpb.AboutKind_ABOUT_KIND_GAP):
 		return "gap " + ref + "'s next amend, regrade or close by its minter"
 	}
 	return "nothing — it stands for the run —"
+}
+
+// HeadingSection is the reference of a mint about a section in blue's text — one whose heading takes
+// the gap's token (§III.B0 "Sections") — and whether the mint is one.
+func HeadingSection(m *recordpb.Mint) (string, bool) {
+	if m.GetAboutKind() != recordpb.AboutKind_ABOUT_KIND_SECTION || composedSection(m.GetAboutRef()) {
+		return "", false
+	}
+	return m.GetAboutRef(), true
 }
 
 // composedSection is whether heading names a section assembly composes from the inquiries' fates

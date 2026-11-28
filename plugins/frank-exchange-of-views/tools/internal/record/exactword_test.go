@@ -3,6 +3,8 @@ package record
 import (
 	"testing"
 
+	"google.golang.org/protobuf/proto"
+
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
@@ -23,7 +25,9 @@ func TestTheLoudOutcomeWordIsTakenExactly(t *testing.T) {
 // AN ABOUT ANCHOR IS TAKEN AS TYPED: space around either half is refused, and a pair of space alone
 // is not the absent pair.
 func TestAnAboutAnchorIsTakenAsTyped(t *testing.T) {
-	run := mustRun(t, recordtest.TmpRun(t))
+	dir := recordtest.TmpRun(t)
+	recordtest.Seed(t, dir, recordtest.At(t, HarnessSeat, "harness:report", &recordpb.ReportPart{Text: proto.String("# H\n\nSeven is prime.\n")}))
+	run := mustRun(t, dir)
 	admitted := MustEnum("mint", "about_kind")
 	for _, c := range [][2]string{{" section", "H"}, {"section", "H "}, {"  ", "  "}, {"section", "   "}} {
 		if k, ref, err := ResolveAbout(run, admitted, c[0], c[1]); err == nil {

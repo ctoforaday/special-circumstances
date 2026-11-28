@@ -2299,7 +2299,7 @@ verify replays <run>'s event record and asserts the invariants that must hold if
 
 ═══ EVENTS ═══
 {"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}
-{"key":"harness:setup:report","report_part":{"text":"## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n"},"seat_id":"harness","ts":1,"type":"EVENT_TYPE_REPORT_PART"}
+{"key":"harness:setup:report","report_part":{"text":"## Findings\n\nThe findings stand under this heading.\n\n## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n"},"seat_id":"harness","ts":1,"type":"EVENT_TYPE_REPORT_PART"}
 
 ═══ RENDERS ═══
 -- inquiries
@@ -2318,6 +2318,10 @@ indistinguishable from one that never looked._
 ---
 
 **Outcome:** PENDING (no outcome on the record yet — the bench records it at the run's exit)
+
+## Findings
+
+The findings stand under this heading.
 
 ## S2
 

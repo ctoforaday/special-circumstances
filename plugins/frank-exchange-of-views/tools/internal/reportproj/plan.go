@@ -66,8 +66,9 @@ func (e *NoChangeError) Is(target error) bool { return target == ErrNoChange }
 // wrong for every caller — and an anchor the splice puts on a heading, which no placement may do.
 func PlanSplice(report, old, new string) (next, applied string, exact bool, err error) {
 	// An anchor on a heading in next that was on none in report is one this splice carried into a
-	// heading or made a heading around. One already on a heading, an archived carry, is not this
-	// edit's doing and refuses nothing, its heading rewritten or not.
+	// heading or made a heading around. One already on a heading — a section gap's token, which the
+	// mint places there (§III.B0 "Sections") — is not this edit's doing and refuses nothing, its
+	// heading rewritten or not, so a renamed heading keeps its section.
 	defer func() {
 		was := headingAnchors(report)
 		for _, id := range headingAnchors(next) {

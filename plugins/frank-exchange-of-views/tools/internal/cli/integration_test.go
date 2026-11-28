@@ -3,6 +3,9 @@ package cli
 import (
 	"io"
 
+	"google.golang.org/protobuf/proto"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/deliverytest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -82,6 +85,7 @@ func mintGap(t *testing.T, runDir, key, class string) string {
 	// that mints.
 	registerChairOnce(t, runDir)
 	registerLensOnce(t, runDir)
+	findingsSection(t, runDir)
 	out, err := run(t, "mint", "--about-kind", "section", "--about", "Findings", "--run", runDir, "--seat-id", lensSeat,
 		"--key", key, "--class", class, "--problem", "the defect", "--fix", "the fix",
 		"--check-kind", "document", "--check", "the acceptance check red runs at re-audit",
@@ -94,6 +98,27 @@ func mintGap(t *testing.T, runDir, key, class string) string {
 		t.Fatalf("mint returned no id: %q", out)
 	}
 	return id
+}
+
+// findingsSection gives runDir's report a "Findings" section where it holds none, so a gap about
+// that section names a heading the report holds (§III.B0 "Sections": the mint checks it).
+func findingsSection(t *testing.T, runDir string) {
+	t.Helper()
+	if has, err := record.ReportHasParts(runtest.Open(t, runDir)); err != nil {
+		t.Fatal(err)
+	} else if has {
+		md, err := record.RenderRun(runtest.Open(t, runDir))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(anchortext.HeadingsKeyed(md, "Findings")) > 0 {
+			return
+		}
+	}
+	if _, err := record.Append(record.Identity{Run: runtest.Open(t, runDir), SeatID: record.HarnessSeat},
+		&recordpb.ReportPart{Text: proto.String("## Findings\n\nThe findings this run reports stand in this section.\n")}); err != nil {
+		t.Fatalf("record the Findings section: %v", err)
+	}
 }
 
 // runMint is `mint` with args.
@@ -228,6 +253,11 @@ func registerChairOnce(t *testing.T, runDir string) {
 // waits on it.
 func registerLensOnce(t *testing.T, runDir string) {
 	t.Helper()
+	if has, err := record.ReportHasParts(runtest.Open(t, runDir)); err != nil {
+		t.Fatal(err)
+	} else if !has {
+		findingsSection(t, runDir) // a report to audit, holding the section the lens's gaps are about (mintGap)
+	}
 	registerSeatOnce(t, runDir, lensSeat)
 	deliverIfOwed(t, runDir, lensSeat)
 }

@@ -27,6 +27,7 @@ func TestTheBindingGuardCoversWritesAndNotReads(t *testing.T) {
 	// a handle set would bind this agent to it — which is the mechanism working, and would leave
 	// the test measuring a bound agent while claiming an unbound one.
 	runDir := seatRun(t)
+	findingsSection(t, runDir) // the section the lens's gap is about
 	t.Setenv(seatenv.AgentVar, "agent_unbound_and_unregistered")
 
 	// A READ is answerable before registering. The seat has an identity by flag; what it lacks is

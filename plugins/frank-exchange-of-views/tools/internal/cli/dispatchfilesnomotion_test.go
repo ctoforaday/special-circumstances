@@ -55,12 +55,14 @@ func impasseBoard(t *testing.T, runDir string, kMax, exchanges int) {
 	}
 	evs := []*record.Event{
 		at(record.HarnessSeat, &recordpb.Cast{SeatIds: []string{"red-lens-evidence", otherLens, "red-chair", "blue-respond", "judge"}}),
-		at(record.HarnessSeat, &recordpb.ReportPart{Text: proto.String("# report")}),
+		at(record.HarnessSeat, &recordpb.ReportPart{Text: proto.String("# report\n\n## Findings\n\nThe findings stand here.\n")}),
 		at("red-chair", &recordpb.Register{}),
 		at("red-lens-evidence", &recordpb.Register{}),
 		at("red-lens-evidence", &recordpb.Mint{AboutKind: recordpb.AboutKind_ABOUT_KIND_SECTION.Enum(), AboutRef: proto.String("Findings"), GapId: proto.String(boardGap), Class: recordpb.GapClass_GAP_CLASS_SPEC_UNDERSPECIFICATION.Enum(), Problem: proto.String("p"),
 			AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
 			Severity: recordtest.P(recordpb.Grade_GRADE_HIGH), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}),
+		// the section gap's token, at the end of its heading (§III.B0 "Sections")
+		at("red-lens-evidence", &recordpb.Anchor{Id: proto.String(boardGap), Location: proto.String("## Findings")}),
 	}
 	for i := 0; i < exchanges+1; i++ {
 		evs = append(evs,

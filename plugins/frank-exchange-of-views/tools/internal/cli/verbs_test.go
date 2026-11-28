@@ -34,6 +34,7 @@ func seedReferents(t *testing.T, runDir string) {
 	for i := 0; i < 2; i++ {
 		registerChairOnce(t, runDir)
 		registerLensOnce(t, runDir)
+		findingsSection(t, runDir)
 		if _, err := run(t, "mint", "--about-kind", "section", "--about", "Findings", "--run", runDir, "--seat-id", lensSeat,
 			"--key", fmt.Sprintf("seed-%d", i), "--class", "spec_underspecification", "--check-kind", "document", "--check", "c",
 			"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
@@ -59,6 +60,7 @@ func seedReferents(t *testing.T, runDir string) {
 		"--reason", "the seeded petition this fixture answers"); err != nil {
 		t.Fatal(err)
 	}
+	findingsSection(t, runDir)
 	if _, err := run(t, "mint", "--about-kind", "section", "--about", "Findings", "--run", runDir, "--seat-id", lensSeat,
 		"--key", "seed-archived", "--class", "spec_underspecification", "--check-kind", "document", "--check", "c",
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
@@ -372,6 +374,7 @@ func TestRegradeMovesOnlyThePassedGrades(t *testing.T) {
 	seatID := lensSeat
 	registerChairOnce(t, runDir)
 	registerLensOnce(t, runDir)
+	findingsSection(t, runDir)
 	if _, err := run(t, "mint", "--about-kind", "section", "--about", "Findings", "--run", runDir, "--seat-id", seatID,
 		"--class", "spec_underspecification", "--check-kind", "document", "--check", "c", "--problem", "p",
 		"--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {

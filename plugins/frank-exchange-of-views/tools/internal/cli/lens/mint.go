@@ -3,6 +3,7 @@ package lens
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -18,6 +19,8 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportheading"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportvoice"
 )
@@ -246,6 +249,54 @@ func mintPlacementRefusal(err error) error {
 	return fmt.Errorf("%w\n\nFor a gap about something that is NOT in the report, do not borrow a nearby sentence: name it with --about-kind/--about", r)
 }
 
+// requireNotToolSection refuses a section gap about a section the tool composes from the record,
+// other than the inquiry sections (§III.B0 "Sections"): no edit writes its text, so no gap about it is
+// answerable as a section's; the refusal names the record rows it prints, where the defect is.
+func requireNotToolSection(kind, ref string) error {
+	if kind != recordpb.Word(recordpb.AboutKind_ABOUT_KIND_SECTION) {
+		return nil
+	}
+	key := reportheading.HeadingKey(ref)
+	for _, row := range report.Sections() {
+		if row.Composer != report.Tool || reportheading.HeadingKey(row.Heading) != key || slices.ContainsFunc(reportheading.InquirySections, func(s reportheading.InquirySection) bool { return reportheading.HeadingKey(s.Heading) == key }) {
+			continue
+		}
+		return feov.Errorf(feov.Validation, "--about %q with --about-kind section names a section the tool composes, from %s. No edit writes it, so a gap about it is a gap about those records: anchor it on the act or the sentence the defect is in. Nothing was recorded", ref, row.From)
+	}
+	return nil
+}
+
+// headingPlacedActs is a section gap's write (§III.B0 "Sections"): the mint, then the Anchor placing its
+// token at the end of the one heading of blue's text its reference keys to — the one anchor a heading
+// holds. The heading is found in the report as it stands, and asked again of the report the write lands
+// on: a heading another seat's edit took or doubled in between refuses the mint rather than placing the
+// token on whatever line now matches.
+func headingPlacedActs(s seat.Context, p *recordpb.Mint, ref string, guards []record.Guard) ([]record.Act, error) {
+	run, err := s.Run()
+	if err != nil {
+		return nil, err
+	}
+	report, _, err := record.ReportAtHead(run)
+	if err != nil {
+		return nil, err
+	}
+	loc, _, err := anchortext.HeadingLocation(report, ref)
+	if err != nil {
+		return nil, feov.Errorf(feov.Validation, "--about %q with --about-kind section: %v. Nothing was recorded", ref, err)
+	}
+	stands := record.Check(func(l *record.Landing) error {
+		current, err := l.Report()
+		if err != nil {
+			return err
+		}
+		if got, _, err := anchortext.HeadingLocation(current, ref); err != nil || got != loc {
+			return feov.Errorf(feov.Conflict, "the heading --about %q keys changed while this gap was minted (another seat's edit landed first), so its token has no one heading to stand on. Read the report again and mint about the section as it now stands. Nothing was recorded", ref)
+		}
+		return nil
+	})
+	return record.PlacedActs(p, p.GetGapId(), loc, append([]record.Guard{stands}, guards...)...), nil
+}
+
 // estopped is the estoppel guard's refusal: the prescription the mint's quote names, which blue
 // applied verbatim. The verb words it and logs it once the write has rolled back.
 type estopped struct{ record.Estoppel }
@@ -445,8 +496,16 @@ func WriteMint(s seat.Context, p *recordpb.Mint, quote, fixNew string, before ..
 		return requireNotEstopped(l, s.SeatID, quote)
 	}))
 
+	placing := seat.PlacedActs(p, gapID, p.GetLocation(), mintPlacementRefusal, guards...)
+	if ref, ok := record.HeadingSection(p); ok {
+		acts, err := headingPlacedActs(s, p, ref, guards)
+		if err != nil {
+			return err
+		}
+		placing = acts
+	}
 	var est estopped
-	switch _, err := record.AppendActs(s.Identity(), append(before, seat.PlacedActs(p, gapID, p.GetLocation(), mintPlacementRefusal, guards...)...)...); {
+	switch _, err := record.AppendActs(s.Identity(), append(before, placing...)...); {
 	case errors.As(err, &est):
 		prior := est.Gap
 		road := fmt.Sprintf("restate it on %s with your amend of it (`amend --id %s`), where your prescription sits beside the complaint", prior, prior)
@@ -522,16 +581,20 @@ func (st *Statement) Fill(run record.Run, cmd *cobra.Command, text, key string) 
 	// AN OMISSION HAS A PLACE, AND IT IS NOT A BORROWED SENTENCE: an absence names the
 	// section it is missing from, the inquiry whose question it argues against, or the
 	// anchor whose check failed, and the record CHECKS the reference.
-	about, aboutRefP, aerr := record.ResolveAbout(run, record.MustEnum("mint", "about_kind"), seat.Str(cmd, flags.AboutKind), seat.Str(cmd, flags.About))
-	if aerr != nil {
-		return nil, aerr
-	}
 	loc := seat.Location(cmd)
 	// ONE SUBJECT, and exactly one: a quote or an --about. A gap that claims both is claiming
 	// two; a gap with neither is a problem nothing locates, which the record refuses
-	// (record.requireMintSubject).
-	if strings.TrimSpace(loc) != "" && about != nil {
+	// (record.requireMintSubject). Asked before the reference is checked, so the seat is told the
+	// shape is wrong before it is told the reference is.
+	if strings.TrimSpace(loc) != "" && (seat.Str(cmd, flags.AboutKind) != "" || seat.Str(cmd, flags.About) != "") {
 		return nil, feov.Errorf(feov.Validation, "takes --quote OR --about, not both: a gap has one subject")
+	}
+	if err := requireNotToolSection(seat.Str(cmd, flags.AboutKind), seat.Str(cmd, flags.About)); err != nil {
+		return nil, err
+	}
+	about, aboutRefP, aerr := record.ResolveAbout(run, record.MustEnum("mint", "about_kind"), seat.Str(cmd, flags.AboutKind), seat.Str(cmd, flags.About))
+	if aerr != nil {
+		return nil, aerr
 	}
 	// THE GAP'S ANCHOR IS PLACED as every kind's is: at the end of its quote, which must occur
 	// once within one paragraph of the report the mint lands on (seat.AppendPlaced, below). A gap

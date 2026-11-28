@@ -485,7 +485,7 @@ func flatText(s string) string {
 // AutoPlace puts back each anchor of span that new does not carry, where the anchor's sentence in
 // span survives in new word for word and LocateOnce finds it there once — inside the one occurrence
 // it counted, so "Costs rose sharply. Costs rose." is never placed on its first "Costs rose" — at
-// the place the anchor held in that sentence, unless new makes that place a heading. An anchor it
+// the place the anchor held in that sentence, unless new makes that place a heading where it held none. An anchor it
 // cannot place stays out, for the transit check to refuse by its sentence. The sentence is read
 // within span, the text being replaced: a fragment edit that keeps the fragment re-places the
 // anchor, and ReopenedAnchors, reading the document's sentence, still records it.
@@ -499,7 +499,10 @@ func AutoPlace(span, new string) string {
 			continue
 		}
 		if s, _, err := anchortext.LocateOnce(new, flatText(span[a:b]), anchortext.StopAtParagraph); err == nil {
-			if j := inStep(span, a, at, new, s); j >= 0 && !anchortext.InBlock(new, j, anchor.Heading) {
+			// A TOKEN ON A HEADING STAYS ON IT: the one anchor a heading holds is a section gap's
+			// (§III.B0 "Sections"), and a heading rewrite keeps its section.
+			onHeading := anchortext.InBlock(span, at, anchor.Heading)
+			if j := inStep(span, a, at, new, s); j >= 0 && (onHeading || !anchortext.InBlock(new, j, anchor.Heading)) {
 				new = new[:j] + tok + new[j:]
 			}
 		}

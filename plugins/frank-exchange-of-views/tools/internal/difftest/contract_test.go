@@ -86,9 +86,9 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 	bin := buildBinary(t)
 	runDir := t.TempDir()
 	// The gap below anchors into the report with --quote "somewhere", so the lane's part must
-	// contain that quote or the mint is refused as a mis-quote.
+	// contain that quote or the mint is refused as a mis-quote; the section gaps name its Findings heading.
 	seed(t, runDir, map[string]string{
-		"blue/candidates/blue-lane-1.md": "## H\n\nA claim lives somewhere in this report.\n\nPrices climbed.\n\nCosts rose.\n\nCosts rose.\n\nPlain one.\n\nPlain two.\n",
+		"blue/candidates/blue-lane-1.md": "## H\n\nA claim lives somewhere in this report.\n\nPrices climbed.\n\nCosts rose.\n\nCosts rose.\n\nPlain one.\n\nPlain two.\n\n## Findings\n\nThe findings stand under this heading.\n",
 	})
 
 	// ONE MAPPER for the setup and every row: the rows name the gap the setup mints as GAP001, and

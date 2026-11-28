@@ -1,15 +1,19 @@
 package record
 
 import (
+	"errors"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 
 	"google.golang.org/protobuf/proto"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportheading"
 )
 
 // aboutShapes are the --about-kinds whose reference is an id of a known shape.
@@ -54,8 +58,7 @@ func ResolveAbout(run Run, admitted EnumField, kind, ref string) (*recordpb.Abou
 	}
 	// THE REFERENCE IS CHECKED AGAINST THE RECORD, which is the whole advantage over a quote
 	// borrowed from a nearby paragraph: an inquiry id either names an inquiry this run proposed or it
-	// does not. A section name is not checked — the report's headings are blue's to change mid-run,
-	// and refusing on a stale one would refuse the gap rather than the staleness.
+	// does not, and a section names one heading of the report as it stands (§III.B0 "Sections").
 	//
 	// THE SHAPE FIRST, or an existence check answers for it: an id spelled another way reads as an id
 	// the record lacks, and `--about '<!--computation:K-050249f6-->'` was told no computation on the
@@ -83,6 +86,10 @@ func ResolveAbout(run Run, admitted EnumField, kind, ref string) (*recordpb.Abou
 				return nil, nil, err
 			}
 		}
+	case recordpb.AboutKind_ABOUT_KIND_SECTION:
+		if err := requireSectionRef(run, ref); err != nil {
+			return nil, nil, err
+		}
 	case recordpb.AboutKind_ABOUT_KIND_ANCHOR:
 		db, err := openRunForRead(run)
 		if err != nil {
@@ -93,4 +100,41 @@ func ResolveAbout(run Run, admitted EnumField, kind, ref string) (*recordpb.Abou
 		}
 	}
 	return &k, proto.String(ref), nil
+}
+
+// requireSectionRef is a section reference checked against the report (§III.B0 "Sections"): it keys,
+// by reportheading.HeadingKey, exactly one heading of blue's text as it stands, or one of the sections
+// assembly composes from the inquiries (reportheading.InquirySections). A reference keying none or two
+// is refused, naming the headings the text holds.
+func requireSectionRef(run Run, ref string) error {
+	if composedSection(ref) {
+		return nil
+	}
+	report, _, err := ReportAtHead(run)
+	if err != nil {
+		return fmt.Errorf("the report could not be rendered, so whether a heading keys to --about %q cannot be told: %w", ref, err)
+	}
+	_, _, err = anchortext.HeadingLocation(report, ref)
+	switch {
+	case err == nil:
+		return nil
+	case errors.Is(err, anchortext.ErrNoHeading):
+		return feov.Errorf(feov.Validation, "--about %q with --about-kind section keys no heading of the report. A section gap names a section the report holds, by its heading; the report's headings are: %s. Nothing was recorded", ref, sectionHeadingList(report))
+	case errors.Is(err, anchortext.ErrHeadingTwice):
+		return feov.Errorf(feov.Validation, "--about %q with --about-kind section keys two headings of the report, so which section the gap is about cannot be told; the report's headings are: %s. Nothing was recorded", ref, sectionHeadingList(report))
+	}
+	return feov.Errorf(feov.Validation, "--about %q with --about-kind section: %v. Nothing was recorded", ref, err)
+}
+
+// sectionHeadingList is the headings of report, quoted, and the composed inquiry sections, for a
+// refusal that names what a section reference may key.
+func sectionHeadingList(report string) string {
+	var out []string
+	for _, h := range anchortext.Headings(report) {
+		out = append(out, strconv.Quote(reportheading.HeadingKey(h.Text)))
+	}
+	for _, s := range reportheading.InquirySections {
+		out = append(out, strconv.Quote(reportheading.HeadingKey(s.Heading)))
+	}
+	return strings.Join(out, ", ")
 }
