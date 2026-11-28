@@ -823,6 +823,10 @@ type runner struct {
 	// which runs it ONCE. More verbatim applications do not help: reds were observed with 6, 8
 	// and 9 of them, so what is missing is not applications but the PAIR.
 	forceEstoppel bool
+	// staleOnSubject is set once the run has driven a Stale on a gap about a gap (staleOnASubject).
+	staleOnSubject bool
+	// staleOnSubjectMints is how many tries staleOnASubject has taken.
+	staleOnSubjectMints int
 	// forceVerified drives the VERIFIED terminal verdict on one seed instead of leaving it to the
 	// draw. VERIFIED needs a board with no gap left at its limit, and every gap the sweep mints has
 	// about a one-in-four chance of ending there (see directives), so the chance a run reaches
@@ -6885,6 +6889,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 			}
 		}
 		r.auditComposedSources(seatID)
+		r.staleOnASubject(seatID)
 		r.mintAboutFateSection(seatID)
 		r.mintHeldTrifle(seatID)
 		r.closeNamedOnTurn(seatID, engaged)
