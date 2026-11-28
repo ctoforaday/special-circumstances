@@ -131,7 +131,7 @@ Global Flags:
 A GAP THAT CHANGED AFTER YOUR SITTING OPENED REFUSES THIS ACT ON IT. Other seats sit while you do, so a gap can be closed, regraded, remanded, or answered by blue after you read it. The refusal records none of the act and lists each change on its own line, with its event number and the seat that made it. Read the gap as it now stands; if the act still holds, record it again — the refusal moved your reading of that gap past what it showed, so the same act is not refused for those changes twice. Only other seats' acts count: your own never refuse you.
 
 §4 (on 2 pages):
-OUTPUT (JSON, with --json — the bare call is the human form): {verb,role,ok,result:{gap_id},standing:{complete,blocking:[string],another_seat_clears:[string],holds_turn:[string],open,unreadable}}
+OUTPUT (JSON, with --json — the bare call is the human form): {verb,role,ok,result:{gap_id,accepts},standing:{complete,blocking:[string],another_seat_clears:[string],holds_turn:[string],open,unreadable}}
 
 §5 (on 20 pages):
 FREE TEXT AND THE SHELL. Bash RUNS a backtick inside double quotes before this tool sees
@@ -153,7 +153,7 @@ THE LIVE-ANSWER DEMAND IS ASKED OF EVERY CLOSE, before anything else, under ever
 §8 (on 2 pages):
 the ids you verified it with, comma-separated — each the id inside a `<!--cite:C-…-->`, `<!--computation:K-…-->` or `<!--gap:G-…-->` token in the report, or the token itself, or an inquiry's `Q-…` id, of an act on this record; never the gap you are closing. The bare id is `C-…`, never `cite:C-…`: `--anchor C-…,K-…`, or a token whole, quoted for the shell: `--anchor '<!--cite:C-…-->'`. Capture's attestation audit holds each to your other tool calls this sitting — one that read or named it, not this close; a closure verified against no anchor names none
 
-§9 (on 2 pages):
+§9 (on 3 pages):
 Enumerated values:
   --as
     repaired               the repair was verified at the leaf and nothing regressed
@@ -253,6 +253,8 @@ A PRESCRIPTION IS AMENDABLE ONLY WHILE ITS LOCATION STANDS. The prescription is 
 
 AN AMEND OF YOUR GAP IS THE AUTHOR'S TURN. Whoever answers your gap answered the wording it had; once you amend it, the author's next act on it answers the amended wording, and an answer from before the amend no longer answers it. While a docketing or a proposal stands on your gap, an amend of it is refused, naming what stands: you concede by closing the gap or by taking the proposal.
 
+WHILE A GAP ABOUT YOUR GAP IS DOCKETED, YOUR GAP IS LOCKED: its wording and grades are what the bench rules on there, so your amend, regrade and close of it are refused, naming that docketing — but the act that takes the statement. That gap's raiser's closing states the wording and grades your gap should carry; your amend that takes it writes exactly what it states, the grades too where it states them, answering that gap, and concedes its docketing with no ruling.
+
 A GAP ANOTHER LENS RAISES ON YOUR GAP'S WORDING is yours to answer: your amend of your gap that names it as the gap it answers is your answer, and spends an exchange on it as an author's answer does. An amend of your gap that names no gap is that lens's turn to re-audit, not an answer. The gap it answers is an open gap about the gap you amend; any other is refused.
 
 (A GAP THAT CHANGED AFTER YOUR SI…) → SHARED §3
@@ -269,10 +271,11 @@ IF WHAT YOU RECORDED WAS WRONG, say so in a new amend at your next sitting, whil
 sitting holds one per --id, and this sitting's stands).
 
 Flags:
+      --accept gap-id             take the statement another lens's gap about your gap states in its raiser's closing: that gap's G- id. The tool writes the wording — and the grades, where it states them — on your gap exactly as stated, answering it, so you pass no wording, --id or --answers; under its docketing it is your concession, ending the docketing with no ruling. --reason is still your own argument
       --acceptance-check string   the gap's acceptance check as it now stands, in the mint's sense; omit to keep the current one
       --answers gap-id            the gap about this gap that your amend answers — another lens's gap on your gap's wording; omit for an amend that answers no gap
       --fix-new string            the gap's prescription as it now stands: what its location, fixed at the mint, becomes — verified as a mint's replacement text is, against the report the amend lands on; omit to keep the current one
-      --id gap-id                 REQUIRED — your open gap whose wording this restates
+      --id gap-id                 REQUIRED unless --accept — your open gap whose wording this restates
       --problem string            the gap's problem as it now stands, in the mint's sense; omit to keep the current one
       --reason string             → SHARED §6
       --required-fix string       the gap's required fix as it now stands, in the mint's sense; omit to keep the current one
@@ -285,6 +288,8 @@ THE VERIFICATION TRIPLE IS THE POINT: this verb asserts the repair was checked T
 THE AUTHOR'S PROPOSED CLOSE IS YOURS TO TAKE, BY THIS VERB: you name the proposal, and the tool supplies the gap and the close it states — its word and its verification — so you pass none of them; your argument is still yours. While the author's proposal stands undocketed, your own close is refused: you answer it by taking it, or leave it to be docketed when your sitting ends.
 
 YOUR CLOSE OF A DOCKETED GAP IS YOUR CONCESSION: it lands under every cause, grade movement included — the gap is fixed and its grade is moot — and ends the docketing and any proposal it holds with no ruling, so the bench rules nothing on it. Taking the author's proposal there concedes alike. A `source` or `computation` gap's close still needs its live answer, below.
+
+WHILE ANOTHER LENS'S GAP ABOUT YOUR GAP IS DOCKETED, YOUR GAP IS LOCKED: its wording and grades are what the bench rules on there, so your close of it is refused, naming that docketing, until the bench rules.
 
 A closure the record already holds — work an earlier sitting did — is the chair's to restate with `carry`, which needs no triple because it makes no fresh claim. Re-closing it here double-counts the closure history.
 
@@ -322,13 +327,17 @@ It renders as a ### RED CLOSING section in the epoch it is filed in, one entry p
 
 RED ALWAYS PROVIDES THE TEXT. Where the gap is docketed at impasse, or for a close proposed on it, your closing states the text you hold the gap's sentence should carry — one road: the span of the report as it stands, ending at the gap's marker, and what it becomes; or, on a gap about a citation or a computation, that anchor's retire, its sentence kept word for word. The pair is planned as blue's accept of a prescription plans one, on the report your closing lands on: a pair the accept would refuse is refused here, and nothing is recorded. A retire is refused where the retire itself would be: while a computation still in the report applies the citation's method, the closing is refused naming that computation, and nothing is recorded. When the bench sides with you the tool applies your text as its own edit, and the gap closes `repaired`.
 
+ON A GAP ABOUT ANOTHER LENS'S GAP YOUR STATEMENT IS THAT GAP'S WORDING, ITS GRADES, OR BOTH: the problem, required fix and acceptance check it should state, and the grades it should carry — or that you state nothing, where nothing you could state would stand. No report text is its subject, so no span or retire is stated there. The wording is checked for the report's voice as an amend's is, and a grade an earlier ruling on that gap decided is refused. When the bench sides with you the tool writes your statement as its amend and regrade of that gap, which keeps its id and its minter, and your gap closes `repaired`.
+
+WHERE YOU ARE THE AUTHOR — another lens's gap about your own gap is docketed — your closing states your word, as blue's does: the closing word a ruling for you writes, or none, and that ruling writes `not_a_defect`, your gap standing as it is.
+
 YOUR TEXT IS ESTOPPED AS A MINT IS. A road whose span is text you prescribed and blue applied verbatim is refused, naming that prescription, exactly where your mint of the same quote is refused; the bench's answer for you asks it again when it rules, so text you could not mint is never applied through the bench. FROM YOUR CLOSING ON, YOUR TEXT HOLDS: an edit or a retire of blue's after which your pair no longer applies is refused until the bench answers the docketing or proposal you argue, so the bench applies the text you stated.
 
 WHERE NO ROAD CAN BE STATED — an anchor stands inside every span you can quote, so the accept refuses every pair, or a standing estoppel refuses every road you can state — your closing says it states no text: it discharges what you owe, and the bench sides with the author or remands. A closing there that states neither a road nor that it states none is refused. On a gap about an inquiry or a section, on a regrade proposal (your statement is the gap's grades), at grade movement and on a closed gap, your closing states no road.
 
 The bench rules on the closings, the transcript, and the final state of the artifacts. This is your case, and material the record does not carry cannot help it.
 
-(OUTPUT (JSON, with --json — the …) → SHARED §4
+OUTPUT (JSON, with --json — the bare call is the human form): {verb,role,ok,result:{gap_id},standing:{complete,blocking:[string],another_seat_clears:[string],holds_turn:[string],open,unreadable}}
 
 (If you need a verb or a flag tha…) → SHARED §1
 
@@ -338,12 +347,22 @@ IF WHAT YOU RECORDED WAS WRONG, say so in a new closing on the gap at your next 
 holds one per --id, and this sitting's stands).
 
 Flags:
-      --id gap-id       REQUIRED — the gap id this closing argues
-      --new string      red's text, what the span becomes — applied verbatim, as blue applies a prescription it accepts, when the bench sides with the raiser. With --quote
-      --no-text         red states no text on this docketing, where every road it can state is refused — blue's accept of a prescription refuses every pair (an anchor stands inside the span), or no retire of the anchor lands. The bench then sides with the author or remands
-      --quote string    red's text, the span: the words of the report as it stands, ending at the gap's marker — the span a for-raiser ruling replaces. With --new
-      --reason string   REQUIRED — your closing argument on this gap — your THINKING, not your process. → SHARED §10
-      --retire          red's text, on a gap about a citation or a computation: that anchor's retire, its sentence kept word for word, applied when the bench sides with the raiser
+      --acceptance-check string   on a gap about a gap: the acceptance check that gap should state, in the mint's sense
+      --as as-value               where you are the gap's author — another lens's gap about your gap — at impasse: the closing word a ruling for you writes; omit it and that ruling writes not_a_defect, your gap standing as it is
+      --complexity grade          on a gap about a gap: the complexity cost that gap should carry
+      --id gap-id                 REQUIRED — the gap id this closing argues
+      --impact grade              on a gap about a gap: the impact that gap should carry
+      --likelihood grade          on a gap about a gap: the likelihood that gap should carry
+      --new string                red's text, what the span becomes — applied verbatim, as blue applies a prescription it accepts, when the bench sides with the raiser. With --quote
+      --no-text                   red states no text on this docketing, where every road it can state is refused — blue's accept of a prescription refuses every pair (an anchor stands inside the span), or no retire of the anchor lands. The bench then sides with the author or remands
+      --problem string            on a gap about a gap: the problem that gap should state, in the mint's sense — applied as the bench's amend of it when the bench sides with you
+      --quote string              red's text, the span: the words of the report as it stands, ending at the gap's marker — the span a for-raiser ruling replaces. With --new
+      --reason string             REQUIRED — your closing argument on this gap — your THINKING, not your process. → SHARED §10
+      --required-fix string       on a gap about a gap: the required fix that gap should state, in the mint's sense
+      --retire                    red's text, on a gap about a citation or a computation: that anchor's retire, its sentence kept word for word, applied when the bench sides with the raiser
+      --severity grade            on a gap about a gap: the severity that gap should carry — applied as the bench's regrade of it when the bench sides with you
+
+(Enumerated values:) → SHARED §9
 ========
 $ feov-record fetch --help
 fetch GETs --url once, caches the bytes at <run>/cache/<sha256>, and prints A SUMMARY NAMING THE FILES — never the document itself. Open what you need with Read, using an offset and a limit. A PDF's text, and an HTML page's readable text (the markup, scripts and styles stripped), is extracted to <run>/cache/<sha256>.txt and named in the summary as text_path — quote THAT text, not the raw bytes; a seat that reads sources searches it with `show source` (by the summary's sha256), which reads it as a citation is located in it and needs no PDF or HTML tooling.
@@ -664,13 +683,15 @@ THE AUTHOR'S PROPOSED REGRADE IS YOURS TO TAKE, BY THIS VERB: you name the propo
 
 A GAP ANOTHER LENS RAISES ON YOUR GAP — on its printed wording or its grades — is yours to answer: your regrade of your gap that names it as the gap it answers is your answer, and spends an exchange on it as an author's answer does. A regrade of your gap that names no gap is that lens's turn to re-audit, not an answer. The gap it answers is an open gap about the gap you regrade; any other is refused.
 
+WHILE A GAP ABOUT YOUR GAP IS DOCKETED, YOUR GAP IS LOCKED: your regrade, amend and close of it are refused, naming that docketing, but the act that takes its raiser's statement — your regrade taking it writes exactly the grades and wording it states, answering that gap, and concedes its docketing with no ruling.
+
 (A GAP THAT CHANGED AFTER YOUR SI…) → SHARED §3
 
 GRADE MOVEMENT IN TOTAL GOES BEFORE THE BENCH. Each axis a lens's regrade moves — severity, likelihood or impact — counts the difference in mass between its two grades, up or down. Once the open gaps' movement that no bench ruling on its grades has followed totals more than 2.0, the dispatch dockets every open gap carrying such movement for the bench, whatever its grade, and PASS is refused until the bench rules each docketing: that ruling keeps the moved grades or restores the prior ones.
 
 The regrade and its reason render on the BOARD beside the gap, so a grade argued down over three sittings shows the argument, not only the final number. They never reach the research report, which carries what the debate SETTLED.
 
-OUTPUT (JSON, with --json — the bare call is the human form): {verb,role,ok,result:{gap_id,accepts},standing:{complete,blocking:[string],another_seat_clears:[string],holds_turn:[string],open,unreadable}}
+(OUTPUT (JSON, with --json — the …) → SHARED §4
 
 (If you need a verb or a flag tha…) → SHARED §1
 
@@ -680,7 +701,7 @@ IF WHAT YOU RECORDED WAS WRONG, say so in a new regrade at your next sitting, wh
 (a sitting holds one per --id, and this sitting's stands).
 
 Flags:
-      --accept motion-id   take the author's proposed regrade on your gap EXACTLY as filed: the M- id its filing returned. The tool supplies the grades and the act answers the proposal; under a docketing it is your concession, ending the docketing and the proposal with no ruling. --reason is still your own argument
+      --accept accept-id   take the author's proposed regrade on your gap EXACTLY as filed: the M- id its filing returned. The tool supplies the grades and the act answers the proposal; under a docketing it is your concession, ending the docketing and the proposal with no ruling. Or take the statement another lens's gap about your gap states in its raiser's closing: that gap's G- id — the tool writes the grades and wording it states on your gap, answering it; under its docketing it is your concession. --reason is still your own argument
       --answers gap-id     the gap about this gap that your regrade answers — another lens's gap on your gap's grades; omit for a regrade that answers no gap
       --complexity grade   what fixing it costs, on the same scale
       --id gap-id          REQUIRED unless --accept — the gap id

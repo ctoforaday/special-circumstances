@@ -4,6 +4,7 @@ import (
 	"github.com/spf13/cobra"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
@@ -23,7 +24,7 @@ import (
 // or the restore at grade movement), through the same write path (record.requireRegradeWithinBenchLock).
 func Regrade(key string) *cobra.Command {
 	var severity, likelihood, impact, cx flags.GradeValue
-	accept := flags.ProposalID()
+	accept := flags.AcceptID()
 
 	c := NewKeyed("regrade", key, regradeResult{}, func(s Context, cmd *cobra.Command) (Result, error) {
 		// Flag word --reason (the one prose word), payload key stays basis.
@@ -33,6 +34,19 @@ func Regrade(key string) *cobra.Command {
 		}
 		gapID := Str(cmd, flags.ID)
 		var body *recordpb.Regrade
+		if g2 := accept.String(); anchor.Kind(g2) == "gap" {
+			if cmd.Flags().Changed(flags.Severity) || cmd.Flags().Changed(flags.Likelihood) || cmd.Flags().Changed(flags.Impact) || cmd.Flags().Changed(flags.Complexity) || Given(cmd, flags.Answers) {
+				return nil, feov.Errorf(feov.Validation, "--accept %s supplies the grades its raiser states and names the gap the regrade answers — passing a grade or --answers as well would be a second source for one fact. Drop them, or drop --accept and regrade by your own judgment", g2)
+			}
+			acts, under, err := GapStatementActs(s, g2, gapID, basis)
+			if err != nil {
+				return nil, err
+			}
+			if err := WriteGapStatement(s, under, acts); err != nil {
+				return nil, err
+			}
+			return regradeResult{GapID: under, Accepts: g2}, nil
+		}
 		if m := accept.String(); m != "" {
 			// THE RAISER TAKES THE AUTHOR'S PROPOSAL BY ITS OWN ACT: the tool supplies the grades the
 			// motion stores, so what lands is what was proposed, and the act carries accepts = M.
@@ -77,7 +91,7 @@ func Regrade(key string) *cobra.Command {
 	// COBRA NAMES THE MISSING ID unless --accept names the proposal, which names its gap: the handler
 	// refuses a regrade with neither.
 	RequiredUnlessGiven(c, flags.ID, flags.Accept)
-	c.Flags().Var(accept, flags.Accept, "take the author's proposed regrade on your gap EXACTLY as filed: the M- id its filing returned. The tool supplies the grades and the act answers the proposal; under a docketing it is your concession, ending the docketing and the proposal with no ruling. --reason is still your own argument")
+	c.Flags().Var(accept, flags.Accept, "take the author's proposed regrade on your gap EXACTLY as filed: the M- id its filing returned. The tool supplies the grades and the act answers the proposal; under a docketing it is your concession, ending the docketing and the proposal with no ruling. Or take the statement another lens's gap about your gap states in its raiser's closing: that gap's G- id — the tool writes the grades and wording it states on your gap, answering it; under its docketing it is your concession. --reason is still your own argument")
 	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.Answers, "the gap about this gap that your regrade answers — another lens's gap on your gap's grades; omit for a regrade that answers no gap")
 	c.Flags().Var(&severity, flags.Severity, flags.GradeUsage(record.AxisMeans(recordpb.GradeDimension_GRADE_DIMENSION_SEVERITY)))
 	c.Flags().Var(&likelihood, flags.Likelihood, record.AxisMeans(recordpb.GradeDimension_GRADE_DIMENSION_LIKELIHOOD))

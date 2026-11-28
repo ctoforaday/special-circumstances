@@ -166,7 +166,7 @@ func TestTheRaiserAcceptsByItsOwnAct(t *testing.T) {
 			want string
 		}{
 			"a regrade proposal taken by close": {acceptArgs(runDir, "close", m), "which `regrade --accept"},
-			"a gap id where a motion is taken":  {acceptArgs(runDir, "regrade", g), "is not motion-id"},
+			"the gap's own id":                  {acceptArgs(runDir, "regrade", g), "names a gap that is not about a gap"},
 			"a grade beside the accept":         {append(acceptArgs(runDir, "regrade", m), "--severity", "high"), "second source"},
 			"an unknown motion":                 {acceptArgs(runDir, "regrade", "M-00000000"), "names no proposal"},
 		} {

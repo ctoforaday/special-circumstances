@@ -523,13 +523,14 @@ func closingTakesText(q recordsql.Querier, gapID string) (takes bool, aboutKind 
 func requireClosingStatement(q recordsql.Querier, seatID string, c *recordpb.Closing) error {
 	pair := c.Location != nil || c.FixNew != nil
 	road := pair || c.GetRetire()
+	wording, grades := closingWording(c), closingGrades(c)
 	author, _, err := authorOfGap(q, c.GetGapId())
 	if err != nil {
 		return err
 	}
 	if seatID == author {
-		if road || c.GetNoText() {
-			return feov.Errorf(feov.Validation, "blue's closing states its word, never text: --quote, --new, --retire and --no-text are red's closing's road. Nothing was recorded")
+		if road || c.GetNoText() || wording || grades {
+			return feov.Errorf(feov.Validation, "the author's closing states its word, never the raiser's statement: --quote, --new, --retire, a wording, grades and --no-text are the raiser's closing's. Nothing was recorded")
 		}
 		if c.ClosureClass == nil {
 			return nil
@@ -556,6 +557,14 @@ func requireClosingStatement(q recordsql.Querier, seatID string, c *recordpb.Clo
 	takes, about, err := closingTakesText(q, c.GetGapId())
 	if err != nil {
 		return err
+	}
+	// ON A GAP ABOUT A GAP the raiser's statement is G′'s wording, its grades, or both (§III.B0's last
+	// row): no pair or retire, since no report text is its subject.
+	if about == recordpb.Word(recordpb.AboutKind_ABOUT_KIND_GAP) {
+		return requireGapStatement(q, seatID, c, takes, road, wording, grades)
+	}
+	if wording || grades {
+		return feov.Errorf(feov.Validation, "a wording or grades state what a gap about a gap should make of that gap, and %s is about %s. Nothing was recorded", c.GetGapId(), subjectWord(about))
 	}
 	n := 0
 	for _, set := range []bool{pair, c.GetRetire(), c.GetNoText()} {
@@ -640,4 +649,56 @@ func raiserRulingSinceAt(q recordsql.Querier, id string) (string, error) {
 		}
 	}
 	return broke, nil
+}
+
+// closingWording reports whether c states a gap's wording (Closing.problem, required_fix,
+// acceptance_check).
+func closingWording(c *recordpb.Closing) bool {
+	return c.Problem != nil || c.RequiredFix != nil || c.AcceptanceCheck != nil
+}
+
+// closingGrades reports whether c states a gap's grades on any axis.
+func closingGrades(c *recordpb.Closing) bool {
+	return c.Severity != nil || c.Likelihood != nil || c.Impact != nil || c.ComplexityCost != nil
+}
+
+// subjectWord is an about_kind word as a refusal names it: "a sentence" for none.
+func subjectWord(about string) string {
+	if about == "" {
+		return "a sentence"
+	}
+	return article(about) + " " + about
+}
+
+// requireGapStatement is the raiser's closing on a gap G2 about a gap G′ (§III.B2, Closings): where the
+// docketing's question takes a statement, exactly one of a statement — G′'s wording, its grades, or
+// both — and --no-text; elsewhere none. A wording is checked for voice as an amend is, and a grade
+// through the lock a ruling on G′ holds, as the raiser's own regrade of G′ would be: so a statement no
+// ruling could apply is refused when stated.
+func requireGapStatement(q recordsql.Querier, seatID string, c *recordpb.Closing, takes, road, wording, grades bool) error {
+	g := c.GetGapId()
+	if road {
+		return feov.Errorf(feov.Validation, "%s is about a gap, whose statement is that gap's wording or grades: --quote, --new and --retire state report text, which it is not about. Nothing was recorded", g)
+	}
+	stated := wording || grades
+	switch {
+	case !takes && (stated || c.GetNoText()):
+		return feov.Errorf(feov.Validation, "the raiser's closing on %s states nothing: the question before the bench there takes no statement (a regrade proposal, grade movement or a closed gap). Nothing was recorded", g)
+	case takes && stated == c.GetNoText():
+		return feov.Errorf(feov.Validation, "the raiser's closing on %s states its statement: exactly one of the wording and grades the gap it is about should carry, and --no-text. Nothing was recorded", g)
+	case !stated:
+		return nil
+	}
+	var under sql.NullString
+	if _, err := queryRowAt(q, []any{&under}, `SELECT "about_ref" FROM "mint" WHERE "gap_id" = ?`, g); err != nil {
+		return err
+	}
+	if err := refuseMintReportVoice(&recordpb.Mint{Problem: c.Problem, RequiredFix: c.RequiredFix}); err != nil {
+		return err
+	}
+	if !grades {
+		return nil
+	}
+	return requireRegradeWithinBenchLock(writeView{q: q}, seatID, &recordpb.Regrade{GapId: proto.String(under.String),
+		Severity: c.Severity, Likelihood: c.Likelihood, Impact: c.Impact, ComplexityCost: c.ComplexityCost})
 }

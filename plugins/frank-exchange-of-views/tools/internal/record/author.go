@@ -141,6 +141,28 @@ func requireAuthorAccept(q recordsql.Querier, seatID string, body proto.Message)
 				"--accept %s takes the raiser's stated retire of the anchor gap %s is about, and its closing states none: what it states is taken by `edit --accept %s`, or argue it in your closing. Nothing was recorded", g, g, g)
 		}
 	}
+	// A GAP'S WORDING OR GRADES TAKE THE STATEMENT EXACTLY: the raiser's closing on a gap about the
+	// author's gap states them, and the author's amend or regrade accepting it carries those bytes.
+	switch b := body.(type) {
+	case *recordpb.Amend:
+		st, _, err := statementAt(q, g)
+		if err != nil {
+			return err
+		}
+		if w := st.Wording; w == nil || !sameStrPtr(b.Problem, w.Problem) || !sameStrPtr(b.RequiredFix, w.RequiredFix) || !sameStrPtr(b.AcceptanceCheck, w.AcceptanceCheck) || b.FixNew != nil {
+			return feov.Errorf(feov.Conflict,
+				"--accept %s takes the wording its raiser's closing states for your gap, exactly — and the amend is not that wording, or the closing states none. Nothing was recorded", g)
+		}
+	case *recordpb.Regrade:
+		st, _, err := statementAt(q, g)
+		if err != nil {
+			return err
+		}
+		if st.Grades == nil || !sameAxes(b, st.Grades) {
+			return feov.Errorf(feov.Conflict,
+				"--accept %s takes the grades its raiser's closing states for your gap, exactly — and the regrade is not those grades, or the closing states none. Nothing was recorded", g)
+		}
+	}
 	var cause sql.NullString
 	if _, err := queryRowAt(q, []any{&cause},
 		`SELECT d."cause" FROM "gap_state" s JOIN "docketing" d ON d."docketing_id" = s."standing_docketing" WHERE s."gap_id" = ?`, g); err != nil {

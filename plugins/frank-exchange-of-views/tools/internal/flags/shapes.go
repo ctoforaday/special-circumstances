@@ -228,6 +228,14 @@ func MotionID() *ShapedValue {
 		hint: "a motion id is M- and eight hex, and is assigned when the motion is filed; `inquest motions` lists them with what each one asks"}
 }
 
+// AcceptID refuses anything that is not a motion id or a gap id, on the lens's verbs that take another
+// party's statement (--accept): an M- proposal of its gap's author, or a G- gap another lens raised on
+// its gap, whose raiser's stated wording or grades it takes.
+func AcceptID() *ShapedValue {
+	return &ShapedValue{kind: "accept-id", re: idShape("motion", "gap"),
+		hint: "an M- proposal id, as its filing returned it, or the G- id of another lens's gap about your gap; your work list names each"}
+}
+
 // ProposalID refuses anything that is not a motion id, on the raiser's verbs taking the author's
 // proposal (--accept M): a gap's raiser reads its proposals off its own work list.
 func ProposalID() *ShapedValue {

@@ -14,6 +14,8 @@ THE AUTHOR'S PROPOSED REGRADE IS YOURS TO TAKE, BY THIS VERB: you name the propo
 
 A GAP ANOTHER LENS RAISES ON YOUR GAP — on its printed wording or its grades — is yours to answer: your regrade of your gap that names it as the gap it answers is your answer, and spends an exchange on it as an author's answer does. A regrade of your gap that names no gap is that lens's turn to re-audit, not an answer. The gap it answers is an open gap about the gap you regrade; any other is refused.
 
+WHILE A GAP ABOUT YOUR GAP IS DOCKETED, YOUR GAP IS LOCKED: your regrade, amend and close of it are refused, naming that docketing, but the act that takes its raiser's statement — your regrade taking it writes exactly the grades and wording it states, answering that gap, and concedes its docketing with no ruling.
+
 {{.StaleRule}}
 
 {{.GradeMovementRule}}.

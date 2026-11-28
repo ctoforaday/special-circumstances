@@ -109,7 +109,7 @@ func TestTheAuthorIsTheSubjectsAuthor(t *testing.T) {
 			}
 			road := closingOn("the author's text")
 			road.NoText = proto.Bool(true)
-			if err := validateRun(run, c.author, recordpb.EventType_EVENT_TYPE_CLOSING, road); err == nil || !strings.Contains(err.Error(), "states its word, never text") {
+			if err := validateRun(run, c.author, recordpb.EventType_EVENT_TYPE_CLOSING, road); err == nil || !strings.Contains(err.Error(), "states its word, never the raiser's statement") {
 				t.Errorf("%s's closing on %s stating a road = %v; want refused, the author states a word", c.author, c.gap, err)
 			}
 
@@ -219,4 +219,39 @@ func TestTheAuthorsActIsItsHalfOfTheExchange(t *testing.T) {
 			t.Errorf("the docketing of G2 does not await its raiser's and its author's closings: parties %+v, why %q", plan.Parties, plan.Why)
 		}
 	})
+}
+
+// THE AUTHOR'S ACCEPT OF A GAP STATEMENT TAKES ITS BYTES (T-B49's wording and grades rows): on G2 about
+// G1, the evidence lens's amend or regrade of G1 accepting G2 lands only as the wording and grades G2's
+// raiser's closing states; another wording, another axis, or an accept of a statement no closing made
+// is refused.
+func TestTheAuthorsAcceptOfAGapStatementTakesItsBytes(t *testing.T) {
+	run := authorStage(t).add(outsideLens, &recordpb.Closing{GapId: proto.String("G2"), Text: proto.String("the case"),
+		Problem: proto.String("restated"), Likelihood: recordpb.Grade_GRADE_LOW.Enum()}).register(evLens).seed()
+	accepted := func(body proto.Message) proto.Message {
+		switch b := body.(type) {
+		case *recordpb.Amend:
+			b.GapId, b.Answers, b.Accepted, b.Basis = proto.String("G1"), proto.String("G2"), proto.Bool(true), proto.String("r")
+		case *recordpb.Regrade:
+			b.GapId, b.Answers, b.Accepted, b.Basis = proto.String("G1"), proto.String("G2"), proto.Bool(true), proto.String("r")
+		}
+		return body
+	}
+	for _, c := range []struct {
+		name string
+		typ  recordpb.EventType
+		body proto.Message
+		ok   bool
+	}{
+		{"the stated wording", recordpb.EventType_EVENT_TYPE_AMEND, &recordpb.Amend{Problem: proto.String("restated")}, true},
+		{"another wording", recordpb.EventType_EVENT_TYPE_AMEND, &recordpb.Amend{Problem: proto.String("my own")}, false},
+		{"a wording field not stated", recordpb.EventType_EVENT_TYPE_AMEND, &recordpb.Amend{Problem: proto.String("restated"), RequiredFix: proto.String("f")}, false},
+		{"the stated grades", recordpb.EventType_EVENT_TYPE_REGRADE, &recordpb.Regrade{Likelihood: recordpb.Grade_GRADE_LOW.Enum()}, true},
+		{"another axis", recordpb.EventType_EVENT_TYPE_REGRADE, &recordpb.Regrade{Severity: recordpb.Grade_GRADE_LOW.Enum()}, false},
+	} {
+		err := validateRun(run, evLens, c.typ, accepted(c.body))
+		if (err == nil) != c.ok {
+			t.Errorf("%s: refusal %v, want landing %v", c.name, err, c.ok)
+		}
+	}
 }

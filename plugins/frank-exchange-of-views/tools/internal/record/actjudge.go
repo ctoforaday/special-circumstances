@@ -109,6 +109,9 @@ func judgeAct(w writeView, seatID string, body proto.Message) error {
 		return requireLiveCitation(q, b.GetCites(), "--cites", ComputeCitesAdvice)
 	case *recordpb.Close:
 		if b.CarriedFrom == nil {
+			if err := requireGapUnlocked(q, seatID, b.GetGapId(), "", false, "close"); err != nil {
+				return err
+			}
 			if err := requireRaiserActOnGap(q, b.GetGapId(), b.GetAccepts(), "close", b); err != nil {
 				return err
 			}
@@ -131,6 +134,12 @@ func judgeAct(w writeView, seatID string, body proto.Message) error {
 		// THE RAISER'S REGRADE meets what stands on its gap; the bench's is a ruling's statement, written
 		// in the ruling's transaction under its docketing (requireRegradeWithinBenchLock).
 		if seatclass.RoleOfSeat(seatID) != "bench" {
+			if err := requireGapUnlocked(q, seatID, b.GetGapId(), b.GetAnswers(), b.GetAccepted(), "regrade"); err != nil {
+				return err
+			}
+			if b.GetAnswers() != "" && b.GetAccepted() {
+				return nil // the author's concession of D(answers), which F-CHAIN admits over what stands on G
+			}
 			return requireRaiserActOnGap(q, b.GetGapId(), b.GetAccepts(), "regrade", b)
 		}
 	case *recordpb.Amend:
@@ -138,6 +147,9 @@ func judgeAct(w writeView, seatID string, body proto.Message) error {
 		// refused while a docketing or a proposal stands on G. Two amends land over a standing
 		// docketing: the bench's application of a ruling, and the author's accept of a statement on a
 		// gap about G (answers, accepted), which concedes that gap's docketing.
+		if err := requireGapUnlocked(q, seatID, b.GetGapId(), b.GetAnswers(), b.GetAccepted(), "amend"); err != nil {
+			return err
+		}
 		if seatclass.RoleOfSeat(seatID) != "bench" && !(b.GetAnswers() != "" && b.GetAccepted()) {
 			return requireRaiserActOnGap(q, b.GetGapId(), "", "amend", b)
 		}

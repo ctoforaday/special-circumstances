@@ -192,13 +192,19 @@ func requireRegradeWithinBenchLock(w writeView, seatID string, r *recordpb.Regra
 	}
 	cur := axes[r.GetGapId()]
 	if seatclass.RoleOfSeat(seatID) == "bench" {
-		docketing, _, err := standingOnGap(w.q, r.GetGapId())
+		// THE BENCH'S REGRADE OF A GAP ABOUT WHICH ANOTHER GAP IS DOCKETED is that docketing's for-raiser
+		// application: it stands in the docketed gap's ruling transaction.
+		ruled := r.GetGapId()
+		if a := r.GetAnswers(); a != "" {
+			ruled = a
+		}
+		docketing, _, err := standingOnGap(w.q, ruled)
 		if err != nil {
 			return err
 		}
 		if docketing == "" {
 			return feov.Errorf(feov.Conflict,
-				"no docketing on gap %s stands unruled: the bench's regrade is the statement a ruling applies, written in that ruling's transaction. Nothing was recorded", r.GetGapId())
+				"no docketing on gap %s stands unruled: the bench's regrade is the statement a ruling applies, written in that ruling's transaction. Nothing was recorded", ruled)
 		}
 		for k, g := range regradeAxes(r) {
 			if g != nil && *g != cur[k].grade {

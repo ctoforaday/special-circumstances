@@ -87,6 +87,16 @@ func (p Positions) missingText() string {
 	switch p.AboutKind {
 	case recordpb.Word(recordpb.AboutKind_ABOUT_KIND_INQUIRY), recordpb.Word(recordpb.AboutKind_ABOUT_KIND_SECTION):
 		return fmt.Sprintf("gap %s is about %s %s, where no road of red's text exists", p.GapID, article(p.AboutKind), p.AboutKind)
+	case recordpb.Word(recordpb.AboutKind_ABOUT_KIND_GAP):
+		switch {
+		case p.Road == nil:
+			return fmt.Sprintf("gap %s's raiser filed no closing on docketing %s, so it states no wording or grades for gap %s", p.GapID, p.ID, p.AboutRef)
+		case p.Road.GetNoText():
+			return fmt.Sprintf("gap %s's raiser's closing on docketing %s states nothing (--no-text)", p.GapID, p.ID)
+		case !closingWording(p.Road) && !closingGrades(p.Road):
+			return fmt.Sprintf("gap %s's raiser's closing on docketing %s states no wording or grades for gap %s", p.GapID, p.ID, p.AboutRef)
+		}
+		return ""
 	}
 	switch {
 	case p.Road == nil:
@@ -216,12 +226,12 @@ func positionsAt(q recordsql.Querier, id string) (Positions, bool, error) {
 					p.BlueWord = b.ClosureClass
 				}
 			}
-		case *recordpb.BlueEdit, *recordpb.Retire, *recordpb.Regrade:
+		case *recordpb.BlueEdit, *recordpb.Retire, *recordpb.Regrade, *recordpb.Amend:
 			if ids[i] <= d.at || seatclass.RoleOfSeat(e.GetSeatId()) != "bench" || benchActGap(b) != d.GapID {
 				continue
 			}
 			p.bench = append(p.bench, benchAct{at: ids[i], body: b})
-			if _, ok := b.(*recordpb.Regrade); ok && restoreTo == len(evs) {
+			if rg, ok := b.(*recordpb.Regrade); ok && rg.GetAnswers() == "" && restoreTo == len(evs) {
 				restoreTo = i
 			}
 		}
@@ -235,8 +245,10 @@ func positionsAt(q recordsql.Querier, id string) (Positions, bool, error) {
 	return p, true, nil
 }
 
-// benchActGap is the gap a bench edit, retire or regrade is on: the gap an edit or a retire answers,
-// the gap a regrade grades.
+// benchActGap is the docketed gap a bench edit, retire, regrade or amend applies a statement on: the gap
+// an edit or a retire answers; the gap a regrade grades, or, where it names one, the gap about it whose
+// ruling applies it (a for-raiser ruling on a gap about a gap writes the bench's amend and regrade of
+// the gap it is about, answering the docketed one).
 func benchActGap(b proto.Message) string {
 	switch b := b.(type) {
 	case *recordpb.BlueEdit:
@@ -244,7 +256,12 @@ func benchActGap(b proto.Message) string {
 	case *recordpb.Retire:
 		return b.GetAnswers()
 	case *recordpb.Regrade:
+		if a := b.GetAnswers(); a != "" {
+			return a
+		}
 		return b.GetGapId()
+	case *recordpb.Amend:
+		return b.GetAnswers()
 	}
 	return ""
 }
@@ -310,9 +327,12 @@ func requireBenchAnswerApplied(q recordsql.Querier, r *recordpb.MotionRule) erro
 			wantRegrade = rg
 		}
 	}
+	// ON A GAP ABOUT A GAP the bench's regrade of the gap it is about is the raiser's statement applied,
+	// as its amend is, never a grade of the docketed gap's own.
+	onGap := p.AboutKind == recordpb.Word(recordpb.AboutKind_ABOUT_KIND_GAP)
 	var regrades, texts []benchAct
 	for _, a := range p.bench {
-		if _, ok := a.body.(*recordpb.Regrade); ok {
+		if _, ok := a.body.(*recordpb.Regrade); ok && !onGap {
 			regrades = append(regrades, a)
 		} else {
 			texts = append(texts, a)
@@ -330,10 +350,84 @@ func requireBenchAnswerApplied(q recordsql.Querier, r *recordpb.MotionRule) erro
 		return feov.Errorf(feov.Validation, "this answer applies %s's grades as %s — exactly those axes at those grades, written as the bench's regrade before the ruling, and nothing else. Nothing was recorded", p.GapID, regradeWords(wantRegrade))
 	case !wantText && len(texts) > 0:
 		return feov.Errorf(feov.Validation, "the bench writes no text of its own: a bench edit or retire answering %s at event %d stands since docketing %s, and this answer applies none. Nothing was recorded", p.GapID, texts[0].at, p.ID)
+	case wantText && onGap:
+		return requireGapStatementApplied(q, p, texts)
 	case wantText:
 		return requireRoadApplied(q, p, texts)
 	}
 	return nil
+}
+
+// requireGapStatementApplied is the for-raiser answer's check on a gap about a gap G′ (§III.B0): the
+// bench's acts are exactly the raiser's statement written on G′ — an amend naming each wording field
+// the closing states, at its bytes, where it states one; a regrade naming each axis it states, at its
+// grade, where it states one — each answering the docketed gap. Where G′ already carries the
+// statement (its author took it before the docketing was ruled), the answer applies nothing more.
+func requireGapStatementApplied(q recordsql.Querier, p Positions, texts []benchAct) error {
+	r := p.Road
+	wantAmend, wantRegrade := closingWording(r), closingGrades(r)
+	if len(texts) == 0 {
+		held, err := gapCarriesStatementAt(q, p.AboutRef, r)
+		if err != nil || held {
+			return err
+		}
+	}
+	var amends, regrades int
+	for _, a := range texts {
+		switch b := a.body.(type) {
+		case *recordpb.Amend:
+			amends++
+			if b.GetGapId() != p.AboutRef || !sameStrPtr(b.Problem, r.Problem) || !sameStrPtr(b.RequiredFix, r.RequiredFix) ||
+				!sameStrPtr(b.AcceptanceCheck, r.AcceptanceCheck) || b.FixNew != nil {
+				return feov.Errorf(feov.Validation, "the bench's amend at event %d is not the wording %s's raiser states for gap %s: exactly the fields its closing states, at its bytes. Nothing was recorded", a.at, p.GapID, p.AboutRef)
+			}
+		case *recordpb.Regrade:
+			regrades++
+			if b.GetGapId() != p.AboutRef || !sameAxes(b, &recordpb.Regrade{Severity: r.Severity, Likelihood: r.Likelihood, Impact: r.Impact, ComplexityCost: r.ComplexityCost}) {
+				return feov.Errorf(feov.Validation, "the bench's regrade at event %d is not the grades %s's raiser states for gap %s: exactly the axes its closing states, at its grades. Nothing was recorded", a.at, p.GapID, p.AboutRef)
+			}
+		default:
+			return feov.Errorf(feov.Validation, "the raiser's statement on %s is gap %s's wording or grades, and the bench's act at event %d is neither its amend nor its regrade. Nothing was recorded", p.GapID, p.AboutRef, a.at)
+		}
+	}
+	if (amends == 1) != wantAmend || (regrades == 1) != wantRegrade || amends > 1 || regrades > 1 {
+		return feov.Errorf(feov.Validation, "--for-raiser applies %s's statement on gap %s as the bench's amend of its wording and regrade of its grades — one of each the statement names, before the ruling — and the record holds %d amend(s) and %d regrade(s). Nothing was recorded", p.GapID, p.AboutRef, amends, regrades)
+	}
+	return nil
+}
+
+// sameStrPtr reports whether two optional strings are both absent or both the same bytes.
+func sameStrPtr(a, b *string) bool {
+	return (a == nil) == (b == nil) && (a == nil || *a == *b)
+}
+
+// gapCarriesStatementAt reports whether gap g already carries closing c's statement on q's record:
+// each wording field it states is g's current one, and each axis it states g's current grade.
+func gapCarriesStatementAt(q recordsql.Querier, g string, c *recordpb.Closing) (bool, error) {
+	var problem, fix, check, sev, lik, imp, cx sql.NullString
+	found, err := queryRowAt(q, []any{&problem, &fix, &check, &sev, &lik, &imp, &cx},
+		`SELECT "current_problem", "current_required_fix", "current_acceptance_check",
+		        "current_severity", "current_likelihood", "current_impact", "current_complexity_cost" FROM "gap" WHERE "gap_id" = ?`, g)
+	if err != nil || !found {
+		return false, err
+	}
+	for _, f := range []struct {
+		want *string
+		have sql.NullString
+	}{{c.Problem, problem}, {c.RequiredFix, fix}, {c.AcceptanceCheck, check}} {
+		if f.want != nil && *f.want != f.have.String {
+			return false, nil
+		}
+	}
+	for _, f := range []struct {
+		want *recordpb.Grade
+		have sql.NullString
+	}{{c.Severity, sev}, {c.Likelihood, lik}, {c.Impact, imp}, {c.ComplexityCost, cx}} {
+		if f.want != nil && recordpb.Word(*f.want) != f.have.String {
+			return false, nil
+		}
+	}
+	return true, nil
 }
 
 // requireRoadApplied is the for-raiser answer's check that the bench's act is red's road:
@@ -463,4 +557,26 @@ func (l *Landing) AboutAnchor(gapID string) (string, error) {
 		return "", nil
 	}
 	return ref.String, nil
+}
+
+// AboutGap reports whether gapID is a gap about a gap on the record the write lands on: its statement is
+// that gap's wording or grades, never report text.
+func (l *Landing) AboutGap(gapID string) (bool, error) {
+	var kind sql.NullString
+	if _, err := queryRowAt(l.w.q, []any{&kind}, `SELECT "about_kind" FROM "mint" WHERE "gap_id" = ?`, gapID); err != nil {
+		return false, err
+	}
+	return kind.String == recordpb.Word(recordpb.AboutKind_ABOUT_KIND_GAP), nil
+}
+
+// GapCarriesStatement is gapCarriesStatementAt asked of run's record.
+func GapCarriesStatement(run Run, g string, c *recordpb.Closing) (held bool, err error) {
+	err = readSnapshot(run, func(q recordsql.Querier) error {
+		if noRecord(q) {
+			return nil
+		}
+		held, err = gapCarriesStatementAt(q, g, c)
+		return err
+	})
+	return held, err
 }

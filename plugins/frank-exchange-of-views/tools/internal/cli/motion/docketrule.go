@@ -202,6 +202,9 @@ func applyAnswer(s seat.Context, run record.Run, p record.Positions, answer stri
 // docketing's own ruling, where a pair that no longer plans is refused naming the ruling that broke it
 // (record.Landing.RaiserRulingSince).
 func applyText(s seat.Context, run record.Run, p record.Positions, ruling record.Act, opinion string) error {
+	if p.AboutKind == recordpb.Word(recordpb.AboutKind_ABOUT_KIND_GAP) {
+		return applyGapStatement(s, run, p, ruling, opinion)
+	}
 	if p.Road.GetRetire() {
 		// RED'S TEXT ALREADY STANDS: the anchor its road retires is out of the report — retired, or cut
 		// with its sentence — which matches it, and the freeze admits it (blue.roadPlans), so the answer
@@ -240,5 +243,31 @@ func applyText(s seat.Context, run record.Run, p record.Positions, ruling record
 			p.GapID, broke)
 	})
 	_, err := record.AppendActs(s.Identity(), record.Act{Body: ed, Guards: []record.Guard{plan}}, ruling)
+	return err
+}
+
+// applyGapStatement writes the raiser's statement on a gap about a gap G′ as the bench's acts, then the
+// ruling (§III.B0's last row): its amend of G′'s wording where the statement names one, and its regrade
+// of G′'s grades where it names any, each answering the docketed gap. G′ keeps its id and its minter;
+// the amend ends what stands on G′ unruled, as any amend of it does. Where G′ already carries the
+// statement — its author took it — the answer writes its ruling alone.
+func applyGapStatement(s seat.Context, run record.Run, p record.Positions, ruling record.Act, opinion string) error {
+	held, err := record.GapCarriesStatement(run, p.AboutRef, p.Road)
+	if err != nil {
+		return err
+	}
+	var acts []record.Act
+	if !held {
+		r := p.Road
+		if r.Problem != nil || r.RequiredFix != nil || r.AcceptanceCheck != nil {
+			acts = append(acts, record.Act{Body: &recordpb.Amend{GapId: proto.String(p.AboutRef), Problem: r.Problem, RequiredFix: r.RequiredFix,
+				AcceptanceCheck: r.AcceptanceCheck, Basis: proto.String(opinion), Answers: proto.String(p.GapID)}})
+		}
+		if r.Severity != nil || r.Likelihood != nil || r.Impact != nil || r.ComplexityCost != nil {
+			acts = append(acts, record.Act{Body: &recordpb.Regrade{GapId: proto.String(p.AboutRef), Severity: r.Severity, Likelihood: r.Likelihood,
+				Impact: r.Impact, ComplexityCost: r.ComplexityCost, Basis: proto.String(opinion), Answers: proto.String(p.GapID)}})
+		}
+	}
+	_, err = record.AppendActs(s.Identity(), append(acts, ruling)...)
 	return err
 }

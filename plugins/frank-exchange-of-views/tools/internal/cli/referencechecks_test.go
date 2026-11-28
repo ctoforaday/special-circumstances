@@ -52,6 +52,8 @@ var referenceChecks = []struct {
 		extra: []string{"--severity", "high", "--reason", "r"}},
 	{verb: []string{"amend"}, flag: "--id", against: "the board", bogus: "G2",
 		extra: []string{"--problem", "p", "--reason", "r"}},
+	{verb: []string{"amend"}, flag: "--accept", against: "the board", bogus: "G2",
+		extra: []string{"--reason", "r"}},
 	{verb: []string{"amend"}, flag: "--answers", against: "the board", bogus: "G2",
 		extra: []string{"--id", "G1", "--problem", "p", "--reason", "r"}},
 	{verb: []string{"closing"}, flag: "--id", against: "the board", bogus: "G2",

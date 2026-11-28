@@ -13,6 +13,10 @@ type Statement struct {
 	Location, FixNew string
 	Retire           bool
 	Withdrawn        bool
+	// Wording and Grades are a closing's statement on a gap about a gap: the wording and grades the
+	// gap it is about should carry (Closing.problem… and severity…); nil where it states neither.
+	Wording *recordpb.Amend
+	Grades  *recordpb.Regrade
 	// AboutRef is what the gap is about where it is not a sentence: the anchor a retire takes.
 	AboutRef string
 }
@@ -55,6 +59,14 @@ func statementAt(q recordsql.Querier, g string) (Statement, bool, error) {
 				st = Statement{Retire: true}
 			case b.GetFixNew() != "":
 				st = Statement{Location: b.GetLocation(), FixNew: b.GetFixNew()}
+			case closingWording(b) || closingGrades(b):
+				st = Statement{}
+				if closingWording(b) {
+					st.Wording = &recordpb.Amend{Problem: b.Problem, RequiredFix: b.RequiredFix, AcceptanceCheck: b.AcceptanceCheck}
+				}
+				if closingGrades(b) {
+					st.Grades = &recordpb.Regrade{Severity: b.Severity, Likelihood: b.Likelihood, Impact: b.Impact, ComplexityCost: b.ComplexityCost}
+				}
 			}
 		}
 	}
