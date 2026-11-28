@@ -541,7 +541,7 @@ A docketing is the tool's record that a gap is before the bench, and why — wri
 
 ## tombstone
 
-A tombstone is the row the tool writes on a gap a bench ruling decided, for either side, and on a gap whose prescription blue applied verbatim: while a ruling's stands, a mint of the gap's class on its sentence, inquiry or citation and every proposal on the gap are refused, and blue's reword of the sentence, a reword or retire of the anchor the gap is about, or the inquiry's next fate ends it; a cut ends none.
+A tombstone is the row the tool writes on a gap a bench ruling decided, for either side, and on a gap whose stated text blue applied verbatim: while a ruling's stands, a mint of the gap's class on its sentence, inquiry, citation, question part or section and every proposal on the gap are refused, and blue's reword or cut of the sentence, a reword, cut or retire of the anchor the gap is about, the inquiry's next fate or the question part's next coverage ends it; the bench's application ends none.
 
 **Delivered to:** lens, chair, blue, bench, operator
 

@@ -325,7 +325,7 @@ WORDS THIS SURFACE USES — one word for each concept, and it is the same word o
   - A pure cut is an edit whose replacement for one or more whole sentences holds nothing of them — empty, or only whitespace and terminators; it takes every anchor of those sentences, the ones at their end included, and records each with the edit's reason, while every other edit is a rewrite, which carries every anchor of its span.
   - A disposition is the closing word a closing records, and it decides whether the gap closes; on a bench closure it is the statement of the side the bench sided with.
   - A docketing is the tool's record that a gap is before the bench, and why — written by the dispatch at impasse, for the open gaps' grade movement, or for the author's proposal its raiser did not take in its window, and filed by no seat — which the bench rules once, by siding with a party or remanding it, and while it stands the gap takes no proposal and its parties owe it their closings.
-  - A tombstone is the row the tool writes on a gap a bench ruling decided, for either side, and on a gap whose prescription blue applied verbatim: while a ruling's stands, a mint of the gap's class on its sentence, inquiry or citation and every proposal on the gap are refused, and blue's reword of the sentence, a reword or retire of the anchor the gap is about, or the inquiry's next fate ends it; a cut ends none.
+  - A tombstone is the row the tool writes on a gap a bench ruling decided, for either side, and on a gap whose stated text blue applied verbatim: while a ruling's stands, a mint of the gap's class on its sentence, inquiry, citation, question part or section and every proposal on the gap are refused, and blue's reword or cut of the sentence, a reword, cut or retire of the anchor the gap is about, the inquiry's next fate or the question part's next coverage ends it; the bench's application ends none.
   - An estopped gap is one a standing ruling tombstone protects, which the work list names with the ruling and the act that ends it, and which no seat may re-raise while it stands.
   - Relief is the order the bench records when it grants a petition: what the seats it binds must or must not do, with whom it binds, carried from the ruling to every seat's work list.
   - A scorecard is the numbers a seat is measured on, computed from the record: red's for the lenses and the chair, blue's for blue's seats, the bench's for the bench.
@@ -838,6 +838,8 @@ The reason is required, and it is what the logic lens judges the coverage agains
 Recording the coverage again, the same coverage included, leaves the part's check stale: the logic lens is owed a new one.
 
 A COVERAGE NAMING A GAP AS ITS ANSWER IS YOUR ANSWER TO IT: a gap about this part. The gap's assignee audits it next, and where the coverage or its reason changed the exchange counts it as movement. A coverage that changes the part's coverage or reason and names no gap is no answer to any gap: it changes what each gap about the part is about, and that is each gap's assignee's turn to re-audit it — no exchange spent, no stall reset, no remand discharged.
+
+A COVERAGE ENDS A BENCH RULING'S BAR ON A GAP ABOUT THE PART: the tombstone a ruling for either side left on a gap about this part ends with the next coverage you record for it.
 
 Refused: a part no `question split` recorded; a coverage the list below does not hold; an empty reason; a named gap that is not about this part, or one whose subject's author you are not.
 

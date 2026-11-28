@@ -238,8 +238,9 @@ func TestABenchRulingIsFinalForItsText(t *testing.T) {
 		}
 	})
 
-	// (16) A SECTION GAP'S RULING STANDS FOR THE RUN: a proposal on it is refused, and a mint of its
-	// class about the section lands — a section names no subject a mint can relitigate (L21).
+	// (16) A SECTION GAP'S RULING STANDS FOR THE RUN while its gap carries no token (the section token is
+	// R4's): a proposal on it is refused, and a mint of its class about the section is refused to
+	// every minter naming the ruling (§III.B6's section arm), while one of another class lands.
 	t.Run("a section gap", func(t *testing.T) {
 		runDir := newRun(t)
 		impasseBoard(t, runDir, 1, 1)
@@ -247,15 +248,22 @@ func TestABenchRulingIsFinalForItsText(t *testing.T) {
 		asSeat(t, runDir, blueSeat, "register")
 		actRefusedNaming(t, runDir, "the author's proposal on the ruled section gap", blueSeat, []string{"docketing " + d, "tombstone", "it stands for the run"},
 			"motion", "docket", "file", "regrade", "--id", boardGap, "--severity", "low", "--reason", "the harm needs two failures")
-		args := []string{"--run", runDir, "--seat-id", otherLens, "--about-kind", "section", "--about", "Findings", "--class", class,
-			"--problem", "the defect", "--fix", "the fix", "--check-kind", "document", "--check", "the acceptance check",
-			"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--complexity", "low"}
-		out, err := runMint(t, args...)
-		if err != nil && strings.Contains(err.Error()+out, "changed after your sitting opened") {
-			out, err = runMint(t, args...)
+		mintAbout := func(class string) (string, error) {
+			args := []string{"--run", runDir, "--seat-id", otherLens, "--about-kind", "section", "--about", "Findings", "--class", class,
+				"--problem", "the defect", "--fix", "the fix", "--check-kind", "document", "--check", "the acceptance check",
+				"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--complexity", "low"}
+			out, err := runMint(t, args...)
+			if err != nil && strings.Contains(err.Error()+out, "changed after your sitting opened") {
+				out, err = runMint(t, args...)
+			}
+			return out, err
 		}
-		if err != nil {
-			t.Errorf("a mint of the ruled class about the section: %v %s", err, out)
+		out, err := mintAbout(class)
+		if err == nil || !strings.Contains(err.Error()+out, d) {
+			t.Errorf("a mint of the ruled class about the section: want it refused naming %s, got %v %s", d, err, out)
+		}
+		if out, err := mintAbout(otherClass); err != nil {
+			t.Errorf("a mint of another class about the section: %v %s", err, out)
 		}
 	})
 

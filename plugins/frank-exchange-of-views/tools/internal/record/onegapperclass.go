@@ -3,12 +3,14 @@ package record
 import (
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportheading"
 )
 
 // requireOneGapPerClassAndSubject refuses a mint where an OPEN gap of the same class already stands
@@ -51,10 +53,21 @@ import (
 // did.
 func requireOneGapPerClassAndSubject(w writeView, seatID string, m *recordpb.Mint) error {
 	quote := strings.TrimSpace(m.GetLocation())
-	inquiry, about, part := "", "", ""
+	inquiry, about, part, section, onGap := "", "", "", "", ""
 	switch m.GetAboutKind() {
 	case recordpb.AboutKind_ABOUT_KIND_INQUIRY:
 		inquiry = m.GetAboutRef()
+	// A SECTION AND A GAP ARE SUBJECTS ONLY OF A RULING'S TOMBSTONE (§III.B6): a section holds many
+	// sentences, so two open gaps of a class on it are two defects; a ruling on one bars its class on
+	// the section, keyed by the heading every reader of headings uses, to every minter. A section
+	// assembly composes takes no bar (#1942). A gap on a gap is barred by a ruling on a gap of its
+	// class about the same gap, keyed on that gap's id.
+	case recordpb.AboutKind_ABOUT_KIND_SECTION:
+		if !composedSection(m.GetAboutRef()) {
+			section = reportheading.HeadingKey(m.GetAboutRef())
+		}
+	case recordpb.AboutKind_ABOUT_KIND_GAP:
+		onGap = m.GetAboutRef()
 	// A GAP ABOUT A QUESTION PART IS ONE PER CLASS AND PART; one about the question as a whole names no
 	// part, and two of them may be about two parts the record does not hold, so the rule reads none.
 	case recordpb.AboutKind_ABOUT_KIND_QUESTION:
@@ -62,7 +75,7 @@ func requireOneGapPerClassAndSubject(w writeView, seatID string, m *recordpb.Min
 	case recordpb.AboutKind_ABOUT_KIND_ANCHOR:
 		about = m.GetAboutRef()
 	}
-	if quote == "" && inquiry == "" && about == "" && part == "" {
+	if quote == "" && inquiry == "" && about == "" && part == "" && section == "" && onGap == "" {
 		return nil
 	}
 	held, err := openGapsOfClassAt(w.q, m.GetClass())
@@ -101,6 +114,20 @@ func requireOneGapPerClassAndSubject(w writeView, seatID string, m *recordpb.Min
 		for _, g := range held {
 			if g.about(recordpb.AboutKind_ABOUT_KIND_INQUIRY, inquiry) {
 				return refuse(g, "inquiry "+inquiry)
+			}
+		}
+	}
+	if section != "" {
+		for _, g := range held {
+			if g.ruling != nil && g.aboutKind == recordpb.Word(recordpb.AboutKind_ABOUT_KIND_SECTION) && reportheading.HeadingKey(g.aboutRef) == section {
+				return refuse(g, "section "+strconv.Quote(m.GetAboutRef()))
+			}
+		}
+	}
+	if onGap != "" {
+		for _, g := range held {
+			if g.ruling != nil && g.about(recordpb.AboutKind_ABOUT_KIND_GAP, onGap) {
+				return refuse(g, "gap "+onGap)
 			}
 		}
 	}

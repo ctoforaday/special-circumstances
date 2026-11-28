@@ -543,6 +543,43 @@ func TestEstoppelBindsOnlyThePrescribingLens(t *testing.T) {
 	}
 }
 
+// A CLOSING'S PAIR BARS AS A MINT'S PRESCRIPTION DOES (T-B42, X11): G's mint prescribes nothing, its
+// raiser states a pair in its closing at the docketing, and blue's --accept G applies it; the raiser's
+// mint quoting the applied text is refused as estoppel, another lens's lands, and the raiser's closing
+// road over it on another gap is refused the same way.
+func TestAClosingsAppliedPairEstopsItsRaiser(t *testing.T) {
+	const other = "red-lens-logic"
+	runDir := acceptRun(t)
+	seedCastWith(t, runDir, lensSeat, other)
+	g, err := mintQuote(t, runDir, "G", acceptS+".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	docketNow(t, runDir, g, recordpb.DocketingCause_DOCKETING_CAUSE_IMPASSE, "")
+	if out, err := redStates(t, runDir, g); err != nil {
+		t.Fatalf("red's closing on G: %v\n%s", err, out)
+	}
+	if err := acceptEdit(t, runDir, "A", g, "--accept"); err != nil {
+		t.Fatalf("blue's accept of G's closing pair: %v\n%s", err, readReport(t, runDir))
+	}
+	mintOver := func(seat, key, class string) error {
+		_, err := runAt(t, "mint", "--run", runDir, "--seat-id", seat,
+			"--key", key, "--class", class, "--quote", acceptN+".",
+			"--problem", "this sentence overclaims", "--check-kind", "document", "--check", "c",
+			"--severity", "medium", "--likelihood", "medium", "--impact", "medium")
+		return err
+	}
+	if err := mintOver(lensSeat, "R1", "false_universal"); err == nil || !strings.Contains(err.Error(), "estoppel") || !strings.Contains(err.Error(), g) {
+		t.Errorf("the raiser's mint over its applied closing pair: want estoppel naming %s, got %v", g, err)
+	}
+	if out, err := run(t, "register", "--run", runDir, "--seat-id", other); err != nil {
+		t.Fatalf("register %s: %v\n%s", other, err, out)
+	}
+	if err := mintOver(other, "R2", "false_universal"); err != nil {
+		t.Errorf("another lens's mint over the applied closing pair was refused: %v", err)
+	}
+}
+
 // Text blue authored is auditable normally — the guard is not a shield over the report.
 func TestEstoppelDoesNotBlockAGapAgainstUnrelatedText(t *testing.T) {
 	runDir := newRun(t)

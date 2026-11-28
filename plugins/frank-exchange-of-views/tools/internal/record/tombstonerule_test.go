@@ -9,6 +9,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
 
 // tombstoneDrive is a fixture stream covering each placing and ending arm of the tombstone rule: a
@@ -69,6 +70,12 @@ func tombstoneDrive() []struct {
 	cut := func(removed ...string) step {
 		return step{blueRespondSeat, &recordpb.BlueEdit{Old: proto.String("o"), New: proto.String(""), Text: proto.String("why"), RemovedAnchors: removed}}
 	}
+	aboutQuestion := func(part string) func(*recordpb.Mint) {
+		return func(m *recordpb.Mint) {
+			m.AboutKind, m.AboutRef = recordpb.AboutKind_ABOUT_KIND_QUESTION.Enum(), proto.String(part)
+			m.Class = recordpb.GapClass_GAP_CLASS_COVERAGE_MISSTATED.Enum()
+		}
+	}
 	anchor, inquiry := recordpb.AboutKind_ABOUT_KIND_ANCHOR, recordpb.AboutKind_ABOUT_KIND_INQUIRY
 	fix := strings.Repeat("the prescribed sentence carries its evidence ", 2)
 	return []step{
@@ -87,6 +94,13 @@ func tombstoneDrive() []struct {
 		mint("G6", quote("Foxtrot holds.", "")),
 		mint("G7", about(anchor, "C-00000008")),
 		mint("P3", quote("Papa three holds.", fix+"three")),
+		mint("G8", quote("Golf holds.", "")),
+		mint("S1", about(recordpb.AboutKind_ABOUT_KIND_SECTION, "Findings")),
+		mint("S2", about(recordpb.AboutKind_ABOUT_KIND_SECTION, "Alternatives considered")),
+		{blueRespondSeat, &recordpb.QuestionPart{PartId: proto.String("S-00000001"), Text: proto.String("does the bridge carry the load")}},
+		mint("Q1", aboutQuestion("S-00000001")),
+		mint("Q0", aboutQuestion("")),
+		mint("N1", quote("November holds.", "")),
 		// a ruling on each, then the act that ends it
 		docket("K1", "G1"), forBlue("K1"),
 		edit("", false, "G5"), // a reword of another sentence ends nothing
@@ -124,11 +138,34 @@ func tombstoneDrive() []struct {
 		// text, places no estoppel: the bar on what the bench decided is its ruling's tombstone
 		{benchSeat, &recordpb.BlueEdit{Old: proto.String("o"), New: proto.String("n"), Text: proto.String("red's text"),
 			Answers: proto.String("B1"), AppliedVerbatim: proto.Bool(true), Reopened: []string{"B1"}}},
+		// THE BENCH'S APPLICATION ENDS NONE (T-B51): its edit reopening G8's sentence leaves G8's ruling
+		// tombstone standing, and blue's next reword of that sentence ends it
+		docket("K9", "G8"), forBlue("K9"),
+		{benchSeat, &recordpb.BlueEdit{Old: proto.String("o"), New: proto.String("n"), Text: proto.String("red's text"), Reopened: []string{"G8"}}},
+		edit("", false, "G8"),
+		// a section: an edit reopening the section gap's token ends its ruling; a composed section's
+		// stands for the run, a fate moving an inquiry in or out of it included
+		docket("K10", "S1"), forBlue("K10"),
+		edit("", false, "S1"),
+		docket("K11", "S2"), forBlue("K11"),
+		{blueRespondSeat, &recordpb.Inquiry{InquiryId: proto.String("Q-1"), Status: recordpb.InquiryStatus_INQUIRY_STATUS_DEFERRED.Enum(),
+			SupersedesStatus: proto.String("confirmed"), Reason: proto.String("later"), Method: proto.String("read")}},
+		// a question part: its next coverage ends the ruling on it; a split ends none, and the whole
+		// question's stands for the run
+		docket("K12", "Q1"), forBlue("K12"),
+		docket("K13", "Q0"), forBlue("K13"),
+		{blueRespondSeat, &recordpb.QuestionPart{PartId: proto.String("S-00000002"), Text: proto.String("does the bridge carry the wind")}},
+		{blueRespondSeat, &recordpb.QuestionPart{PartId: proto.String("S-00000001"), SupersedesCoverage: proto.String("1"),
+			Coverage: recordpb.PartCoverage_PART_COVERAGE_COVERED.Enum(), Reason: proto.String("section two answers it")}},
+		// AN APPLIED STATED PAIR PLACES ESTOPPEL whatever the mint prescribed: N1's mint prescribed nothing
+		edit("N1", true, "N1"),
 	}
 }
 
 // tombstonesFromStream is the rule written over the events, not through tombstonesOwed: the
-// "gap kind" pairs a tombstone stands on at the end of evs.
+// "gap kind" pairs a tombstone stands on at the end of evs. A ruling but a remand places a ruling
+// tombstone; the author's verbatim application of a stated pair places an estoppel one; the subject's
+// next change by its author ends both (§III.B0's end column), and the placing act ends none of its own.
 func tombstonesFromStream(evs []*Event) []string {
 	type pair struct{ gap, kind string }
 	stand := map[pair]bool{}
@@ -145,7 +182,16 @@ func tombstonesFromStream(evs []*Event) []string {
 		return out
 	}
 	const ruling, estoppel = "ruling", "estoppel"
+	end := func(placed string, gaps ...string) {
+		for _, g := range gaps {
+			delete(stand, pair{g, ruling})
+			if g != placed {
+				delete(stand, pair{g, estoppel})
+			}
+		}
+	}
 	for _, e := range evs {
+		author := e.GetSeatId() == blueRespondSeat
 		switch b := mustBody(e).(type) {
 		case *recordpb.Mint:
 			mints[b.GetGapId()], minter[b.GetGapId()] = b, e.GetSeatId()
@@ -158,30 +204,46 @@ func tombstonesFromStream(evs []*Event) []string {
 			}
 		case *recordpb.BlueEdit:
 			placed := ""
-			if b.GetAppliedVerbatim() && mints[b.GetAnswers()].GetFixNew() != "" && e.GetSeatId() != benchSeat {
+			if b.GetAppliedVerbatim() && b.GetAnswers() != "" && e.GetSeatId() != benchSeat {
 				placed = b.GetAnswers()
 			}
-			for _, r := range slices.Concat(b.GetReopened(), b.GetRemovedAnchors()) {
-				delete(stand, pair{r, ruling})
-				for _, g := range about(recordpb.AboutKind_ABOUT_KIND_ANCHOR, r) {
-					delete(stand, pair{g, ruling})
-				}
-				if r != placed {
-					delete(stand, pair{r, estoppel})
+			if author {
+				for _, r := range slices.Concat(b.GetReopened(), b.GetRemovedAnchors()) {
+					if m, ok := mints[r]; ok && (m.AboutKind == nil || m.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_SECTION) {
+						end(placed, r)
+					}
+					end(placed, about(recordpb.AboutKind_ABOUT_KIND_ANCHOR, r)...)
 				}
 			}
 			if placed != "" {
 				stand[pair{placed, estoppel}] = true
 			}
 		case *recordpb.Retire:
-			for _, a := range b.GetAnchors() {
-				for _, g := range about(recordpb.AboutKind_ABOUT_KIND_ANCHOR, a) {
-					delete(stand, pair{g, ruling})
+			if author {
+				for _, a := range b.GetAnchors() {
+					end("", about(recordpb.AboutKind_ABOUT_KIND_ANCHOR, a)...)
 				}
 			}
 		case *recordpb.Inquiry:
-			for _, g := range about(recordpb.AboutKind_ABOUT_KIND_INQUIRY, b.GetInquiryId()) {
-				delete(stand, pair{g, ruling})
+			if author && b.GetInquiryId() != "" {
+				end("", about(recordpb.AboutKind_ABOUT_KIND_INQUIRY, b.GetInquiryId())...)
+			}
+		case *recordpb.QuestionPart:
+			if author && b.GetSupersedesCoverage() != "" {
+				end("", about(recordpb.AboutKind_ABOUT_KIND_QUESTION, b.GetPartId())...)
+			}
+		case *recordpb.Amend, *recordpb.Regrade, *recordpb.Close:
+			var on string
+			switch c := b.(type) {
+			case *recordpb.Amend:
+				on = c.GetGapId()
+			case *recordpb.Regrade:
+				on = c.GetGapId()
+			case *recordpb.Close:
+				on = c.GetGapId()
+			}
+			if e.GetSeatId() == minter[on] {
+				end("", about(recordpb.AboutKind_ABOUT_KIND_GAP, on)...)
 			}
 		}
 	}
@@ -242,8 +304,8 @@ func runTombstoneDrive(t *testing.T) string {
 	if err := b.Querier().QueryRow(`SELECT count(*) FILTER (WHERE "ends" IS NULL), count(*) FILTER (WHERE "ends") FROM "tombstone"`).Scan(&places, &ends); err != nil {
 		t.Fatal(err)
 	}
-	if places != 12 || ends != 8 {
-		return fmt.Sprintf("the drive wrote %d placing and %d ending rows, want 12 and 8", places, ends)
+	if places != 18 || ends != 11 {
+		return fmt.Sprintf("the drive wrote %d placing and %d ending rows, want 18 and 11", places, ends)
 	}
 	return ""
 }
@@ -258,18 +320,116 @@ func TestTheStoredTombstonesAreTheRule(t *testing.T) {
 	}
 }
 
-// EVERY TOMBSTONE ARM IS NEEDED: the drive, with each arm of tombstoneArms removed in turn, disagrees
-// with the rule over the stream. An arm no step needs is untested.
+// EVERY TOMBSTONE ARM IS NEEDED: the drive, with each placing arm of tombstoneArms and each row of the
+// end arm's subjectEnds removed in turn, disagrees with the rule over the stream. An arm no step needs
+// is untested. The gap row is driven by no step: no write mints a gap on a gap (requireMintSubject)
+// until R4 builds it, so its row is held by TestTheGapRowEndsAtItsMintersAct instead.
 func TestEveryTombstoneArmIsNeeded(t *testing.T) {
-	all := tombstoneArms
-	t.Cleanup(func() { tombstoneArms = all })
-	for i, a := range all {
+	arms, rows := tombstoneArms, subjectEnds
+	t.Cleanup(func() { tombstoneArms, subjectEnds = arms, rows })
+	for i, a := range arms {
+		if a.ends {
+			continue
+		}
 		t.Run(a.name, func(t *testing.T) {
-			tombstoneArms = slices.Delete(slices.Clone(all), i, i+1)
-			defer func() { tombstoneArms = all }()
+			tombstoneArms = slices.Delete(slices.Clone(arms), i, i+1)
+			defer func() { tombstoneArms = arms }()
 			if runTombstoneDrive(t) == "" {
 				t.Errorf("the drive agrees with the rule without the arm %q", a.name)
 			}
 		})
+	}
+	for i, r := range rows {
+		t.Run(r.name, func(t *testing.T) {
+			if strings.HasPrefix(r.name, "a gap:") {
+				t.Skip("R4: no write mints a gap on a gap yet; TestTheGapRowEndsAtItsMintersAct holds the row")
+			}
+			subjectEnds = slices.Delete(slices.Clone(rows), i, i+1)
+			defer func() { subjectEnds = rows }()
+			if runTombstoneDrive(t) == "" {
+				t.Errorf("the drive agrees with the rule without the row %q", r.name)
+			}
+		})
+	}
+	t.Run("the author filter", func(t *testing.T) {
+		tombstoneArms = slices.Clone(arms)
+		tombstoneArms[0].owed = func(q recordsql.Querier, _ string, body proto.Message) ([]owedTombstone, error) {
+			return subjectChanged(q, blueRespondSeat, body)
+		}
+		defer func() { tombstoneArms = arms }()
+		if runTombstoneDrive(t) == "" {
+			t.Error("the drive agrees with the rule when any seat's change ends a tombstone: the bench's application ends none")
+		}
+	})
+}
+
+// THE GAP ROW ENDS AT ITS MINTER'S ACT (§III.B6's last row): an amend, a regrade and a close of G′
+// name G′ for the gaps about it, and no other act does. The arm's author filter (authorOf: G′'s minter)
+// is the one every row passes through, held by TestEveryTombstoneArmIsNeeded's author case; the drive
+// through the write path waits on R4's gap on a gap.
+func TestTheGapRowEndsAtItsMintersAct(t *testing.T) {
+	for _, c := range []struct {
+		body proto.Message
+		want string
+	}{
+		{&recordpb.Amend{GapId: proto.String("G-1")}, "G-1"},
+		{&recordpb.Regrade{GapId: proto.String("G-1")}, "G-1"},
+		{&recordpb.Close{GapId: proto.String("G-1")}, "G-1"},
+		{&recordpb.BlueEdit{Answers: proto.String("G-1"), Reopened: []string{"G-1"}}, ""},
+		{&recordpb.Retire{Answers: proto.String("G-1")}, ""},
+		{&recordpb.MotionRule{}, ""},
+	} {
+		if got := actedOnGap(c.body); got != c.want {
+			t.Errorf("%T acts on gap %q, want %q", c.body, got, c.want)
+		}
+	}
+}
+
+// T-B40: EVERY DOCKETING IS RAISER AGAINST AUTHOR (§III.B0's positions table). A docket ruling sides
+// with the raiser or the author and nothing else: the reserved third-party sides 3 and 4 are refused,
+// and so is a docket ruling under any seat but the bench's; the author's side lands.
+func TestEveryDocketingIsRaiserAgainstAuthor(t *testing.T) {
+	run := mustRun(t, newRun(t))
+	b := mustBegin(t, run)
+	write := func(seat string, body proto.Message) error {
+		_, _, err := b.Write(Identity{Run: run, SeatID: seat}, body, replayAt)
+		return err
+	}
+	m := rawMint("G1")
+	m.ClassMaterial = nil
+	m.Location = proto.String("Alpha holds.")
+	for _, s := range []struct {
+		seat string
+		body proto.Message
+	}{
+		{evLens, m},
+		{chairSeat, &recordpb.Docketing{DocketingId: proto.String("K1"), GapId: proto.String("G1"),
+			Cause: recordpb.DocketingCause_DOCKETING_CAUSE_IMPASSE.Enum(), Basis: proto.String("before the bench")}},
+	} {
+		if err := write(s.seat, s.body); err != nil {
+			t.Fatalf("%T: %v", s.body, err)
+		}
+	}
+	side := func(s recordpb.SidedWith) *recordpb.MotionRule {
+		return ruling("K1", "", func(d *recordpb.DocketRuling) {
+			d.SidedWith, d.Disposition, d.Final = s.Enum(), recordpb.Disposition_DISPOSITION_NOT_A_DEFECT.Enum(), proto.Bool(true)
+		})
+	}
+	for _, c := range []struct {
+		name string
+		seat string
+		body proto.Message
+	}{
+		{"a third party's side (3)", benchSeat, side(recordpb.SidedWith(3))},
+		{"a minter's side against a filer (4)", benchSeat, side(recordpb.SidedWith(4))},
+		{"the author's side under the raiser's seat", evLens, side(recordpb.SidedWith_SIDED_WITH_AUTHOR)},
+		{"the author's side under the author's seat", blueRespondSeat, side(recordpb.SidedWith_SIDED_WITH_AUTHOR)},
+	} {
+		if err := write(c.seat, c.body); err == nil {
+			t.Errorf("%s landed", c.name)
+		}
+	}
+	if err := write(benchSeat, side(recordpb.SidedWith_SIDED_WITH_AUTHOR)); err != nil {
+		t.Errorf("the bench's ruling for the author: %v", err)
 	}
 }

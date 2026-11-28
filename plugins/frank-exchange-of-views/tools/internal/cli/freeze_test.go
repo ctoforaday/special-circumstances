@@ -247,6 +247,47 @@ func TestTheDocketsFirstIsRuledAndALaterBrokenStatementLosesNamingTheRuling(t *t
 		}
 	})
 
+	// THE BENCH'S APPLICATION ENDS NO TOMBSTONE (T-B51, §III.B6): ruled for blue, G's ruling tombstone
+	// stands on the sentence; the bench's application of H's text rewords that sentence and is no change
+	// by its author, so G's stands; blue's next edit of the sentence ends it.
+	t.Run("the bench's application of a later road leaves the earlier ruling's tombstone standing", func(t *testing.T) {
+		runDir, g, h, dg, dh := setup(t)
+		if out, err := redStates(t, runDir, h, "--quote", acceptS+".", "--new", steep); err != nil {
+			t.Fatalf("red's closing on H: %v\n%s", err, out)
+		}
+		conveneBench(t, runDir, g, h)
+		if out, err := answerDocketing(t, runDir, dg, "for-author", "--final"); err != nil {
+			t.Fatalf("--for-author on G: %v\n%s", err, out)
+		}
+		if out, err := answerDocketing(t, runDir, dh, "for-raiser", "--final"); err != nil {
+			t.Fatalf("--for-raiser on H: %v\n%s", err, out)
+		}
+		standing := func() bool {
+			rows, _ := tombstoneRows(t, runDir)
+			on := false
+			for _, r := range rows {
+				if r.GetGapId() == g && r.GetKind() == recordpb.TombstoneKind_TOMBSTONE_KIND_RULING {
+					on = !r.GetEnds()
+				}
+			}
+			return on
+		}
+		if !standing() {
+			t.Fatalf("the bench's application of H's text ended G's ruling tombstone")
+		}
+		rep := readReport(t, runDir)
+		i := strings.Index(rep, "Costs rose steeply")
+		if i < 0 {
+			t.Fatalf("H's text is not applied:\n%s", rep)
+		}
+		if out, err := blueEditOf(t, runDir, "after", "", "Costs rose steeply", "Costs climbed steeply"); err != nil {
+			t.Fatalf("blue's edit of the sentence: %v\n%s", err, out)
+		}
+		if standing() {
+			t.Errorf("blue's edit of the ruled sentence left G's ruling tombstone standing")
+		}
+	})
+
 	t.Run("the head's text leaves the later road planning: both ruled for red in one sitting, in order", func(t *testing.T) {
 		runDir, g, h, dg, dh := setup(t)
 		if out, err := redStates(t, runDir, g); err != nil {
