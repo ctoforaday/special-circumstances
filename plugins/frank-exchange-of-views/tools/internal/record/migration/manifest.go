@@ -204,6 +204,9 @@ type GapPlacement struct {
 	Shapes      map[string]int `json:"shapes,omitempty"`
 	NeverPlaced []string       `json:"never_placed,omitempty"`
 	Fallback    []string       `json:"fallback,omitempty"`
+	// SectionMissing is each section gap about a heading of blue's text that the report did not hold,
+	// or held twice, at its mint (Translation 6): it takes no token.
+	SectionMissing []string `json:"section_missing,omitempty"`
 }
 
 // ProseRewrite is one archived id rewritten inside a seat's own wording: the field, the id as

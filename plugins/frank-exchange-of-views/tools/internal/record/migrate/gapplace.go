@@ -42,6 +42,7 @@ type placer struct {
 	retiresOf map[string][]retireAt // each token's archived retires, in stream order
 	removed   map[string]bool       // each token a cut took, out of the report from that cut on
 	moved     [][2]string           // each run P12b translation 6 moved, and what it became
+	sections  []string              // each section gap's token Translation 6 placed on its heading
 }
 
 // newPlacer reads which ids the source stream anchors itself. The bodies step is asked about carry
@@ -63,6 +64,9 @@ func newPlacer(q recordsql.Querier, evs []OldEvent, migrated map[string]string) 
 func (p *placer) step(body proto.Message) (proto.Message, error) {
 	switch b := body.(type) {
 	case *recordpb.Mint:
+		if ref, ok := record.HeadingSection(b); ok && !p.anchored[b.GetGapId()] {
+			return p.heading(b.GetGapId(), ref), nil
+		}
 		if b.GetLocation() == "" || p.anchored[b.GetGapId()] {
 			return nil, nil
 		}
@@ -92,6 +96,27 @@ func (p *placer) step(body proto.Message) (proto.Message, error) {
 		return nil, p.places(b.GetId(), b.GetLocation())
 	}
 	return nil, nil
+}
+
+// heading is TRANSLATION 6: an archived section gap about a heading of blue's text gains its token at
+// the end of the one heading its reference keys to in the report at its mint, as a live mint places it
+// (anchortext.AttachToHeading); one whose reference keys no heading there, or two, takes none
+// (SectionMissing).
+func (p *placer) heading(id, ref string) proto.Message {
+	text, err := record.RenderAt(p.q)
+	if err != nil {
+		return nil // no part: the gap reads unrendered
+	}
+	_, loc, err := anchortext.AttachToHeading(text, id, ref)
+	if err != nil {
+		p.census.SectionMissing = append(p.census.SectionMissing, id)
+		return nil
+	}
+	// It sets no placed: a heading token is no gap anchor an archived edit's quote must be given, and
+	// an edit whose span holds one is counted (section-edit; Translation 6 measures none).
+	p.census.Shapes["section"]++
+	p.sections = append(p.sections, id)
+	return &recordpb.Anchor{Id: proto.String(id), Location: proto.String(loc)}
 }
 
 // placesAtSentenceOf refuses an Anchor placed at the end of the sentence anchor `of`'s token sits in
@@ -177,6 +202,11 @@ func (p *placer) edit(b *recordpb.BlueEdit) error {
 	}
 	if !ok {
 		return fmt.Errorf("this edit no longer locates in the report its gaps' anchors now stand in — a kept husk or a gap anchor inside its span that no rewrite reaches: %q", b.GetOld())
+	}
+	for _, id := range p.sections {
+		if strings.Contains(text[start:end], anchor.Token(id)) {
+			p.census.Shapes["section-edit"]++ // an archived edit of a heading holding a section token
+		}
 	}
 	if abuts {
 		b.Old = proto.String(old)

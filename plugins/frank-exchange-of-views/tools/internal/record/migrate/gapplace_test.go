@@ -374,6 +374,9 @@ func TestGapTranslationRewritesEveryShape(t *testing.T) {
 			if len(m.GapAnchors.Fallback) > 0 {
 				line += " fallback=" + strings.Join(m.GapAnchors.Fallback, ",")
 			}
+			if len(m.GapAnchors.SectionMissing) > 0 {
+				line += " section-missing=" + strings.Join(m.GapAnchors.SectionMissing, ",")
+			}
 			lines = append(lines, strings.TrimSpace(line))
 		}
 		if total["abutting"] == 0 {

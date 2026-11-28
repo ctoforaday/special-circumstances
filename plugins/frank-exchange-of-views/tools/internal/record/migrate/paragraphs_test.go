@@ -13,12 +13,19 @@ import (
 
 // EVERY ARCHIVED EDIT IS STAMPED WITH THE PARAGRAPHS IT TOUCHED (EventSchema 80), from the replay
 // migrate already does: its old_paragraphs hold its old and its new_paragraphs its new, anchors
-// stripped, and its reopened anchors are the ones those two runs give.
+// stripped, and its reopened anchors are the ones those two runs give, then the section gaps' tokens
+// whose section its span met (bluedoc.Reopened).
 func TestEveryArchivedEditCarriesItsTouchedParagraphs(t *testing.T) {
 	_, run := migrateArchive(t, gapAuditArchive)
 	merged, err := record.MergedEvents(run)
 	if err != nil {
 		t.Fatal(err)
+	}
+	sections := map[string]bool{}
+	for _, e := range merged.Events {
+		if m, ok := recordpb.BodyAs[*recordpb.Mint](e); ok && m.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_SECTION {
+			sections[m.GetGapId()] = true
+		}
 	}
 	edits := 0
 	for i, e := range merged.Events {
@@ -36,7 +43,8 @@ func TestEveryArchivedEditCarriesItsTouchedParagraphs(t *testing.T) {
 		if !strings.Contains(anchortext.Visible(b.GetOldParagraphs()), strings.TrimSpace(anchortext.Visible(b.GetOld()))) {
 			t.Errorf("edit %d: old_paragraphs %q does not hold its old %q", i, b.GetOldParagraphs(), b.GetOld())
 		}
-		if got := bluedoc.ReopenedAnchors(b.GetOldParagraphs(), b.GetNewParagraphs()); !slices.Equal(got, b.GetReopened()) {
+		inParas := slices.DeleteFunc(slices.Clone(b.GetReopened()), func(id string) bool { return sections[id] })
+		if got := bluedoc.ReopenedAnchors(b.GetOldParagraphs(), b.GetNewParagraphs()); !slices.Equal(got, inParas) {
 			t.Errorf("edit %d: reopened %v, and its stamped paragraphs give %v", i, b.GetReopened(), got)
 		}
 	}

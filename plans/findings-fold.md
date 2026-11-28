@@ -938,14 +938,16 @@ Owed by this spec, each one translation with a test on an archived run:
 - **Translation 5** — `Close.successor` dropped, `repaired_with_regression` (and the
   round era's `closed_with_regression`) respelled `repaired`, `amends_prior` refused loudly (0 archived). Measured on
   34 archives: 18 closes carry a successor.
-- **Translation 6** — an archived section mint about a heading in blue's text gains its token on the heading its
-  reference keys to in the report at its mint (2 in the 34 SQLite archives: "Open questions", "The Catechism"); one on
-  a composed section gains none (9). A section gap about a MISSING section takes no token: its heading is not in the
-  report at its mint (R0 (5): wave-a G-22d16d99, "Technical foundations"; lead's acceptance, 2026-11-26). No archived
-  section mint keys two headings, and no later archived edit of a heading gains a token. **Built with R4** (deviation
-  reported at R1 Commit C, 2026-11-26; not attempted): its token is a gap token on a heading, which the write is
-  expected to refuse (`anchortext.Attach`'s `ErrOnHeading`) until R4 admits a section gap's token there; until then
-  migrated records hold the 2 section mints without a token.
+- **Translation 6** — an archived section mint about a heading in blue's text gains its token at the end of the one
+  heading its reference keys to in the report at its mint (`anchortext.AttachToHeading`, as a live mint places it); one
+  on a composed section gains none. A section gap about a MISSING section takes no token: its heading is not in the
+  report at its mint (R0 (5): wave-a G-22d16d99, "Technical foundations"; lead's acceptance, 2026-11-26), and the
+  manifest names it (`section_missing`). Measured over the tarball census (`archived_gap_rewrites`): 4 tokens placed
+  (is-91-prime-b 1, auditing-constitutions-gap-audit 2, is-91-prime-1838 1), 1 missing (wave-a G-22d16d99); no
+  archived section mint keys two headings, and no archived edit's span holds a heading's token (`section-edit` 0).
+  Each archived edit's `reopened` is re-derived as a live edit's (`bluedoc.Reopened`), so the edits whose span meets a
+  tokened section list its token: 10 (is-91-prime-b 4, gap-audit 4, 1838 2). Three render hashes move (those three
+  archives); no other archive's render, gap location or refusal changes.
 - **Sides** — archived bench rulings are written `SIDED_WITH_AUTHOR` (Translation 4); no archive holds a non-bench
   `sided_with` (B2's accept never ran in a smoke). `TestNoArchiveHoldsAnAcceptAsARuling` asserts it, and that no
   migrated act carries `accepts`, `accepted` or a regrade's `answers`. An archived ruling of a docketing an
