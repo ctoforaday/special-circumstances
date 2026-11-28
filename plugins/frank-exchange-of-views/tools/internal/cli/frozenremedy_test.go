@@ -177,33 +177,60 @@ func TestBluesOwnRewordOfRedsSpanIsHeld(t *testing.T) {
 // A RETIRE ROAD L6 WOULD REFUSE IS REFUSED WHEN STATED. Red's statement is checked as its application
 // would be: while a computation still in the report applies the citation's method, the bench's retire
 // for red and blue's `retire --accept` are both refused, so red's closing stating that retire is refused
-// naming the computation, and nothing is recorded (seed 5, CI run 46094143286).
+// naming the computation, and nothing is recorded (seed 5, CI run 46094143286). Each remedy the refusal
+// names is then statable: a pair over the citation's sentence, or --no-text; and the retire itself once
+// the computation is retired.
 func TestARetireRoadL6WouldRefuseIsRefusedWhenStated(t *testing.T) {
-	runDir, cite, gap, _ := frozenRemedyRun(t, true)
-	s := script(t, runDir, "k.js", "console.log('k');")
-	if out, err := run(t, "compute", "--run", runDir, "--seat-id", blueSeat, "--quote", "Volume recovered later", "--dir", s,
-		"--reason", "the method applied", "--cites", cite, "--", "node", "k.js"); err != nil {
-		t.Fatalf("compute --cites %s: %v %s", cite, err, out)
-	}
-	k := lastBody(t, runDir, &recordpb.Computation{}).GetComputationId()
-	closings := countType(t, runDir, recordpb.EventType_EVENT_TYPE_CLOSING)
-	out, err := redStates(t, runDir, gap, "--retire")
-	if err == nil {
-		t.Fatalf("red's retire of %s while %s applies it was admitted: %s", cite, k, out)
-	}
-	for _, want := range []string{k, cite, "L6", "--no-text"} {
-		if !strings.Contains(err.Error()+out, want) {
-			t.Errorf("the refusal does not name %q: %v %s", want, err, out)
+	setup := func(t *testing.T) (runDir, cite, gap, k string) {
+		t.Helper()
+		runDir, cite, gap, _ = frozenRemedyRun(t, true)
+		s := script(t, runDir, "k.js", "console.log('k');")
+		if out, err := run(t, "compute", "--run", runDir, "--seat-id", blueSeat, "--quote", "Volume recovered later", "--dir", s,
+			"--reason", "the method applied", "--cites", cite, "--", "node", "k.js"); err != nil {
+			t.Fatalf("compute --cites %s: %v %s", cite, err, out)
 		}
+		k = lastBody(t, runDir, &recordpb.Computation{}).GetComputationId()
+		closings := countType(t, runDir, recordpb.EventType_EVENT_TYPE_CLOSING)
+		out, err := redStates(t, runDir, gap, "--retire")
+		if err == nil {
+			t.Fatalf("red's retire of %s while %s applies it was admitted: %s", cite, k, out)
+		}
+		for _, want := range []string{k, cite, "L6", "--no-text"} {
+			if !strings.Contains(err.Error()+out, want) {
+				t.Errorf("the refusal does not name %q: %v %s", want, err, out)
+			}
+		}
+		if got := countType(t, runDir, recordpb.EventType_EVENT_TYPE_CLOSING); got != closings {
+			t.Errorf("closings on the record %d, want %d: the refused statement recorded one", got, closings)
+		}
+		return runDir, cite, gap, k
 	}
-	if got := countType(t, runDir, recordpb.EventType_EVENT_TYPE_CLOSING); got != closings {
-		t.Errorf("closings on the record %d, want %d: the refused statement recorded one", got, closings)
-	}
-	// THE COMPUTATION RETIRED, THE SAME STATEMENT STANDS.
-	if out, err := run(t, "retire", "--run", runDir, "--seat-id", blueSeat, "--anchor", k, "--reason", "the method leaves"); err != nil {
-		t.Fatalf("blue's retire of %s: %v %s", k, err, out)
-	}
-	if out, err := redStates(t, runDir, gap, "--retire"); err != nil {
-		t.Errorf("red's retire of %s once no computation applies it: %v %s", cite, err, out)
-	}
+	t.Run("the retire, once the computation is retired", func(t *testing.T) {
+		runDir, cite, gap, k := setup(t)
+		if out, err := run(t, "retire", "--run", runDir, "--seat-id", blueSeat, "--anchor", k, "--reason", "the method leaves"); err != nil {
+			t.Fatalf("blue's retire of %s: %v %s", k, err, out)
+		}
+		if out, err := redStates(t, runDir, gap, "--retire"); err != nil {
+			t.Errorf("red's retire of %s once no computation applies it: %v %s", cite, err, out)
+		}
+	})
+	t.Run("a pair over the citation's sentence", func(t *testing.T) {
+		runDir, _, gap, _ := setup(t)
+		report, err := record.RenderRun(runtest.Open(t, runDir))
+		if err != nil {
+			t.Fatal(err)
+		}
+		words := "Costs rose sharply across the first quarter"
+		tail := report[strings.Index(report, words)+len(words):]
+		run_ := tail[:anchor.SkipRun(tail, 0)]
+		if out, err := redStates(t, runDir, gap, "--quote", words+run_, "--new", "Costs rose a little"+run_); err != nil {
+			t.Errorf("red's pair after the refused retire: %v %s", err, out)
+		}
+	})
+	t.Run("--no-text", func(t *testing.T) {
+		runDir, _, gap, _ := setup(t)
+		if out, err := redStates(t, runDir, gap, "--no-text"); err != nil {
+			t.Errorf("red's --no-text after the refused retire: %v %s", err, out)
+		}
+	})
 }
