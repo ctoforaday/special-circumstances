@@ -272,7 +272,7 @@ func gapSittingsOf(evs []*Event, ids []int64, win WindowIndex, when ReadWhen, mi
 // exchangesOf applies the run's terms and the remands to them. remands is the "remand" view's rows
 // by gap (remandRulingsOf), read here for where each ruling hands the turn to blue.
 //
-// THE TURN IS BLUE'S WHEN A ROUND OPENS, and a round opens at the mint, at a remand ruling and at the
+// THE TURN IS BLUE'S WHEN A ROUND OPENS, and a round opens at the mint, at a remand ruling, at the bench's amend of the gap and at the
 // end of the last round. Blue's sitting then either leaves the lens something to audit (lensTurnOn),
 // and the round stays open until the lens's sitting ends it, or leaves nothing: the lens's turn does
 // not come, and the round ends with blue's sitting, so a gap blue never answers stalls exchange by
@@ -280,10 +280,12 @@ func gapSittingsOf(evs []*Event, ids []int64, win WindowIndex, when ReadWhen, mi
 // lens sitting with no turn come, which only an archived dispatch has, ends nothing.
 func exchangeFold(evs []*Event, ids []int64, win WindowIndex, when ReadWhen, remands map[string][]remandRow) map[string]*GapExchanges {
 	assignees := assigneeOf(evs)
-	minted := map[string]string{}    // gap -> its assignee, the lens party of its exchanges
-	mintedAt := map[string]int64{}   // gap -> the place of its mint
-	grades := map[string][3]string{} // gap -> current severity, likelihood, impact
-	movement := map[string][]int64{} // gap -> ids of movement events
+	minted := map[string]string{}     // gap -> its assignee, the lens party of its exchanges
+	mintedAt := map[string]int64{}    // gap -> the place of its mint
+	grades := map[string][3]string{}  // gap -> current severity, likelihood, impact
+	wording := map[string][4]string{} // gap -> current problem, required fix, acceptance check, fix_new
+	movement := map[string][]int64{}  // gap -> ids of movement events
+	opens := map[string][]int64{}     // gap -> places of the bench's amends of it, each opening a round
 	fates := fateActsOf(evs)
 	acts := gapActsOf(evs, ids)
 
@@ -296,6 +298,30 @@ func exchangeFold(evs []*Event, ids []int64, win WindowIndex, when ReadWhen, rem
 				minted[g] = assignees[g]
 				mintedAt[g] = id
 				grades[g] = [3]string{recordpb.Word(b.GetSeverity()), recordpb.Word(b.GetLikelihood()), recordpb.Word(b.GetImpact())}
+				wording[g] = [4]string{b.GetProblem(), b.GetRequiredFix(), b.GetAcceptanceCheck(), b.GetFixNew()}
+			}
+		case *recordpb.Amend:
+			g := b.GetGapId()
+			cur := wording[g]
+			moved := false
+			for k, w := range []*string{b.Problem, b.RequiredFix, b.AcceptanceCheck, b.FixNew} {
+				if w != nil && *w != cur[k] {
+					cur[k], moved = *w, true
+				}
+			}
+			wording[g] = cur
+			// THE BENCH'S AMEND IS NO PARTY'S ACT (§III.B3): it applies a for-raiser ruling's statement,
+			// so it is no movement, and it opens a round on the gap with its author's turn, as a remand
+			// ruling does. The raiser's moving amend is its half of the exchange, counted as its moving
+			// regrade is; one naming a gap about this gap is that gap's author's answer, and movement there.
+			switch {
+			case seatclass.RoleOfSeat(e.GetSeatId()) == "bench":
+				opens[g] = append(opens[g], id)
+			case moved:
+				movement[g] = append(movement[g], id)
+				if g2 := b.GetAnswers(); g2 != "" {
+					movement[g2] = append(movement[g2], id)
+				}
 			}
 		case *recordpb.Regrade:
 			g := b.GetGapId()
@@ -373,6 +399,7 @@ func exchangeFold(evs []*Event, ids []int64, win WindowIndex, when ReadWhen, rem
 			return slices.ContainsFunc(moves, func(m int64) bool { return m > from && m <= to })
 		}
 		rulings := remandPlaces(remands[g])
+		openers := slices.Sorted(slices.Values(slices.Concat(rulings, opens[g])))
 		start, next := mintedAt[g], 0
 		end := func(at int64, audited bool) {
 			x.Exchanges++
@@ -389,8 +416,8 @@ func exchangeFold(evs []*Event, ids []int64, win WindowIndex, when ReadWhen, rem
 		// round: whether the lens is auditing the answer is what the record cannot yet say.
 		unmeasured := false
 		for _, s := range sittings[g] {
-			for ; next < len(rulings) && rulings[next] < s.start; next++ {
-				start = rulings[next] // a ruling hands the turn to blue: what it heard opens nothing
+			for ; next < len(openers) && openers[next] < s.start; next++ {
+				start = openers[next] // a ruling or the bench's amend hands the turn to the author: what it heard opens nothing
 			}
 			switch {
 			case s.open:
@@ -400,7 +427,7 @@ func exchangeFold(evs []*Event, ids []int64, win WindowIndex, when ReadWhen, rem
 				unmeasured = unmeasured || s.red
 			case s.red:
 				unmeasured = false
-				if audits && lensTurnOn(turns[g], lens, author, mintedAt[g], latestBefore(rulings, s.start), s.start-1) {
+				if audits && lensTurnOn(turns[g], lens, author, mintedAt[g], latestBefore(openers, s.start), s.start-1) {
 					end(s.end, true)
 				}
 			case unmeasured:
@@ -409,20 +436,22 @@ func exchangeFold(evs []*Event, ids []int64, win WindowIndex, when ReadWhen, rem
 				// opened: the round holds blue's acts from where blue's sitting began, and what blue left
 				// unread is read off where the lens stood when blue sat.
 				start = min(start, s.start)
-				floor := latestBefore(rulings, s.end)
+				floor := latestBefore(openers, s.end)
 				read := lensReadAt(turns[g], lens, mintedAt[g], floor, s.start)
 				if !audits || !authorActed(turns[g], author, read, s.end) {
 					end(s.end, false)
 				}
 			}
 		}
-		for ; next < len(rulings); next++ {
-			start = rulings[next]
+		for ; next < len(openers); next++ {
+			start = openers[next]
 		}
-		floor := latestBefore(rulings, math.MaxInt64)
+		// The author's acts before an opener answered what it replaced: the lens reads from the latest
+		// one. A remand is discharged only by an act after the remand ruling itself.
+		floor := latestBefore(openers, math.MaxInt64)
 		x.lensRead = lensReadAt(turns[g], lens, mintedAt[g], floor, math.MaxInt64)
 		x.lensTurn = audits && lensTurnOn(turns[g], lens, author, mintedAt[g], floor, math.MaxInt64)
-		x.answeredRemand = authorActed(acts[g], author, floor, math.MaxInt64)
+		x.answeredRemand = authorActed(acts[g], author, latestBefore(rulings, math.MaxInt64), math.MaxInt64)
 		x.pending = exchangeRound{start: start, end: math.MaxInt64 - 1, moved: movedIn(start, math.MaxInt64), acted: authorActed(acts[g], author, start, math.MaxInt64), audited: true}
 	}
 	return out
