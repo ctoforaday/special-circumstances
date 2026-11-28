@@ -123,6 +123,13 @@ func requireAboutGap(q recordsql.Querier, seatID string, m *recordpb.Mint) error
 		return feov.Errorf(feov.Validation,
 			"--about names %s, which is your own gap: a gap's minter changes its wording with `amend --id %s` and its grades with `regrade --id %s`, and raises no gap on it. Nothing was recorded", ref, ref, ref)
 	}
+	// A GAP ON A GAP TAKES CHECK KIND document (lead call 2026-11-28): its answer is the minter's amend
+	// or regrade of the gap it is about, which places no evidence, so a source or computation check
+	// would demand a citation or computation no answer to it can place.
+	if ck := m.GetCheckKind(); ck != recordpb.CheckKind_CHECK_KIND_DOCUMENT {
+		return feov.Errorf(feov.Validation,
+			"--check-kind %s on a gap about gap %s: a gap on a gap takes check kind document only. Its answer is %s's amend or regrade naming it, which places no citation or computation, so a %s check could never be met. Mint it with --check-kind document. Nothing was recorded", recordpb.Word(ck), ref, ref, recordpb.Word(ck))
+	}
 	return nil
 }
 

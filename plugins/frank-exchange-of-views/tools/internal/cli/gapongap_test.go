@@ -12,9 +12,15 @@ import (
 // mintOnGap is seat's mint of a gap about gap on, through the command tree.
 func mintOnGap(t *testing.T, runDir, seat, key, on string) (string, error) {
 	t.Helper()
+	return mintOnGapChecked(t, runDir, seat, key, on, "document")
+}
+
+// mintOnGapChecked is mintOnGap with the check kind named.
+func mintOnGapChecked(t *testing.T, runDir, seat, key, on, checkKind string) (string, error) {
+	t.Helper()
 	out, err := run(t, "mint", "--run", runDir, "--seat-id", seat, "--key", key, "--about-kind", "gap", "--about", on,
 		"--class", "spec_underspecification", "--problem", "the gap's check cannot fail", "--fix", "state a check that can fail",
-		"--check-kind", "document", "--check", "the check names an observable outcome",
+		"--check-kind", checkKind, "--check", "the check names an observable outcome",
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--complexity", "low")
 	return gapID(out), withOut(err, out)
 }
@@ -49,10 +55,10 @@ func TestAGapOnAGapIsAnotherLenssOpenGap(t *testing.T) {
 	if author, err := record.AuthorOfGap(runtest.Open(t, runDir), g2); err != nil || author != lensSeat {
 		t.Errorf("the author of %s, about %s, is %q (%v), want %s's minter %s", g2, g, author, err, g, lensSeat)
 	}
-	refused := func(name, seat, on string, want ...string) {
+	refusedChecked := func(name, seat, on, checkKind string, want ...string) {
 		t.Helper()
 		mints := countType(t, runDir, recordpb.EventType_EVENT_TYPE_MINT)
-		_, err := mintOnGap(t, runDir, seat, "refused-"+strings.ReplaceAll(name, " ", "-"), on)
+		_, err := mintOnGapChecked(t, runDir, seat, "refused-"+strings.ReplaceAll(name, " ", "-"), on, checkKind)
 		if err == nil {
 			t.Errorf("%s: the mint landed", name)
 			return
@@ -65,6 +71,14 @@ func TestAGapOnAGapIsAnotherLenssOpenGap(t *testing.T) {
 		if got := countType(t, runDir, recordpb.EventType_EVENT_TYPE_MINT); got != mints {
 			t.Errorf("%s: mints on the record %d, want %d", name, got, mints)
 		}
+	}
+	refused := func(name, seat, on string, want ...string) {
+		t.Helper()
+		refusedChecked(name, seat, on, "document", want...)
+	}
+	// A GAP ON A GAP TAKES CHECK KIND document: its answer, an amend or regrade, places no evidence.
+	for _, ck := range []string{"source", "computation"} {
+		refusedChecked("check kind "+ck, otherLens, g, ck, "--check-kind "+ck, "takes check kind document only")
 	}
 	refused("a gap nothing minted", otherLens, "G-0badf00d", "G-0badf00d", "no mint event created")
 	refused("the minter's own gap", lensSeat, g, "your own gap", "amend --id "+g, "regrade --id "+g)
