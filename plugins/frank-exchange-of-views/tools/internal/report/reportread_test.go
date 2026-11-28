@@ -2,7 +2,6 @@ package report
 
 import (
 	"slices"
-	"strings"
 	"testing"
 
 	"google.golang.org/protobuf/proto"
@@ -10,13 +9,11 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/view"
 )
 
-// THE REPORT TEXT DELIVERED TO A LENS IS IN THE TRANSCRIPT, the assembled one and debate.md alike,
-// and the debate's JSON carries it: which lens had which delivery completed at which head — delivered,
-// which is all the tool can see.
-func TestTheTranscriptSaysWhichLensWasDeliveredWhatAtWhichHead(t *testing.T) {
+// THE REPORT TEXT DELIVERED TO A LENS IS ON THE DEBATE'S JSON: which lens had which delivery completed
+// at which head — delivered, which is all the tool can see.
+func TestTheDebateSaysWhichLensWasDeliveredWhatAtWhichHead(t *testing.T) {
 	const lens = "red-lens-evidence"
 	evs := []*record.Event{
 		recordtest.Event(t, "harness", &recordpb.ReportPart{Text: proto.String("# report")}),
@@ -24,18 +21,7 @@ func TestTheTranscriptSaysWhichLensWasDeliveredWhatAtWhichHead(t *testing.T) {
 		recordtest.Event(t, lens, &recordpb.Register{}),
 		recordtest.Event(t, lens, &recordpb.ReportRead{Head: proto.Int64(1)}),
 	}
-	want := "### REPORT DELIVERED — " + lens + "\nthe whole report, delivered to " + lens + " at head 1"
 	f := famOf(t, evs)
-	if got := debate(f, nil); !strings.Contains(got, want) {
-		t.Errorf("the assembled transcript does not say the report was served:\n%s", got)
-	}
-	md, err := view.MarkdownFrom(view.Input{Gaps: f.Gaps, Events: f.Events, At: f.At}, "debate", "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got := string(md); !strings.Contains(got, want) {
-		t.Errorf("debate.md does not say the report was served:\n%s", got)
-	}
 	j := record.DebateJSONOfFamily(f)
 	var served []record.DebateServedJSON
 	for _, e := range j.Epochs {
@@ -47,9 +33,8 @@ func TestTheTranscriptSaysWhichLensWasDeliveredWhatAtWhichHead(t *testing.T) {
 }
 
 // A LENS'S THIRD DELIVERY IS THE CHANGES SINCE ITS PIN: its first whole delivery and its full re-read
-// behind it, the line says what the third handed — the changes since the head its re-read was cut at,
-// and its own gaps' passages — and the debate's JSON marks it not whole.
-func TestTheTranscriptSaysALensWasDeliveredTheChangesSinceItsPin(t *testing.T) {
+// behind it, the debate's JSON marks the third not whole.
+func TestTheDebateMarksALensThirdDeliveryNotWhole(t *testing.T) {
 	const lens = "red-lens-evidence"
 	evs := []*record.Event{
 		recordtest.Event(t, "harness", &recordpb.ReportPart{Text: proto.String("# report")}),
@@ -59,11 +44,7 @@ func TestTheTranscriptSaysALensWasDeliveredTheChangesSinceItsPin(t *testing.T) {
 		evs = append(evs, recordtest.Event(t, lens, &recordpb.Register{}),
 			recordtest.Event(t, lens, &recordpb.ReportRead{Head: proto.Int64(1)}))
 	}
-	want := "### REPORT DELIVERED — " + lens + "\nthe changes since head 1 and its own gaps' passages, delivered to " + lens + " at head 1"
 	f := famOf(t, evs)
-	if got := debate(f, nil); !strings.Contains(got, want) {
-		t.Errorf("the assembled transcript does not say the third delivery was the changes:\n%s", got)
-	}
 	var whole []bool
 	for _, e := range record.DebateJSONOfFamily(f).Epochs {
 		for _, s := range e.Served {

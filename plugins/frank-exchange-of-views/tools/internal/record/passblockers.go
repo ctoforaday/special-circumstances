@@ -611,9 +611,6 @@ var blockerKinds = []blockerKind{
 				"A lens on a harness whose hooks cannot yet deliver report text into its context — Antigravity today — records no delivery and holds the PASS for good",
 				len(bs), strings.Join(named, ", "))
 		},
-		why: func(b Blocker) string {
-			return fmt.Sprintf("%s owes %s — ready at any head, %s", b.Subject, wholeOwedWhat(b), planHold(b, "PASS is not permitted until it has been delivered"))
-		},
 	},
 	// AN OPEN INQUIRY HOLDS THE PASS UNTIL BLUE RECORDS A FATE THAT SETTLES IT (ruled by gblock
 	// 2026-11-01; inquirycheck.go). Its owner is blue-respond, which dispatch readies while any

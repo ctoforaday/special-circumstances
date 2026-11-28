@@ -17,7 +17,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 )
 
 // STRUCTURED STATE FOR THE SEATS.
@@ -1946,42 +1945,16 @@ type DebateServedJSON struct {
 	Whole bool `json:"whole"`
 }
 
-// delivery is the report_delivery row the report read e records, and its seat's pin before it: the
-// head of its latest delivery in a sitting it sat through, with an id below e's.
-func (x WindowIndex) delivery(e *Event) (row recordsql.DeliveryRow, pin int64) {
+// delivery is the report_delivery row the report read e records.
+func (x WindowIndex) delivery(e *Event) recordsql.DeliveryRow {
 	x.mustViews()
 	id := x.Of(e).ID
 	for _, r := range x.deliveries {
-		switch {
-		case r.EventID == id:
-			row = r
-		case r.EventID < id && r.SeatID == e.GetSeatId() && r.SatThrough && r.Head > pin:
-			pin = r.Head
+		if r.EventID == id {
+			return r
 		}
 	}
-	return row, pin
-}
-
-// DeliveryLine is debate.md's line for the delivery the report read e records (its report_delivery
-// row), word for word: what was delivered to which seat, at which head — a lens's whole report, or the
-// changes since its pin and its own gaps' passages; the chair's stale areas' changes; the passages of
-// the gaps the bench's convened motions are about. The tool cannot see a read, so the line says what
-// it handed.
-func (x WindowIndex) DeliveryLine(e *Event) string {
-	row, pin := x.delivery(e)
-	seat := e.GetSeatId()
-	var what string
-	switch {
-	case row.Lens && row.Whole:
-		what = "the whole report"
-	case row.Lens:
-		what = fmt.Sprintf("the changes since head %d and its own gaps' passages", pin)
-	case seatclass.RoleOfSeat(seat) == "chair":
-		what = "the changes behind its stale areas' pins"
-	default:
-		what = "the passages of the gaps its convened motions are about"
-	}
-	return fmt.Sprintf("### REPORT DELIVERED — %s\n%s, delivered to %s at head %d", seat, what, seat, row.Head)
+	return recordsql.DeliveryRow{}
 }
 
 // DebateKeepJSON is one regrade that kept the grade: the gap, the lens that minted it, and its
@@ -2101,7 +2074,7 @@ func DebateJSONOf(epochs []int, evs []*Event, win WindowIndex, archive Archive) 
 			if e.GetType() != recordpb.EventType_EVENT_TYPE_REPORT_READ {
 				continue
 			}
-			row, _ := win.delivery(e)
+			row := win.delivery(e)
 			rj.Served = append(rj.Served, DebateServedJSON{SeatID: e.GetSeatId(), Head: row.Head, Whole: row.Whole})
 		}
 		for _, c := range blueClosings {
