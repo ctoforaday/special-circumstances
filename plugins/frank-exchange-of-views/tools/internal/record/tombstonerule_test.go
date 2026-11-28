@@ -432,8 +432,12 @@ func TestEveryDocketingIsRaiserAgainstAuthor(t *testing.T) {
 		{"the author's side under the raiser's seat", evLens, side(recordpb.SidedWith_SIDED_WITH_AUTHOR)},
 		{"the author's side under the author's seat", blueRespondSeat, side(recordpb.SidedWith_SIDED_WITH_AUTHOR)},
 	} {
-		if err := write(c.seat, c.body); err == nil {
+		err := write(c.seat, c.body)
+		if err == nil {
 			t.Errorf("%s landed", c.name)
+		} else if strings.Contains(err.Error(), " 's ") || strings.Contains(err.Error(), "motion  ") {
+			// A ruling names its docketing, not a motion: the refusal names no empty id.
+			t.Errorf("%s: the refusal names an empty id: %v", c.name, err)
 		}
 	}
 	if err := write(benchSeat, side(recordpb.SidedWith_SIDED_WITH_AUTHOR)); err != nil {

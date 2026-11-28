@@ -108,9 +108,9 @@ func TestADocketAnswerFitsTheMotionItAnswers(t *testing.T) {
 		{"a closing word on a regrade proposal", motionGuardRun, "judge", closingWord,
 			[]string{"--for-author on docketing D1 writes no closing word", "not_a_defect"}, "M1", "D1"},
 		{"the raiser's ruling once its gap is docketed", motionGuardRun, evLens, actRule("M1", true, evLens),
-			[]string{"a docket ruling is the bench's", "the regrade or close it proposes"}, "M1", "D1"},
+			[]string{"a docket ruling is the bench's", "the regrade or close the proposal states"}, "M1", "D1"},
 		{"the raiser's ruling in its window", windowRun, evLens, actRule("M1", false, evLens),
-			[]string{"a docket ruling is the bench's", "the regrade or close it proposes"}, "M1", ""},
+			[]string{"a docket ruling is the bench's", "the regrade or close the proposal states"}, "M1", ""},
 		{"the author's ruling", windowRun, "blue-respond", actRule("M1", true, "blue-respond"),
 			[]string{"a docket ruling is the bench's"}, "M1", ""},
 	} {

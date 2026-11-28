@@ -404,8 +404,7 @@ func requireDocketAnswer(q recordsql.Querier, seatID string, r *recordpb.MotionR
 	// A DOCKET RULING IS THE BENCH'S. The raiser takes the author's proposal by its own act — the
 	// regrade or close it proposes, carrying accepts — never by a ruling.
 	return feov.Errorf(feov.RoleViolation,
-		"a docket ruling is the bench's: the raiser of motion %s's gap takes the proposal by its own act — the regrade or close it proposes, accepting it — and a docketing is answered by the bench alone. Nothing was recorded",
-		r.GetMotionId())
+		"a docket ruling is the bench's: a gap's raiser takes its author's proposal by its own act — the regrade or close the proposal states, accepting it — and a docketing is answered by the bench alone. Nothing was recorded")
 }
 
 // requireBenchDocketAnswer is the bench's docket ruling against its docketing: it names a docketing on
